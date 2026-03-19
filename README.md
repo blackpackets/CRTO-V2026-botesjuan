@@ -2,5 +2,5 @@
 
 <img src="/images/crto_study_c2_pathways.png" width=800>  
 
->crto-study-notes  
+>[CRTO](https://www.zeropointsecurity.co.uk/course/red-team-ops) Zero Point Security Study Notes and my preparation for the Red Team Exam  
 
