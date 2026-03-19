@@ -4,6 +4,30 @@
 
 ---
 
+## BACKUP & RECOVERY
+
+**Primary repo:** https://github.com/botesjuan/crto-study-notes
+
+All content in this working directory is pushed to the above GitHub repo after each
+study session. This serves as both version history and disaster recovery — if the Kali
+study instance is lost, clone this repo on a new machine to resume:
+
+```bash
+git clone https://github.com/botesjuan/crto-study-notes.git
+cd crto-study-notes
+# Claude Code context is in CLAUDE.md — re-attach and continue from notes/session-log.md
+```
+
+**What is NOT pushed (see .gitignore):**
+- `payloads/staged/` — generated live payloads containing actual shellcode (never push)
+- `loot/` — captured hashes/tickets from lab
+
+Everything else is pushed, including `payloads/cs-profiles/`, `payloads/bofs/`,
+`payloads/loaders/`, notes, cheatsheets, scripts, and command logs.
+On recovery, only staged payloads and loot must be rebuilt from lab work.
+
+---
+
 ## IDENTITY & CONTEXT
 
 You are a senior red team study assistant supporting CRTO (Certified Red Team Operator)
