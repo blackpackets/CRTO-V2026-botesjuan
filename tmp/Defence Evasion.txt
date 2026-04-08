@@ -1,0 +1,100 @@
+Defence Evasion is a tactic  where adversaries attempt to avoid detection during their operation.  This is not something they do at just the start or end of an engagement, but is incorporated throughout.
+
+Most anti-virus products have two core strategies for detecting malicious activity.  The first is using signatures that target known or static portions of a payload.  Within the Cobalt Strike ecosystem, that includes the raw Beacon DLL, the prepended loader, the payload artifacts, or all of them.  This strategy is used to detect payloads as they get dropped to disk or loaded into memory, either before or just after execution.  The second is using behavioural heuristics.  These are used to detect post-exploitation actions once a payload is up and running and can include things like spawning new processes, running shell commands, remote process injection, and running 3rd party post-exploitation tools.  As operators, we need to know how to modify our payloads and post-exploitation behaviours to avoid these detections.
+
+The goals for this chapter are to leverage:
+The Artifact Kit to remove known indicators from the compiled artifacts .
+The Resource Kit to remove known indicators from the script artifacts ps1.
+Malleable C2 to modify how the prepended loader loads Beacon into memory.
+Malleable C2 to modify post-exploitation behaviours.
+There s a huge caveat about anti-virus evasion that you must understand before proceeding with this chapter.  Bypassing anti-virus is a moving target, as they are constantly updating their signatures and heuristics.  Something that works today may not work tomorrow.  It s therefore not feasible that the specific bypasses demonstrated in this course will always hold up against the latest version of anti-virus.  What we focus on instead is the methodologies of how to identify and implement new bypasses.  This way, you ll know how to find your own.
+
+Compiled Artifact Kit
+
+Cobalt Strike contains a collection of  stage0  payload templates that form the basis of the .exe, .svc.exe, and .dll payloads.  The Cobalt Strike client is packaged with a set of default executables that are named after their purpose and architecture.
+
+
+Where:
+ 32  are 32-bit templates  and  64  are 64-bit .
+ big  are the stageless templates  otherwise staged is implied .
+ svc  are the service binary templates.
+As we know from the previous chapter, Cobalt Strike generates Beacon shellcode which is then patched into one of these templates depending on what type of payload the operator asked for.  The templates themselves are nothing more than shellcode injectors - their only role is to take that Beacon shellcode and inject it into memory.
+
+These payload artifacts are a prime target for anti-virus vendors because they are often dropped to disk, and will usually be the same across multiple CS deployments unless specifically changed by the operator  or if the CS developers happen to change them .  The artifact kit contains the source code for these templates, which gives operators access to modify parts that may be signatured by an anti-virus vendor.
+
+The layout of the kit can be overwhelming if you re not all that fluent in C.
+
+In src-main you will find main.c svcmain.c, and dllmain.c, which are the entry points for the .exe, the .svc.exe, and .dll templates respectively.
+
+In src-common, there are multiple bypass-*.c files.  These are anti-sandbox techniques, of which you can choose one to build into your template.  The README.md file contains an explanation about how each one works, and you can even add your own if you wish.
+
+patch.c contains most of the main logic for performing the shellcode injection, with injector.c and start_thread.c containing some helper functions.
+
+
+To build a new set of templates, run the included build.sh script.  The syntax is: ./build  techniques   allocator   stage size   rdll size   include resource file   stack spoof   syscalls   output directory .  
+
+Where:
+Techniques is a space separated list of bypass templates that you want to build.
+Allocator sets which API is used to allocate memory for the shellcode.  The default options are HeapAlloc, VirtualAlloc, and MapViewOfFile.
+Stage Size is used to set the reserved space needed for the Beacon shellcode.
+RDLL Size is used to validate the stage size.  When not using a custom loader, keep this set to 0.
+When set to true, the Resource File is used to change properties of the artifact, such as the CompanyName, FileDescription, ProductName, etc.  This information is defined in src-main/resource.rc.
+
+When set to true, Stack Spoof enables a stack spoofing technique to hide the fact the shellcode is executing from an unbacked region of memory.
+Syscalls sets the system call method.  Valid options are none, embedded, indirect, and indirect_randomized.
+Output Directory is the directory to save the generated artifacts.
+Let s build a set of basic artifacts using the mailslot bypass template
+
+The stage size tends to vary between CS releases as features get added or removed from Beacon.  Always run build.sh without arguments first to see what the minimum recommended stage sizes are.
+
+This will output a new set of artifacts and an Aggressor script called artifact.cna.
+
+Before plugging these new templates into Cobalt Strike, it s useful to know how well they ll stand up against an anti-virus before any weaponised shellcode is patched into them.  I recommend against uploading them to resources like VirusTotal, because you re just giving your artifacts away to anti-virus vendors to analyse.  Instead, test them in a sandbox that you control.  For example, ThreatCheck can analyse a binary by splitting it into little pieces and scanning them with Windows Defender  with cloud submission disabled  to identify the smallest possible chunk that is detected as malicious.
+
+
+Here, ThreatCheck has identified a block of code that Defender doesn t like in artifact64big.exe, located at an offset of 
+  For us mere mortals who can t speak assembly, it s more accessible to load the artifact into a tool like Ghidra and use its search and disassembly features.
+
+Use ghidraRun.bat to launch Ghidra, then go to File   New Project.  Select a non-shared project, set the project directory  anywhere is fine , and give the project a name.
+
+
+Next, add the artifact to the project by going to File   Import File and selecting 
+  When the dragon has finished munching on the 1 s and 0 s, close the result summary and you will see the artifact has been added.
+
+
+Next, simply double-click on the artifact filename in the project and it will open in the CodeBrowser.  The first time it s opened, you ll be asked if you want to analyse it.  Click Yes.
+
+
+In the next window, leave the selected analysers as default and click the Analyze button.  Once complete, you should see the assembly code on the left and the corresponding decompilation on the right.
+
+To find the offending code, we can use ghidra to jump to the offset given by ThreatCheck.  Select Navigation   Go To and enter file 0x9ce   or whatever offset ThreatCheck gave , and click OK.  This will jump us to an  unknown  function called FUN
+  To narrow down the search a bit more, we can go back to ThreatCheck s output and start looking at the specific byte sequences that it reported.  In this particular example, the last line of output were the hex values 
+  , and we can match these exactly in Ghidra.
+
+Highlighting these bytes in the assembly  on the left  will also highlight the corresponding lines in the decompilation  on the right .
+
+Now we can see that this byte sequence relates to a for loop.
+The next step is to go back to the artifact source code and find where this loop exists.  We can clearly see its within a function that takes three parameters, and contains calls to VirtualProtect and CreateThread.  This turns out to be the spawn function in patch.c, and based on the comments, is responsible for decoding the Beacon shellcode and copying it into memory.  The loop itself is on lines 115-117.
+
+
+One strategy to bypass detections like these is to modify the code so that it compiles to different machine  assembly  code, but still performs the same functionality.  Note that simply changing variable names is not sufficient in these compiled languages, because the original names are not typically retained in release builds.
+
+A cheeky way to rework this  for  loop is to replace it with a backwards  while  loop.
+
+
+keep old code increase we break something and need to roll back
+
+In the first instance, always comment out the old code, rather than deleting it, so you can easily revert back to the original should you need to.
+
+This still produces a  for  loop but it s structured differently, and therefore compiles to different machine code that does not match the previous signature.
+
+After running the build script again, we ll see that the template is no longer detected as malicious.
+
+
+The final step is to hook these new templates into Cobalt Strike.  
+In the client, go to Cobalt Strike   Script Manager, click Load, then select artifact.
+ You can then generate new payloads  e.g. Payloads   Windows Stageless Payload  and these new templates will be used.
+
+It s also a good idea test new payloads on your attacking machine before deploying them on a target.  This way, you ll know if you did anything to accidently break them.
+
+This example only covered the regular executable but there is also the DLL and service executable payloads to consider.  Following the same methodology will allow you to bypass any detections that are related to the artifact s source code.

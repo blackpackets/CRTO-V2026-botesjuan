@@ -1,0 +1,15 @@
+Blending post-ex
+The purpose of this lesson is to provide some examples of how to blend post-ex actions that spawn new processes, into the surrounding environment.  It s generally good practice to have your egress Beacon running inside a process that makes sense for the C2 channel being used.  For instance, an HTTP/S Beacon should run in a process that legitimately makes outbound HTTP requests.  We ll see in the initial access chapter how that can be achieved, but for now, let s assume we have a Beacon running inside Microsoft Edge.
+
+
+Common post-ex commands that spawn new processes include shell, run, execute-assembly, and powerpick.  By default, any new process spawned by Beacon will also be a child of the process Beacon is running in.  In this scenario, that means starting processes as children of msedge.exe.  The following images shows what that looks like when using these commands.
+
+At the risk of stating the obvious, seeing msedge spawn processes like this is not good OPSEC...  Shell and run can be blended better using the ppid command, which uses a spoofing technique to spawn processes under a different parent.  The process you would use as a parent very much depends on what command or program you want to run.  For example, you may want to spoof a shell command under explorer.exe.  Simply use the ps command or the Process Browser to get the process ID of the process you want to use as the parent, and then run the shell command.
+
+
+The same works for the run command.
+For fork & run commands like execute-assembly and powerpick, we also have the option of leveraging spawnto.  This control the process that is used to run the post-ex capability.  For example, we could ppid to explorer and set the spawnto to a process such as notepad, powershell, msiexec, or anything else that would make sense.  We could also set the spawnto back to default (i.e. the current msedge process) and just set the spawnto to be another msedge process.
+
+
+
+You cannot just rely on settings in your C2 profile for post-ex defence evasion.  Every command you run must blend in based on where your current Beacon is running and what command you want to run.
