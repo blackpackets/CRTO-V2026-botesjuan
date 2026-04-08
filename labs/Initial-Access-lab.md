@@ -14,6 +14,9 @@ The objective for Initial Access Lab is to create an initial access package that
     4. Click **Generate**.
     5. Save to *C:\Payloads\http_x64.xprocess.bin*.
 
+
+<img src="/images/initial-access-lab-01.png" width=800>  
+
 1. Open a Terminal window and create a new directory to hold the dependencies for the infection chain.
   1. `mkdir C:\Payloads\deals`
 
@@ -23,7 +26,9 @@ The objective for Initial Access Lab is to create an initial access package that
 
     1. Use `AppDomainHijack` as the project name.
     2. Check the *place solution and project in the same directory* box.
-    
+
+<img src="/images/initial-access-lab-02.png" width=800>  
+
 3. Add the shellcode to the project.
     1. Right-click the project in the Solution Explorer and select **Add > Existing Item**.
     2. Browse to *C:\Payloads*.
@@ -31,6 +36,8 @@ The objective for Initial Access Lab is to create an initial access package that
     4. Select *http_x64.xprocess.bin* and click **Add**.
     5. Right-click the shellcode file in the Solution Explorer and select **Properties**.
     6. Set its *Build Action* to **Embedded Resource**.
+
+<img src="/images/initial-access-lab-03.png" width=800>  
 
 4. Copy the following code into Class1.cs:
 
@@ -332,6 +339,8 @@ The objective for Initial Access Lab is to create an initial access package that
     $env:APPDOMAIN_MANAGER_ASM = 'AppDomainHijack, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null'
     ```
 
+<img src="/images/initial-access-lab-04.png" width=800>  
+
 1. Run +++.\ngentask.exe+++
 
 	> [!HINT] A new Beacon should appear, running in msedge.exe.
@@ -365,6 +374,8 @@ Next, create a decoy file.
 1. Save the workbook as *C:\Payloads\deals\deals.xlsx*.
 2. Close Excel.
 
+<img src="/images/initial-access-lab-05.png" width=800>  
+
 ===
 
 # Trigger
@@ -397,6 +408,8 @@ Now for the trigger. The user will run this which will subsequently launch the d
 
 	> [!HINT] The spreadsheet will open and a new Beacon should appear at the same time.
 
+<img src="/images/initial-access-lab-06.png" width=1024>  
+
 ===
 
 # Container
@@ -413,6 +426,8 @@ It's time to package all of our files.  We want to hide everything, except the l
 
 1. Double-click on the ISO to mount it and you should only see the trigger.
 2. Double-click on the trigger a final time, and the decoy and Beacon should appear.
+
+<img src="/images/initial-access-lab-07.png" width=1024>  
 
 ===
 
@@ -434,6 +449,8 @@ We're finally ready to deliver the payload to the victim simulating social engin
   3. Local Host: +++www.bleepincomputer.com+++
   4. Attack: Click the **...** button and select the hosted ISO.
   5. Click **Clone**.
+
+<img src="/images/initial-access-lab-08.png" width=1024>  
 
 1. Switch over to @lab.VirtualMachine(lon-wkstn-1).SelectLink and login with +++@lab.VirtualMachine(lon-wkstn-1).Password+++.
 
