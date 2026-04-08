@@ -40,7 +40,40 @@
 | `MapViewOfFile` | File-backed mapping — less detected but still monitored |
 | `HeapAlloc` | Heap-based — can evade RWX page detection |
 
-**Exam tip:** `mailslot` + `HeapAlloc` + custom `magic_mz` values is the quietest combination. Avoid `readfile` (disk write) and `VirtualAlloc` with RWX pages (EDR hook bait).
+### magic_mz Explained
+
+Every Windows PE file starts with bytes `4D 5A` (hex) — ASCII **MZ** — at offset 0x00:
+
+```
+Offset 0x00:  4D 5A 90 00 03 00 ...
+              ^^ ^^
+              M  Z   ← Defender looks for this at byte 0
+```
+
+Defender and AV use this as a static signature — anything starting with `MZ` gets flagged as a PE and scrutinised. The `magic_mz` parameter replaces those bytes before the artifact is written to disk/memory:
+
+```
+351363 decimal = 0x055C03 hex → first two bytes: 03 5C
+
+On disk: 03 5C ...  ← looks like garbage, not a PE → passes static scan
+```
+
+At runtime the artifact's own stub patches them back before execution:
+
+```
+03 5C ...  →  4D 5A ...  (MZ restored → valid PE loaded and executed)
+```
+
+| Stage | Bytes at offset 0 | What Defender sees |
+|-------|-------------------|-------------------|
+| On disk / initial scan | `03 5C` (custom value) | Not a PE — passes static scan |
+| At runtime (self-patched) | `4D 5A` (MZ restored) | Executable running in memory |
+
+`magic_mz_x64 = 0` means no substitution for x64 — real MZ header left intact. Use a non-zero value for both archs when Defender is active.
+
+---
+
+**tip:** `mailslot` + `HeapAlloc` + custom `magic_mz` values is the quietest combination. Avoid `readfile` (disk write) and `VirtualAlloc` with RWX pages (EDR hook bait).
 
 After build, load the aggressor script:
 
@@ -50,15 +83,60 @@ Cobalt Strike → Script Manager → Load → <output_dir>/artifact.cna
 
 ## ThreatCheck  
 
-```sh
-
+```dos
+ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe" 
 ```  
+
+>Identified bits that is detected by Defender and a HEX offset provided.
 
 ## Ghidra  
 
 ```
-
+ghidraRun.bat
 ```  
+
+### Ghidra Steps:  
+
+1. New Project  
+
+<img src="/images/ghidra01.png" width=600>  
+
+2. Import File  
+
+<img src="/images/ghidra02.png" width=600>  
+
+3. Double Click to open imported file
+
+<img src="/images/ghidra03.png" width=600>  
+
+4. Analyze the file, yes all. Use offset provided by ***ThreatCheck*** and copy to Navigation Menu - Go to ...  
+
+```
+file(0x9CF)
+```  
+
+<img src="/images/ghidra04.png" width=600>  
+
+5. See the reversed code decompiled on right window that is detected by Defender Antivirus.  
+
+<img src="/images/ghidra05.png" width=600>  
+
+6. Back to output from ***ThreatCheck***, copy last row of HEX bytes. In Ghidra open `Search Menu - Memory`. Then paste HEX bytes and click found memory location to take us to detected bit.  
+
+<img src="/images/ghidra06.png" width=600> 
+
+7. The function in this case for loop is confirmed to be location detected by antivirus. Using this identified function we go into our source code.
+
+<img src="/images/ghidra07.png" width=600> 
+
+8. Open Visual Code. In menu Edit - Find in Files, type string to search for above identified function.  
+
+<img src="/images/ghidra08.png" width=600> 
+
+9. Replace the identified function loop or piece of code with alternative approach to bypass defender detection. Example a backwards while loop.  
+
+>Now repeat above by start with building new set of artifacts templates, and running ***ThreatCheck*** again.    
+>Repeat until ***ThreatCheck*** shows no threat found.  
 
 ## Artifact Kit  
 
