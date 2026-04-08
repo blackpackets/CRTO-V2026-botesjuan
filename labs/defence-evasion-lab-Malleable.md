@@ -75,7 +75,7 @@ process-inject {
 ```
 Save the changes.
 
-<img src="/images/defence-evasion-lab-01.png" width=800>  
+<img src="/images/defence-evasion-lab-01.png" width=1024>  
 
 Restart the team server.
 ```
@@ -130,7 +130,7 @@ Go to Cobalt Strike > Script Manager.
 Click Load.
 Navigate to `C:\Tools\cobaltstrike\custom-artifacts\mailslot` and select `artifact.cna`.  
 
-<img src="/images/defence-evasion-lab-02.png" width=800>
+<img src="/images/defence-evasion-lab-02.png" width=1024>
 
 ## Resource Kit  
 
@@ -153,7 +153,7 @@ Go to File > Open Folder and select `C:\Tools\cobaltstrike\custom-resources`.
 
 Select `template.x64.ps1`.
 
-<img src="/images/defence-evasion-lab-03.png" width=800>  
+<img src="/images/defence-evasion-lab-03.png" width=1024>  
 
 Scroll to line 5 and replace .Equals('System.dll') with .Equals('Sys'+'tem.dll').
 
