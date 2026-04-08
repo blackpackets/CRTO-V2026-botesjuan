@@ -22,7 +22,7 @@ The objective for Initial Access Lab is to create an initial access package that
 
 1. Open Visual Studio and create a new Class Library (.NET Framework) project.
 
-> [!IMPORTANT] Make sure it specifically says `.NET Framework`, otherwise it won't work.  
+⚠️ Make sure it specifically says `.NET Framework`, otherwise it won't work.  
 
     1. Use `AppDomainHijack` as the project name.
     2. Check the *place solution and project in the same directory* box.
@@ -302,14 +302,14 @@ The objective for Initial Access Lab is to create an initial access package that
     }
     ```
 
-> [!IMPORTANT] Process Hollowing
-> [!IMPORTANT] This is the process hollowing code from the ***Malware Essentials chapter***.
+⚠️ Process Hollowing
+⚠️ This is the process hollowing code from the ***Malware Essentials chapter***.
 
 1. Build the project in Release mode.
 
 	The DLL should be written to the following path: *C:\Users\Attacker\source\repos\AppDomainHijack\bin\Release\AppDomainHijack.dll*.
 
-> [!IMPORTANT] If your path contains something like *net8.0*, then you chose the wrong project type on step 2.  
+⚠️ If your path contains something like *net8.0*, then you chose the wrong project type on step 2.  
 
 1. Go ahead and copy the DLL to the deals payload directory.
 
@@ -342,7 +342,7 @@ The objective for Initial Access Lab is to create an initial access package that
 
 1. Run ```.\ngentask.exe```
 
-> [!IMPORTANT] A new Beacon should appear, running in msedge.exe.
+⚠️ A new Beacon should appear, running in msedge.exe.
 
 ===
 
@@ -352,7 +352,7 @@ Next, create a decoy file.
 
 1. Open Excel and create a new blank workbook.
 
-> [!IMPORTANT] If you cannot create a workbook, close Excel, launch Terminal as a local admin, and run the following command: `& 'C:\Program Files\Microsoft Office\Office16\OSPPREARM.EXE'`
+⚠️ If you cannot create a workbook, close Excel, launch Terminal as a local admin, and run the following command: `& 'C:\Program Files\Microsoft Office\Office16\OSPPREARM.EXE'`
 
 3. Add some dummy deals data.
 
@@ -405,7 +405,7 @@ Now for the trigger. The user will run this which will subsequently launch the d
 1. Open Explorer and navigate to *C:\Payloads\deals*.
 2. Double-click on *deals.xlsx.lnk*.
 
-> [!IMPORTANT] The spreadsheet will open and a new Beacon should appear at the same time.
+⚠️ The spreadsheet will open and a new Beacon should appear at the same time.
 
 <img src="/images/initial-access-lab-06.png" width=1024>  
 
@@ -458,4 +458,4 @@ We're finally ready to deliver the payload to the victim simulating social engin
 1. Double-click on *deals.xlsx* and the decoy will open.
 1. Switch back to @lab.VirtualMachine(attacker-desktop).SelectLink and a Beacon should be checking in from msedge.exe, as the user pchilds.
 
-> [!IMPORTANT] In this lab you have created an initial access infection chain, leveraging DLL sideloading with ngentask.exe.  
+⚠️ In this lab you have created an initial access infection chain, leveraging DLL sideloading with ngentask.exe.  
