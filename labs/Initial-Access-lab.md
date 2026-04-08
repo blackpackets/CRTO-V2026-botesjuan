@@ -22,7 +22,7 @@ The objective for Initial Access Lab is to create an initial access package that
 
 1. Open Visual Studio and create a new Class Library (.NET Framework) project.
 
-	> [!ALERT] Make sure it specifically says `.NET Framework`, otherwise it won't work.
+	> <span style="color:orange;"> Make sure it specifically says `.NET Framework`, otherwise it won't work.</span>
 
     1. Use `AppDomainHijack` as the project name.
     2. Check the *place solution and project in the same directory* box.
@@ -41,7 +41,7 @@ The objective for Initial Access Lab is to create an initial access package that
 
 4. Copy the following code into Class1.cs:
 
-    ```csharp-linenums
+    ```c
     using System;
     using System.IO;
     using System.Reflection;
@@ -302,7 +302,7 @@ The objective for Initial Access Lab is to create an initial access package that
     }
     ```
 
-    > [+HINT] Process Hollowing
+    > <span style="color:orange;"> Process Hollowing</span>
     > 
     > This is the process hollowing code from the ***Malware Essentials chapter***.
 
@@ -310,7 +310,7 @@ The objective for Initial Access Lab is to create an initial access package that
 
 	The DLL should be written to the following path: *C:\Users\Attacker\source\repos\AppDomainHijack\bin\Release\AppDomainHijack.dll*.
 
-    > [!ALERT] If your path contains something like *net8.0*, then you chose the wrong project type on step 2.
+    > <span style="color:orange;"> If your path contains something like *net8.0*, then you chose the wrong project type on step 2.</span>
 
 1. Go ahead and copy the DLL to the deals payload directory.
 
@@ -461,4 +461,4 @@ We're finally ready to deliver the payload to the victim simulating social engin
 
 <br />
 
-> [!KNOWLEDGE] In this lab you have created an initial access infection chain, leveraging DLL sideloading with ngentask.exe.
+> <span style="color:orange;"> In this lab you have created an initial access infection chain, leveraging DLL sideloading with ngentask.exe.</span>
