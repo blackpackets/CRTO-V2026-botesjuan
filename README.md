@@ -4,6 +4,18 @@
 
 >[CRTO](https://www.zeropointsecurity.co.uk/course/red-team-ops) Zero Point Security Study Notes and my preparation for the Red Team Exam  
 
+## Sections  
+
+* [Claude Context](/CLAUDE.md)  
+* [Cheatsheet: Cobalt Strike Beacon Interface commands](/cheatsheets/cobalt-strike.md)  
+
+## Labs  
+
+* [Initial Access Lab](/labs/initial-Access-lab.md)  
+* [Persistence lab](/labs/Persistence-lab.md)  
+
+----  
+
 ## References  
 
 * [ThreadCheck](https://github.com/rasta-mouse/ThreatCheck)  
