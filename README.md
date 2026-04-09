@@ -11,7 +11,7 @@
 
 ## Labs  
 
-* [Cobalt Strike Initial Commands Lab]()  
+* [Cobalt Strike Initial Commands Lab](/labs/2-Cobalt-Strike-Primer.md)  
 * [Defence-evasion-lab-Malleable.md](/labs/defence-evasion-lab-Malleable.md)  
 * [Initial Access Lab](/labs/Initial-Access-lab.md)  
 * [Persistence lab](/labs/Persistence-lab.md)  
@@ -20,7 +20,7 @@
 
 ## References  
 
-* [ThreadCheck](https://github.com/rasta-mouse/ThreatCheck)  
+* [ThreadCheck- Artifact Kit](https://github.com/rasta-mouse/ThreatCheck)  
 * [Private - Windows Evasion Techniques](https://github.com/botesjuan/Hacking-HackTheBox-OffSec/blob/d1c2989ee0b1311a1a63f6ecdb2bddc3abd22a43/module/Windows-Evasion-Techniques.md)  
 * [Private - Antivirus Evasion Intro AVINTRO](https://github.com/botesjuan/Hacking-HackTheBox-OffSec/blob/d1c2989ee0b1311a1a63f6ecdb2bddc3abd22a43/module/offsec-pen300-avintro.md)  
 * [ired.team notes](https://www.ired.team/)  
