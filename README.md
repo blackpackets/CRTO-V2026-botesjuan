@@ -11,7 +11,9 @@
 
 ## Labs  
 
-* [Initial Access Lab](/labs/initial-Access-lab.md)  
+* [Cobalt Strike Initial Commands Lab]()  
+* [Defence-evasion-lab-Malleable.md](/labs/defence-evasion-lab-Malleable.md)  
+* [Initial Access Lab](/labs/Initial-Access-lab.md)  
 * [Persistence lab](/labs/Persistence-lab.md)  
 
 ----  
