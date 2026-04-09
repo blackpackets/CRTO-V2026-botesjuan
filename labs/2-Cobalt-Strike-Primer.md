@@ -2,6 +2,8 @@
 
 The objective of this lab is to familiarse yourself with Cobalt Strike.  You will create listeners, generate payloads, and interact with Beacon.
 
+* [Beacon commands](https://www.zeropointsecurity.co.uk/path-player?courseid=red-team-ops&unit=696a1d7abd92eef9e30f7537Unit)
+
 ===
 
 # Launch Cobalt Strike
