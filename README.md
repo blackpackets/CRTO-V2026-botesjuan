@@ -27,6 +27,7 @@
 * [Defence-evasion-lab-Malleable.md](/labs/defence-evasion-lab-Malleable.md)  
 * [Initial Access Lab](/labs/Initial-Access-lab.md)  
 * [Persistence lab](/labs/Persistence-lab.md)  
+* [Privilege Escalation lab](/labs/Privilege-Escalation-lab.md)  
 
 ----  
 
@@ -47,7 +48,13 @@
 * [double click batch command file exploit](https://github.com/frostb1ten/CVE-2024-24576-PoC)  
 * [GrimResource use crafted .msc file and unpatched XSS flaw trigger JavaScript code execution via mmc](https://gist.github.com/joe-desimone/2b0bbee382c9bdfcac53f2349a379fa4)  
 * [CyberChef - payload](https://gchq.github.io/CyberChef/#recipe=URL_Encode(false)&input=PD94bWwgdmVyc2lvbj0nMS4wJz8%2BDQo8c3R5bGVzaGVldA0KICAgIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L1hTTC9UcmFuc2Zvcm0iIHhtbG5zOm1zPSJ1cm46c2NoZW1hcy1taWNyb3NvZnQtY29tOnhzbHQiDQogICAgeG1sbnM6dXNlcj0icGxhY2Vob2xkZXIiDQogICAgdmVyc2lvbj0iMS4wIj4NCiAgICA8b3V0cHV0IG1ldGhvZD0idGV4dCIvPg0KICAgIDxtczpzY3JpcHQgaW1wbGVtZW50cy1wcmVmaXg9InVzZXIiIGxhbmd1YWdlPSJWQlNjcmlwdCI%2BDQogICAgPCFbQ0RBVEFbDQogICAgICAgIFNldCB3c2hzaGVsbCA9IENyZWF0ZU9iamVjdCgiV1NjcmlwdC5TaGVsbCIpDQogICAgICAgIHdzaHNoZWxsLnJ1biAiQzpcXFdpbmRvd3NcXFN5c3RlbTMyXFxjbWQuZXhlIg0KXV0%2BPC9tczpzY3JpcHQ%2BDQo8L3N0eWxlc2hlZXQ%2B&ieol=CRLF&oeol=CRLF)  
-
+* [SharpUp GhostPack](https://github.com/GhostPack/SharpUp)  
+* [PowerSploit](https://github.com/PowerShellMafia/PowerSploit)  
+* [Ghidra](https://github.com/NationalSecurityAgency/ghidra)  
+* [IDA free](https://hex-rays.com/ida-free)  
+* [dotPeek jetbrains decompiler](https://www.jetbrains.com/decompiler/)  
+* [dnSpy](https://github.com/dnSpy/dnSpy)  
+* [ysoserial](https://github.com/pwntester/ysoserial.net)  
 
 ## Other  
 
