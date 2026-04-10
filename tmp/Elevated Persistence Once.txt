@@ -1,0 +1,58 @@
+Elevated Persistence
+Once privileged access has been obtained on a computer, it can be useful to add another round of persistence to ensure that level of privilege can be maintained.  This can be useful in cases where the initial elevation method may become patched, mitigated, or is loud to perform multiple times.
+
+This chapter will cover the following techniques:
+Scheduled Tasks 
+Windows Services
+
+Scheduled Task
+The Windows Task Scheduler can execute tasks as SYSTEM as well as standard users.  When elevated privileges has been achieved on a machine, the adversary can maintain that level of access by creating a task that will re-execute a payload on a trigger of their choosing.
+
+The following XML will add a task that will run under the context of SYSTEM when the computer boots up.
+
+Windows Service
+An adversary can also create a Windows service to run a payload under the context of SYSTEM, which will start when the computer boots up.
+Use sc_qc to verify that the service was created successfully.
+
+Windows Management Instrumentation
+This technique was made popular amongst red teamers by Matt Graeber  s Black Hat presentation entitled  Abusing Windows Management Instrumentation  WMI  to Build a Persistent, Asynchronous, and Fileless Backdoor .  WMI is Microsoft  s implementation of the Web-Based Enterprise Management  WBEM  and Common Information Model  CIM  standards, which aim to provide an industry-agnostic means of collecting information related to managed components in an enterprise.  Examples of managed components in WMI include running processes, registry keys, installed services, file information, and so on.
+Naturally, WMI objects can be queried using a SQL-like language called WMI Query Language  WQL .
+Queries
+The two main types of query are:
+Instance Queries
+These are simple queries, which are used to obtain a snapshot of information at the present time.  They follow the syntax:
+
+For example, the following query will return information on all the notepad.exe processes that are currently running.
+
+Event Queries
+These queries provide a mechanism to be alerted when an event happens in the future, rather than at the present time.  They follow the syntax:
+
+For example, the following query will trigger an alert within 5 seconds of notepad.exe being launched.
+
+Eventing
+One of the most powerful features of WMI from an attacker perspective is the ability to respond to WMI event queries.  These can be used to trigger custom actions when practically any event occurs on the system.
+
+Local events
+These events registrations are local to a single process context.  They  re not useful for persistence, but can be useful for testing some event filters.  For example:
+
+Persistent events
+Persistent events are not localised to a single process - they  re stored in the WMI repository, run as SYSTEM, and persist across reboots.  Three parts are required to make these work:
+
+An event filter (as above) to match on the event(s) of interest.
+An event consumer, which defines the action(s) to perform when the event is triggered.
+A filter-to-consumer binding, which just binds a filter to a consumer.
+There are a handful of different event consumer types, but the two most utilised ones by attackers are:
+Active Script Event Consumer, which executes an embedded VBScript of JScript payload.
+Command Line Event Consumer, which executes a command-line program.
+The following is an example of a CommandLineEventConsumer that simply echos   test   to a file when notepad.exe runs.
+ 
+    
+Set-WmiInstance -Namespace root/subscription -Class   -Arguments  filter To ConsumerArgs
+The Win32_NTLogEvent class can be used to filter on any event in the standard Application, Security, and System logs.  For example, event ID 4800 is logged when a user locks their workstation, so you could use that to fire a payload when they leave their computer.
+ 
+Remote triggers
+The power of WMI is only limited by your imagination.  For example, you could install persistence on a target that you can trigger remotely by hitting a particular port.  If you compromise a system and forcefully enable   Audit Filtering Platform Packet Drop policy  , event ID 5152 is logged when the Windows firewall drops a packet.
+The following filter will trigger when a packet for port 4444 is dropped:
+ 
+And the following screenshot shows that in action:
+
