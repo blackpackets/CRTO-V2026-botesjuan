@@ -11,7 +11,7 @@
 * [Defence Evasion](/cheatsheets/defense-evasion.md)  
 * [Initial Access](/cheatsheets/initial-access.md)  
 * [Persistence](/cheatsheets/persistence.md)  
-* [Post-Exploitation](/cheatsheets/post-explotation.md)  
+* [Post-Exploitation](/cheatsheets/post-exploitation.md)  
 * [Privilege Escalation](/cheatsheets/privilege-escalation.md)  
 * [Elevated Persistence](/cheatsheets/elevated-persistence.md)  
 * [Credential Access](/cheatsheets/credential-access.md)  
