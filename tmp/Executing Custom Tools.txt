@@ -1,0 +1,60 @@
+Executing Custom Tools
+There are countless commercial and open source tooling that are useful to leverage during an engagement. Some notable examples include Seatbelt for local reconnaissance, PowerView for domain reconnaissance, Certipy & Certify for ADCS abuse, Rubeus for Kerberos abuse, and Impacket for lateral movement, credential dumping & relaying.  Some tools will need to be executed directly on a target and some can operate over a network.  This lesson will focus on the former.  See the Pivoting chapter for the latter.
+
+Beacon provides means to execute PowerShell scripts, .NET assemblies, and reflective DLLs, all in-memory to give as much flexibility as possible to the operator.
+
+powershell
+There are three ways to execute PowerShell in Beacon. The first is with the powershell command.
+​
+Execute the command using powershell. Any cmdlets from the
+last use of powershell-import are available here too.
+This uses powershell.exe which makes it roughly equivalent to the shell command  which uses cmd.exe .
+
+The cmdlet and arguments that you specify are converted into an encoded command before execution.  So the command above is actually executed as: powershell  Operators can modify this behaviour using hooks in Aggressor script.
+
+powerpick
+​
+Execute the command using Unmanaged PowerShell. Any cmdlets from the
+last use of powershell-import are available here too.
+This command uses an instance of unmanaged PowerShell, which taps into the underlying PowerShell APIs without relying on powershell.exe.  This is based on Lee Christensen s UnmanagedPowerShell project.  This is a fork and run command which starts Beacon s spawnto process, injects the unmanaged PowerShell DLL into it, and reads the output over a named pipe.
+
+psinject
+
+This works in the same way as powerpick, but allows operators to inject the unmanaged DLL into an existing process rather than spawning a new one.  This can be useful for running PowerShell scripts in the context of another user, assuming you have the privileges to inject into their processes.
+
+
+Importing PowerShell Scripts
+To execute external PowerShell scripts, they must first be imported using the powershell-import command.
+
+​
+Import a powershell script which is combined with future
+calls to the powershell command. You may only use one
+imported script at a time.
+For example, to import PowerView, we would do:
+beacon  powershell-import C:\Tools\PowerSploit\Recon\PowerView.ps1
+This is the local path on the machine running the Cobalt Strike client, not the target the Beacon is running on.
+The content of the imported script is automatically imported into the PowerShell session when running powershell, powerpick, and psinject.  Beacon does this by hosting the script on a small built-in webserver, which is then fetched and imported during execution.
+
+beacon  powerpick Get-Domain
+​
+Beacon can only hold one imported script at a time.
+The execute-assembly command uses a reflective DLL to load and host the CLR  Command Language Runtime , and then executes a .NET assembly from memory.  Only .NET Framework assemblies are supported  i.e. no .NET/.NET Core .
+
+Executes a local .NET process assembly on target. This command loads the CLR in a temporary
+process and loads the assembly into it. If the assembly is in the data store, this command will
+use the loaded item automatically. For more information  help data-store .
+​
+
+BOFs
+BOFs are tiny object files that can be loaded and executed by Beacon and can be executed using the inline-execute command.
+
+Run a Beacon Object File in this Beacon session. A Beacon Object File is a 
+C program, compiled as an object file, written to use conventions specified 
+in the Cobalt Strike documentation. If the Beacon Object File is in the data
+store, this command will use the loaded item automatically. For more
+information  help data-store .
+However, it s more common for BOF tooling to be wrapped in their own command aliases.  For example, TrustedSec s Situational Awareness BOF project contains multiple BOFs that are exposed via custom commands via the included Aggressor script.
+
+For example, its ipconfig command acts as a replacement for running shell ipconfig.
+
+Under the hood, the Aggressor script is running beacon inline 

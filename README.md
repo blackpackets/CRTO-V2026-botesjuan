@@ -4,10 +4,22 @@
 
 >[CRTO](https://www.zeropointsecurity.co.uk/course/red-team-ops) Zero Point Security Study Notes and my preparation for the Red Team Exam  
 
-## Sections  
+## Cheatsheet Sections    
 
 * [Claude Context](/CLAUDE.md)  
-* [Cheatsheet: Cobalt Strike Beacon Interface commands](/cheatsheets/cobalt-strike.md)  
+* [Cobalt Strike Primer - Beacon Interface Commands](/cheatsheets/cobalt-strike.md)
+* [Defence Evasion](/cheatsheets/defense-evasion.md)  
+* [Initial Access](/cheatsheets/initial-access.md)  
+* [Persistence](/cheatsheets/persistence.md)  
+* [Post-Exploitation](/cheatsheets/post-explotation.md)  
+* [Privilege Escalation](/cheatsheets/privilege-escalation.md)  
+* [Elevated Persistence](/cheatsheets/elevated-persistence.md)  
+* [Credential Access](/cheatsheets/credential-access.md)  
+* [User Impersonation](/cheatsheets/user-impersonation.md)  
+* [Discovery](/cheatsheets/discovery.md)  
+* [Lateral Movement](/cheatsheets/lateral-movement.md)  
+* [Pivoting](/cheatsheets/pivoting.md)  
+
 
 ## Labs  
 
