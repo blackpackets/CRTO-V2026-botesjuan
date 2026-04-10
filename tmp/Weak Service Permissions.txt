@@ -1,0 +1,49 @@
+Weak Service Permissions
+Mistakes can be made in the installation process for a service which can grant weak permissions, leading to elevation of privilege vulnerabilities.
+
+Service File Permissions
+The binary that a service runs may have a weak ACE applied that allows standard users to modify it.  The ACE may be explicitly set on the binary itself, or inherited from its parent directory.  An adversary can simply overwrite the original binary with their own, and the Service Control Manager will execute it the next time the service is started 
+
+beacon  cacls  
+The difficulty in exploiting this is that the service binary cannot be overwritten whilst the service is already running.  It may be possible to stop and start the service but this would also be a non-default misconfiguration.
+
+
+This is obviously quite a destructive action because you're completely overwriting the service binary with your payload.
+
+Service Registry Permissions
+When a new service is installed, an entry is written into the registry at Services.  These keys hold the configuration for the service, such as the name, description, binary path, and start-up user.  If a weak ACE is granted on the service's registry key during installation, an adversary may be able to modify the service's configuration to execute their malicious payload .
+
+A more left-field approach is to leverage a lesser-known registry key, such as Performance.  Discovered by Clément Labro, this key points to a DLL responsible for monitoring the performance of a service.  Since it's optional and more suitable for dev test than prod, this is often not found in most service installations by default.  This means it can be added by an adversary without interfering with the service's normal operation.
+
+
+DLL Search Order Hijacking
+
+All but the most basic of applications will reference functions located in external modules, such as DLLs (dynamic-link libraries).  DLLs are PE (portable executable) files that contain common functionalities that can be used by any program.  Windows provides multiple DLLs that can be used by programmers, such as kernel32.dll, user32.dll, etc, to interact with various parts of Windows.  Developers can also write their own DLLs for use in their applications.
+
+When referencing a DLL, it's atypical to provide its full path because it cannot be reliably known ahead of time.  For example, specifying kernel32.dll will not work in all cases because Windows does not have to be installed on a drive labelled C.  Specifying something like MyDll.dll will also not work in all cases because a user may choose to install the application in a different location.
+
+Therefore, a program usually only references external modules by their name, e.g. "kernel32" or "MyDll", and Windows becomes responsible for finding its location on disk.  This is called the DLL search order.
+
+Although there is some nuance depending on the type of application, the search order for most will be:
+
+The executing directory.
+The System32 directory.
+The 16-bit System directory.
+The Windows directory.
+The current working directory of the program.
+Directories in the PATH environment variable.
+DLL search order hijacking is a technique where an adversary drops a malicious module of the same name in a directory that is higher in the search hierarchy than that of the legitimate module.  If the program loading the module is running with elevated privileges, then this will result in an elevation of privilege for the adversary.
+
+Consider this simple example, where a DLL is loaded and freed on a loop.
+
+
+The path passed to LoadLibrary is relative.  However, there is no BadDll.dll file in the directory the service executable is running from.
+ 
+So where is this being loaded from?  A review of the path environment variable shows that Bad Windows Service has been appended to the system path variable.
+ 
+Based on the search order outlined above, where could an adversary potentially hijack this DLL?  The executing directory is a possibility if the directory is writable.  In this scenario, it is.
+
+beacon> cacls Service Executable
+To perform the hijack, simply upload a Beacon DLL payload into this directory, and call it BadDll.dll.
+
+

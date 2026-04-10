@@ -1,0 +1,38 @@
+Privilege Escalation
+It's a common scenario, particularly immediately after initial access, for adversaries to be limited to standard user level access to a compromised system.  Privilege escalation is a tactic  by which they attempt to exploit a vulnerability or misconfiguration to gain additional privileges.  This is often a necessary prerequisite to carrying out additional tactics, such as credential access.
+
+Windows Accounts
+There are three main account groups which are relevant to privilege escalation.
+Users
+These are low-privilege accounts that don't have permissions to access or modify anything outside of their own files.
+Administrators
+Members of the local Administrators group are intended to be used for system administration.  As such, they have Full Control permissions over most objects on the computer, such as directories, files, and services.
+Service User Accounts
+These accounts are built into Windows and are used by the Service Control Manager  SCM  to run many of the services that Windows relies on.  These are:
+LocalService
+This account, often written as LOCAL SERVICE, has minimum privileges on the local computer and authenticates on the network using anonymous credentials.
+NetworkService
+This account, often written as NETWORK SERVICE, has minimum privileges on the local computer but authenticates on the network as the computer by presenting the computer's credentials.
+LocalSystem
+This account, often written as SYSTEM, has Full Control over most system objects like the local Administrators group does.  In some cases, it has privileges that Administrators do not, so is generally considered to be the highest level of access you can obtain on Windows.
+These accounts are not recognised by the security subsystem, so they don't appear when running net user for example.  Their privileges come from User Rights Assignments, which are security policy settings in Windows.
+User Rights Assignment
+These settings allow for more fine-grained control over an account's privileges.  System administrators may require accounts to run services that are more privileged than standard users, but less-so than full administrators.  The service user accounts listed above inherit their privileges from user right assignment, rather than local group membership.  User right assignments are split into two camps:
+Logon Rights
+These control how and where an account is authorised to log into a computer.  For example, SeBatchLogonRight allows a user to be logged in by a batch-queue service such as the Task Scheduler.
+User Rights
+These control access to objects and can even override explicit permissions on them.  For example, SeBackupPrivilege allows a user to read any file, even if they haven't been granted read access to it.
+There are some sensitive user rights that can be abused to obtain SYSTEM privileges, like SeImpersonatePrivilege.  This can be held by accounts running services such as web or SQL servers.
+Vulnerable Services
+Services are one of the largest attack surfaces for privilege escalation on Windows because they frequently run as SYSTEM and can be misconfigured or vulnerable in a variety of ways, including:
+DLL Search Order Hijacking .
+Path Interception by:
+PATH Environment Variable .
+Search Order Hijacking.
+Unquoted Path 
+Weak Service File Permissions.
+Weak Service Registry Permissions .
+Generic software vulnerabilities.
+Information about installed services can be gathered using built-in Windows utilities such as sc.exe, and wmic.exe; the Get-Service and Get-WmiObject PowerShell cmdlets; or via custom tools that interact with APIs such as EnumServicesStatusEx.
+
+There are also multiple automated tools that can help in finding these vulnerabilities, including PowerSploit and SharpUp.  However, it's often useful to do your own analysis, particularly when looking for vulnerabilities within the applications themselves.  Native applications can be reversed using tools such as Ghidra or IDA Free; and .NET applications with dotPeek or dnSpy.
