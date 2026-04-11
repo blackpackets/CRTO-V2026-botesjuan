@@ -1,6 +1,12 @@
-# Cheatsheet: Privilege Escalation
+# Privilege Escalation  
 
-*CRTO Study — Juan | ZPS RTO I — Chapter 9*
+>Once initial persistence obtained and post exploitation performed, the ***Privilege Escalation*** phase is initiated.  
+
+* Path Interception
+* Weak Service Permissions
+* DLL Search Order Hijacking
+* Software Vulnerabilities
+* User Account Control UAC  
 
 ---
 

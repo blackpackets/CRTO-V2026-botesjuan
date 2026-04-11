@@ -1,6 +1,10 @@
-# Cheatsheet: lateral movement
+# Lateral Movement  
 
-*CRTO Study — Juan*
+* Windows Remote Management  
+* PsExec  
+* Custom Techniques
+* Leveraging LOLBAS
+* Security Logon Types
 
 ---
 

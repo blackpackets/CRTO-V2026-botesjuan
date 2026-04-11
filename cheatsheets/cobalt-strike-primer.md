@@ -1,8 +1,6 @@
-# Cheatsheet: Cobalt Strike Beacon Interface
+# Cobalt Strike Primer  
 
-*CRTO Study — Juan*
-
----
+>Initial prep for Cobalt Strike command & control C2 framework  
 
 ## Beacon Interact Window — Overview
 

@@ -1,5 +1,11 @@
-# Defense Evasion  
+# Defense Evasion
 
+* Compiled Artifacts
+* Script Artifacts
+* Beacon Memory
+* Beacon Command Behaviour
+* Blending Post-Ex
+* Command-Line Detections
 
 ## Build new artifacts    
 

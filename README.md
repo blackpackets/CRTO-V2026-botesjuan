@@ -2,12 +2,11 @@
 
 <img src="/images/crto_study_c2_pathways.png" width=800>  
 
->[CRTO](https://www.zeropointsecurity.co.uk/course/red-team-ops) Zero Point Security Study Notes and my preparation for the Red Team Exam  
+>[CRTO](https://www.zeropointsecurity.co.uk/course/red-team-ops) Zero Point Security Study Notes for the Red Team Ops Exam  
 
-## Cheatsheet Sections    
+## Attack Chain Section Phases  
 
-* [Claude Context](/CLAUDE.md)  
-* [Cobalt Strike Primer - Beacon Interface Commands](/cheatsheets/cobalt-strike.md)
+* [Cobalt Strike Primer](/cheatsheets/cobalt-strike-primer.md)  
 * [Defence Evasion](/cheatsheets/defense-evasion.md)  
 * [Initial Access](/cheatsheets/initial-access.md)  
 * [Persistence](/cheatsheets/persistence.md)  
@@ -18,16 +17,27 @@
 * [User Impersonation](/cheatsheets/user-impersonation.md)  
 * [Discovery](/cheatsheets/discovery.md)  
 * [Lateral Movement](/cheatsheets/lateral-movement.md)  
-* [Pivoting](/cheatsheets/pivoting.md)  
+* [Pivoting](/cheatsheets/pivoting.md)
+* [Kerberos](/cheatsheets/kerberos.md)  
+* [Microsoft SQL Server](/cheatsheets/ms-sql-server.md)  
+* [Domain Dominance](/cheatsheets/domain-dominance.md)  
+* [Active Directory Certificate Services ADCS](/cheatsheets/adcs.md)  
+* [Forest & Domain Trusts](/cheatsheets/forest-domain-trusts.md)  
+* [AppLocker](/cheatsheets/applocker.md)  
 
-
-## Labs  
+## Labs & Challenges  
 
 * [Cobalt Strike Initial Commands Lab](/labs/2-Cobalt-Strike-Primer.md)  
 * [Defence-evasion-lab-Malleable.md](/labs/defence-evasion-lab-Malleable.md)  
 * [Initial Access Lab](/labs/Initial-Access-lab.md)  
 * [Persistence lab](/labs/Persistence-lab.md)  
-* [Privilege Escalation lab](/labs/Privilege-Escalation-lab.md)  
+* [Privilege Escalation lab](/labs/Privilege-Escalation-lab.md)
+* [Elevated Persistence lab](/labs/Elevated-Persistence-lab.md)
+* [Credential Access Challenge](/labs/credential-access-challenge.md)
+
+## Scripts, Payloads & Code
+
+>[Ready to use scripts, payloads & code sample templates for CRTO exam](/code)  
 
 ----  
 
