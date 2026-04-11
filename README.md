@@ -37,7 +37,7 @@
 
 ## Scripts, Payloads & Code
 
->[Ready to use scripts, payloads & code sample templates for CRTO exam](/code)  
+>[Ready to use scripts, payloads & code sample templates in CRTO exam](/code)  
 
 ----  
 
