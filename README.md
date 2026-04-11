@@ -33,7 +33,8 @@
 * [Persistence lab](/labs/Persistence-lab.md)  
 * [Privilege Escalation lab](/labs/Privilege-Escalation-lab.md)
 * [Elevated Persistence lab](/labs/Elevated-Persistence-lab.md)
-* [Credential Access Challenge](/labs/credential-access-challenge.md)
+* [Credential Access Challenge](/labs/credential-access-challenge-commands.md)  
+* [User Impersonation Lab](/labs/user-impersonation-lab.md)  
 
 ## Scripts, Payloads & Code
 
