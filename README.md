@@ -81,6 +81,8 @@
 * [ldapsearch](https://github.com/trustedsec/CS-Situational-Awareness-BOF/tree/master)  
 * [Cloud AzureHound](https://bloodhound.specterops.io/collect-data/ce-collection/azurehound)  
 * [RustHound-CE](https://github.com/g0h4n/RustHound-CE)  
+* [LOLBAS - Living Off The Land Binaries, Scripts and Libraries](https://lolbas-project.github.io/)  
+
 
 
 ## AdaptixC2  
