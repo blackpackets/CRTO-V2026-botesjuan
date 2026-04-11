@@ -97,13 +97,66 @@ beacon> getuid                  # Confirm new context after token ops
 
 ## Spawn-To Override (CRITICAL for OPSEC)
 
-```
-# Default spawnto is rundll32.exe — highly signatured. Override immediately:
-beacon> spawnto x64 %windir%\sysnative\svchost.exe
-beacon> spawnto x86 %windir%\syswow64\svchost.exe
+### Why spawnto matters
 
-# Or set permanently in malleable profile:
-# post-ex { set spawnto_x64 "%windir%\\sysnative\\dllhost.exe"; }
+When CS runs post-ex commands (`execute-assembly`, `powerpick`, `inject`, etc.) it cannot
+run them inside the beacon process — too risky, a crash kills the beacon. Instead it spawns
+a **temporary sacrificial process**, does the work there, then kills it.
+
+**The problem:** The default sacrificial process is `rundll32.exe` — every EDR watches for
+this. A `rundll32.exe` spawning from your beacon process is an immediate red flag.
+
+**`spawnto` fixes this** — you replace `rundll32.exe` with a legitimate-looking Windows
+process that blends into normal host activity.
+
+### Commands
+
+```cs
+// Check current spawnto setting
+beacon> spawnto
+
+// Override per-beacon (do this immediately after getting a beacon)
+beacon> spawnto x64 %windir%\sysnative\dllhost.exe
+beacon> spawnto x86 %windir%\syswow64\dllhost.exe
+
+// Alternative legitimate processes to blend in
+beacon> spawnto x64 %windir%\sysnative\svchost.exe
+beacon> spawnto x64 %windir%\sysnative\werfault.exe
+```
+
+### Set permanently in malleable C2 profile (preferred)
+
+```
+post-ex {
+    set spawnto_x64 "%windir%\\sysnative\\dllhost.exe";
+    set spawnto_x86 "%windir%\\syswow64\\dllhost.exe";
+}
+```
+
+Profile-level setting applies to all beacons automatically — per-beacon override is for
+adapting to specific host environments after checking `ps` output.
+
+### Exam day workflow
+
+```
+1. Get beacon callback
+2. beacon> ps                          — review running processes on that host
+3. beacon> spawnto x64 <process>       — pick something already in the process list
+4. beacon> spawnto                     — verify it changed
+5. Now run post-ex commands — sacrificial procs blend into existing process tree
+```
+
+**Why `dllhost.exe`?** Legitimately spawns constantly in Windows (COM surrogate) —
+an analyst sees it briefly appear and disappear and ignores it. Never leave it as
+`rundll32.exe` — that is a free OPSEC point lost on the exam.
+
+### OPSEC note
+
+```
+Tier:       SAFE — changing spawnto itself generates no telemetry
+Effect:     All subsequent execute-assembly / powerpick / inject calls use new proc
+Scope:      Per-beacon only — does not affect other beacons unless set in profile
+Resets:     On beacon restart — re-apply after every new beacon or set in profile
 ```
 
 ---

@@ -2,6 +2,13 @@
 
 <img src="/images/crto_study_c2_pathways.png" width=800>  
 
+## Steal and OPSEC Mission  
+
+>The goal of a red team operation is to emulate a real-world adversary while remaining undetected by minimizing noise and avoiding security triggers.  
+>OPSEC is used to describe the likelihood of actions being observed by enemy intelligence. Red team actions is to be not observed and subsequently interrupted by the defenders.  
+>This involves performing stealthy enumeration that blends into normal activity, maintaining a low profile on compromised systems, and operating through trusted processes and native tools living off the land.  
+>By reusing credentials, impersonating legitimate users, and mimicking normal behavior, the operator seeks to evade antivirus and endpoint defenses while achieving objectives without alerting defenders.  
+
 >[CRTO](https://www.zeropointsecurity.co.uk/course/red-team-ops) Zero Point Security Study Notes for the Red Team Ops Exam  
 
 ## Attack Chain Section Phases  
@@ -68,6 +75,12 @@
 * [ysoserial](https://github.com/pwntester/ysoserial.net)  
 * [ired.team notes](https://www.ired.team/)  
 * [Kerbeus-BOF Beacon Object Files for Kerberos abuse](https://github.com/RalfHacker/Kerbeus-BOF)  
+* [BOFHound parse output from ldapsearch and pyldapsearch into BloodHound-compatible JSON files](https://github.com/coffeegist/bofhound)  
+* [pyldapsearch](https://github.com/Tw1sm/pyldapsearch)
+* [ldapsearch](https://github.com/trustedsec/CS-Situational-Awareness-BOF/tree/master)  
+* [Cloud AzureHound](https://bloodhound.specterops.io/collect-data/ce-collection/azurehound)  
+* [RustHound-CE](https://github.com/g0h4n/RustHound-CE)  
+
 
 ## AdaptixC2  
   
