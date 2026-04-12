@@ -8,9 +8,9 @@
 
 ## User Impersonation
 
-1. Impersonate the *rsteel* user.
+1. Impersonate the *rsteel* user. [User Impersonate Lab](/labs/User-Impersonation-lab.md)  
 
-⚠️ You should know how to do this from the Credential Access and User Impersonation chapters of the course.  We are starting to build on previous knowledge.
+⚠️ Use Credential Access and User Impersonation method to impersonate *rsteel*.  Use previous knowledge.  
 
 ## Lateral Movement
 

