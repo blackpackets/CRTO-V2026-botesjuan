@@ -44,6 +44,7 @@
 * [User Impersonation Lab](/labs/User-Impersonation-lab.md)  
 * [Discovery Lab](/labs/Discovery-lab.md)
 * [Lateral Movement Lab](/labs/Lateral-Movement-lab.md)  
+* [SOCKS Pivoting Lab](/labs/pivoting-SOCKS-lab.md)  
 
 ## Scripts, Payloads & Code
 
