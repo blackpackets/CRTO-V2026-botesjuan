@@ -4,10 +4,10 @@
 
 ## Steal and OPSEC Mission  
 
->The goal of a red team operation is to emulate a real-world adversary while remaining ***undetected*** by minimizing noise and avoiding security triggers.  
->OPSEC is used to describe the likelihood of actions being ***detected*** by enemy intelligence. Red team actions is to be not observed and subsequently interrupted by the defenders.  
->This involves performing ***stealthy*** enumeration that blends into normal activity, maintaining a low profile on compromised systems, and operating through trusted processes and native tools living off the land.  
->By reusing credentials, impersonating legitimate users, and mimicking normal behavior, the operator seeks to ***evade antivirus*** and endpoint defenses while achieving objectives without alerting defenders.  
+>***Red Team Ops*** emulate real-world adversary, remaining ***undetected*** by minimizing noise and avoiding security ***triggers***.  
+>***OPSEC*** describe the likelihood of actions being ***detected*** by victim. Red team actions uninterrupted by the defenders and not interrupted by the defenders.  
+>This involves performing ***stealthy*** techniques that blends into normal activity, maintaining a low profile on compromised systems. Leverage trusted processes and native tools living off the land.  
+>Reusing credentials, impersonating legitimate users, and mimicking normal behavior, the operator seeks to ***evade antivirus***. Bypass endpoint defenses to achieve mission objectives without alerting defenders.  
 
 >[CRTO](https://www.zeropointsecurity.co.uk/course/red-team-ops) Zero Point Security Study Notes for the Red Team Ops Exam  
 
@@ -42,7 +42,8 @@
 * [Elevated Persistence lab](/labs/Elevated-Persistence-lab.md)  
 * [Credential Access Challenge](/labs/credential-access-challenge-commands.md)  
 * [User Impersonation Lab](/labs/user-impersonation-lab.md)  
-* [Discovery Lab](/labs/Discovery-lab.md)  
+* [Discovery Lab](/labs/Discovery-lab.md)
+* [Lateral Movement Lab](/labs/Lateral-Movement-lab.md)  
 
 ## Scripts, Payloads & Code
 
@@ -82,7 +83,7 @@
 * [Cloud AzureHound](https://bloodhound.specterops.io/collect-data/ce-collection/azurehound)  
 * [RustHound-CE](https://github.com/g0h4n/RustHound-CE)  
 * [LOLBAS - Living Off The Land Binaries, Scripts and Libraries](https://lolbas-project.github.io/)  
-
+* [BOF Version of SCShell for Cobalt Strike instead of psExec](https://github.com/Mr-Un1k0d3r/SCShell/tree/master/CS-BOF)  
 
 
 ## AdaptixC2  
