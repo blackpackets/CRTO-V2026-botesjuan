@@ -45,6 +45,12 @@
 * [Discovery Lab](/labs/Discovery-lab.md)
 * [Lateral Movement Lab](/labs/Lateral-Movement-lab.md)  
 * [SOCKS Pivoting Lab](/labs/pivoting-SOCKS-lab.md)  
+* [Kerberos - Unconstrained Delegation Lab](/labs/Unconstrained-Delegation-Kerberos-lab.md)  
+* [Kerberos - Constrained Delegation - Protocol Transition Lab](/labs/Constrained-Delegation-kerberos-lab.md)  
+* [Kerberos - Constrained Delegation - Service Name Substitution Lab](/labs/Service-Name-Substitution-Kerberos-lab.md)  
+* [Kerberos - S4U2self](/labs/S4U2self-lab.md)
+* [Kerberos - Resource-Based Constrained Delegation Lab](/labs/RBCD-lab.md)  
+* [Kerberos Challenge](/labs/)  
 
 ## Scripts, Payloads & Code
 
