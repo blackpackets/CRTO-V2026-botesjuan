@@ -50,7 +50,7 @@
 * [Kerberos - Constrained Delegation - Service Name Substitution Lab](/labs/Service-Name-Substitution-Kerberos-lab.md)  
 * [Kerberos - S4U2self](/labs/S4U2self-lab.md)
 * [Kerberos - Resource-Based Constrained Delegation Lab](/labs/RBCD-lab.md)  
-* [Kerberos Challenge](/labs/)  
+* [Kerberos Challenge](/labs/kerberos-challenge.md)  
 
 ## Scripts, Payloads & Code
 

