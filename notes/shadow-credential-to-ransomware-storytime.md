@@ -4,7 +4,7 @@
 
 A phishing email lands in an HR employee's inbox. She clicks a link, enters her credentials into a fake login page. The attacker now has her username and password — but her account has MFA, so the password alone is useless.
 
-## Fothold  
+## Foothold  
 
 ⚠️ *The attacker doesn't panic. He has a foothold via a macro in the attachment she also opened.*
 
@@ -79,3 +79,37 @@ The defender looks for password changes, new accounts, failed logins. None of th
 - `Event ID 5136` — DS Object Modified (`msDS-KeyCredentialLink` attribute changed)
 - Anomalous Kerberos PKINIT requests for machine accounts
 - BloodHound edge: `AddKeyCredentialLink`
+
+## Forensic Investigation Questions
+
+### Identity & Access
+* 🔍 Did some account have ability to write to the `KeyCredentialLink` attribute of other objects?
+* What key pair was created and appended by which compromised account under malicious control?
+* What account was compromised after initial foothold to gain write access?
+* Which accounts held `GenericWrite` or `WriteProperty` over computer/user objects, and were those permissions intentional or misconfigured?
+* Was the `msDS-KeyCredentialLink` attribute ever legitimately written to in this environment, or is any write an anomaly?
+* Which accounts performed PKINIT authentication (Certificate/Key Trust Kerberos) — is that normal for this environment?
+
+### Timeline & Scope
+* ⚠️ What is the earliest `Event ID 5136` for `msDS-KeyCredentialLink` modifications, and how far back does that pre-date the ransomware deployment?
+* Were multiple computer or user objects targeted with Shadow Credentials, or only one pivot point?
+* What is the time delta between the Shadow Credential write and the first DCSync event — was this scripted/automated?
+
+### Lateral Movement & Privilege Escalation
+* Which DC processed the PKINIT TGT request, and does its KDC log (`Event ID 4768`) show certificate-based pre-auth against a machine account?
+* Did the `FS01$` machine account perform any unusual LDAP replication requests (`Event ID 4662` — replication GUID)?
+* 🔥 Were any other machine accounts abused after initial DCSync, or did the attacker move straight to domain admin credentials?
+
+### Persistence & Cleanup
+* 🧩 Were any Shadow Credential keys left in place after the attack — `msDS-KeyCredentialLink` should be empty on all objects post-remediation?
+* Were Golden or Silver tickets generated from the dumped `krbtgt` hash — check for `Event ID 4769` with unusual encryption types (`0x17` RC4 anomaly)?
+* Were any new domain admin accounts or scheduled tasks created as persistence before ransomware?
+
+### Initial Access (Phishing Chain)
+* What process spawned the macro execution — was it `WINWORD.EXE` or `EXCEL.EXE`, and what child process did it create?
+* 💡 Does email gateway logging show the original phishing sender, and were other users targeted by the same campaign?
+
+---
+
+>[Shadow Credentials - Hacker Recipes](https://www.thehacker.recipes/ad/movement/kerberos/shadow-credentials)
+
