@@ -51,6 +51,7 @@
 * [Kerberos - S4U2self](/labs/S4U2self-lab.md)
 * [Kerberos - Resource-Based Constrained Delegation Lab](/labs/RBCD-lab.md)  
 * [Kerberos Challenge](/labs/kerberos-challenge.md)  
+* [SQL Servers Lab](labs/SQL-Servers-lab.md)  
 
 ## Scripts, Payloads & Code
 
@@ -92,6 +93,12 @@
 * [LOLBAS - Living Off The Land Binaries, Scripts and Libraries](https://lolbas-project.github.io/)  
 * [BOF Version of SCShell for Cobalt Strike instead of psExec](https://github.com/Mr-Un1k0d3r/SCShell/tree/master/CS-BOF)  
 * [OPSEC Consideration for Beacon Commands](https://www.cobaltstrike.com/blog/opsec-considerations-for-beacon-commands)  
+* [PowerUpSQL](https://github.com/NetSPI/PowerUpSQL)  
+* [SQLRecon](https://github.com/skahwah/SQLRecon)  
+* [SQL-BOF](https://github.com/Tw1sm/SQL-BOF)  
+* [go sqlcmd](https://github.com/microsoft/go-sqlcmd)  
+* [HeidiSQL](https://github.com/heidisql/heidisql)  
+* [SSMS](https://learn.microsoft.com/en-us/ssms/install/install)  
 
 
 ## AdaptixC2  
