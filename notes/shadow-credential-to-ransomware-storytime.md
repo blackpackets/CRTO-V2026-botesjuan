@@ -1,10 +1,4 @@
-# Shadow Credentials in a Ransomware Kill Chain — Story Format
-
----
-
-## The Story: "The Invisible Key"
-
----
+# Shadow Credentials to Ransomware Kill Chain
 
 **Monday morning. Acme Corp. Everything looks normal.**
 
@@ -12,15 +6,11 @@ A phishing email lands in an HR employee's inbox. She clicks a link, enters her 
 
 *The attacker doesn't panic. He has a foothold via a macro in the attachment she also opened.*
 
----
-
 **The attacker is now a low-privilege user on her workstation.**
 
 He runs BloodHound quietly in the background. The graph lights up. He finds something interesting — a service account named `svc_backup` has **GenericWrite** permission over a domain computer object called `FS01` (the file server).
 
 He doesn't know the password for `svc_backup`. He doesn't need to.
-
----
 
 **Here's where Shadow Credentials enters the story.**
 
@@ -32,23 +22,17 @@ The attacker abuses his `GenericWrite` permission on `FS01` to **add his own key
 
 He now has a key that the file server `FS01` will accept as proof of identity.
 
----
-
 **He uses his forged key to request a Kerberos ticket for FS01.**
 
 The domain controller sees a valid key, hands over a TGT (a golden pass for that machine), and the attacker extracts the `NTLM hash` of the machine account from that ticket.
 
 Now he has the machine account credential for `FS01` — the file server — **without ever logging into it, touching LSASS, or making noise.**
 
----
-
 **Machine accounts are trusted inside the domain.**
 
 With `FS01$`'s credential, he performs a **DCSync-style** attack — machine accounts with certain roles can pull credential data from the domain controller. He dumps the `krbtgt` hash and several domain admin hashes.
 
 He now owns the domain. Quietly. No brute force. No service creation. No loud lateral movement.
-
----
 
 **Friday night. The ransomware deploys.**
 
