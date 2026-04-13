@@ -58,7 +58,7 @@
 
 ----  
 
-## References  
+## Resources  
 
 * [ThreadCheck- Artifact Kit](https://github.com/rasta-mouse/ThreatCheck)  
 * [.NET Marshal.Copy method called to copy Beacon shellcode](https://learn.microsoft.com/en-us/dotnet/api/system.runtime.interopservices.marshal.copy)  
