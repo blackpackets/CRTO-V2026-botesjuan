@@ -261,3 +261,85 @@ These were exploratory attempts that were not part of the solution:
 ## Key Takeaway for Exam
 
 When `msDS-AllowedToDelegateTo` contains a non-CIFS SPN (e.g. `ldap/`, `time/`, `http/`), the service name substitution attack still works — request the S4U2proxy ticket for the configured SPN and use `/altservice:cifs` to substitute. The encrypted ticket body is unchanged and accepted by the target. This technique requires no CIFS entry in the delegation list.
+
+---
+
+## Kill Chain Detail
+
+### The Core Idea
+`LON-WKSTN-1$` (the machine account) is trusted to delegate to `ldap/lon-dc-1`. You're going to impersonate the Administrator by abusing that trust, then swap `ldap` for `cifs` in the ticket so you can browse the DC's file system.
+
+---
+
+### 1. `krb_triage`
+**What it does:** Lists every Kerberos ticket cached on the machine across all logon sessions.
+
+**Why you need it:** You're looking for LUID `0x3e7` — the machine account's SYSTEM logon session. That session holds the machine's own TGT, which is what you'll steal. Every domain-joined Windows machine always has this session running.
+
+---
+
+### 2. `ldapsearch (msDS-AllowedToDelegateTo=*)`
+**What it does:** Queries Active Directory for any computer or user account that has constrained delegation configured.
+
+**Why you need it:** You need to know *what* the machine account is allowed to delegate to. The answer here is `ldap/lon-dc-1` — that's the SPN you'll request a ticket for in the next steps. Without this you don't know what service to target.
+
+---
+
+### 3. `krb_dump /luid:3e7 /service:krbtgt`
+**What it does:** Extracts the machine account's TGT (Ticket Granting Ticket) from LUID `0x3e7` in LSASS memory as a base64 string.
+
+**Why you need it:** The TGT is the machine's proof of identity to the KDC. You need it to make S4U requests *as the machine account* in the next step. Without the TGT you can't perform the delegation abuse — you'd need the machine account's password hash instead.
+
+---
+
+### 4. `krb_s4u /ticket:[TGT] /service:ldap/lon-dc-1 /altservice:cifs /impersonateuser:Administrator`
+**What it does:** Two things happen inside this one command:
+
+- **S4U2self** — The machine account requests a service ticket *to itself* on behalf of Administrator. This proves to the KDC that Administrator wants to use this machine.
+- **S4U2proxy** — Uses that proof to request a service ticket for `ldap/lon-dc-1` impersonating Administrator. This is the delegation step — the KDC allows it because `ldap/lon-dc-1` is in the delegation list.
+- **`/altservice:cifs`** — Swaps the word `ldap` for `cifs` in the unencrypted part of the ticket header before it's saved. The DC never checks that part — it only validates the encrypted contents — so the substituted ticket is accepted as a valid `cifs/lon-dc-1` ticket.
+
+**Why you need it:** This is the exploit. The output is a base64 service ticket for `cifs/lon-dc-1` as Administrator, even though CIFS was never in the delegation list.
+
+---
+
+### 5. `[IO.File]::WriteAllBytes("...\cifs-lon-dc-1.kirbi", [Convert]::FromBase64String(...))`
+**What it does:** Converts the base64 ticket string from the previous step into a binary `.kirbi` file saved on your attacker desktop.
+
+**Why you need it:** Cobalt Strike's `kerberos_ticket_use` command reads a `.kirbi` file from the attacker machine and injects it into the beacon's logon session. It can't consume raw base64 directly — it needs the file on disk first (attacker disk only, nothing written to the target).
+
+---
+
+### 6. `make_token CONTOSO\Administrator FakePass`
+**What it does:** Creates a brand new logon session in memory for `CONTOSO\Administrator` using a completely fake password. The password is never validated against AD — it's a local-only netonly token.
+
+**Why you need it:** You need an empty logon session to inject the Kerberos ticket into. You can't inject a ticket into your current session without overwriting your own credentials. `make_token` creates a clean, isolated session specifically to hold the stolen ticket. The fake password doesn't matter — Kerberos ignores passwords entirely, it only uses tickets.
+
+---
+
+### 7. `kerberos_ticket_use C:\Users\Attacker\Desktop\cifs-lon-dc-1.kirbi`
+**What it does:** Takes the `.kirbi` file from your attacker machine and injects the ticket into the logon session created by `make_token`.
+
+**Why you need it:** The ticket now lives inside the `CONTOSO\Administrator` logon session in the beacon. Any network request the beacon makes will automatically present this ticket to authenticate — the beacon now *is* Administrator as far as the DC is concerned.
+
+---
+
+### 8. `ls \\lon-dc-1\c$`
+**What it does:** Lists the contents of the C drive on the domain controller over SMB.
+
+**Why you need it:** This is the objective. Windows transparently uses the injected `cifs/lon-dc-1` Kerberos ticket for the SMB authentication — no password prompt, no credential needed. The DC sees a valid Kerberos ticket signed by its own KDC for Administrator and grants access.
+
+---
+
+### One-Line Summary Per Command
+
+| Command | One line |
+|---|---|
+| `krb_triage` | Find the machine account's logon session (LUID `0x3e7`) |
+| `ldapsearch msDS-AllowedToDelegateTo` | Find what SPN the machine is trusted to delegate to |
+| `krb_dump /luid:3e7` | Steal the machine account's TGT |
+| `krb_s4u /altservice:cifs` | Abuse delegation to forge a CIFS ticket as Administrator |
+| `WriteAllBytes` | Save the forged ticket as a `.kirbi` file |
+| `make_token ... FakePass` | Create an empty logon session to hold the ticket |
+| `kerberos_ticket_use` | Inject the forged ticket into that session |
+| `ls \\lon-dc-1\c$` | Use the ticket — prove you own the DC |
