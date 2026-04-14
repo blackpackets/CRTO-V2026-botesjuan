@@ -52,6 +52,9 @@
 * [Kerberos - Resource-Based Constrained Delegation Lab](/labs/RBCD-lab.md)  
 * [Kerberos Challenge](/labs/kerberos-challenge.md)  
 * [SQL Servers Lab](labs/SQL-Servers-lab.md)  
+* [ESC1 Misconfigured Client Authentication Templates](/labs/esc1.md)  
+* [ESC8 NTLM Relay to ADCS HTTP Endpoints](/labs/esc8.mdd)  
+* [DPERSIST1 Golden Certificates](/labs/dpersist1.md)  
 
 ## Scripts, Payloads & Code
 
