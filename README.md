@@ -109,3 +109,5 @@
 * [AdaptixC2 Framework Github](https://github.com/Adaptix-Framework/AdaptixC2)  
 * [AdaptixC2 Guide Setup Instructions](https://adaptix-framework.gitbook.io/adaptix-framework)
 
+<img src="/images/RedTeamOperationsPractitioner.png" width=400>  
+
