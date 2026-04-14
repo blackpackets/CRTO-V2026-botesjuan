@@ -2,7 +2,7 @@
 
 <img src="/images/crto_study_c2_pathways.png" width=800>  
 
-## Steal and OPSEC Mission  
+## OPSEC      
 
 >**Red Team Ops** emulate real-world adversary, remaining ***undetected*** by minimizing noise and avoiding security ***triggers***.  
 >***OPSEC*** describe the likelihood of actions being ***detected*** by victim. Red team actions uninterrupted by the defenders and not interrupted by the defenders.  
@@ -55,6 +55,10 @@
 * [ESC1 Misconfigured Client Authentication Templates](/labs/esc1.md)  
 * [ESC8 NTLM Relay to ADCS HTTP Endpoints](/labs/esc8.mdd)  
 * [DPERSIST1 Golden Certificates](/labs/dpersist1.md)  
+* [Parent-Child Trust Lab](/labs/Parent-Child-Trusts.md)  
+* [Inbound Trust Lab](/labs/Inbound-Trusts-lab.md)  
+* [Outbound Trust Lab](/labs/Outbound-Trusts-lab.md)  
+* [AppLocker Challenge](/labs/applocker-challenge.md)  
 
 ## Scripts, Payloads & Code
 
