@@ -64,6 +64,10 @@
 
 >[Ready to use scripts, payloads & code sample templates in CRTO exam](/code)  
 
+## Exam Instructions
+
+* [Exam Instructions](/notes/Exam-Instructions.md)  
+
 ----  
 
 ## Resources  

