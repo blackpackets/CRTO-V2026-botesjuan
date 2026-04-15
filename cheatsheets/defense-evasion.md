@@ -7,6 +7,43 @@
 * Blending Post-Ex
 * Command-Line Detections
 
+---
+
+## Named Pipe Reference — Two Separate Settings
+
+> **Exam trap:** There are TWO different named pipe settings. They control completely different things.
+
+| Pipe | Where configured | Lab default | Exam day |
+|------|-----------------|-------------|----------|
+| **SMB C2 comms** | CS Listener settings (GUI) | `TSVCPIPE-4b2f70b3-ceba-42a5-a4b5-704e1c41337` | **Create a CUSTOM name — never use TSVCPIPE-*** |
+| **Fork&run output** | `post-ex.pipename` in Malleable C2 profile | `dotnet-diagnostic-#####, ########-####-####-####-############` | Use this value — OPSEC-safe |
+
+### SMB Listener — Exam-Safe Pipename Patterns
+
+```
+# Good — blends with legitimate Windows named pipes:
+wkssvc
+ntsvcs-<random digits>
+netlogon-<random digits>
+
+# Bad — all CS defaults, all detected:
+TSVCPIPE-*
+msagent_*
+postex_*
+MSSE-*-server
+```
+
+### `post-ex.pipename` Wildcard Format
+
+```
+set pipename "dotnet-diagnostic-#####, ########-####-####-####-############";
+# '#' = random digit substituted at runtime by CS
+# Comma-separated = two candidate names, CS uses first available
+# dotnet-diagnostic-* blends with .NET CLR runtime pipes present on any Windows/.NET system
+```
+
+---
+
 ## Build new artifacts    
 
 ```
