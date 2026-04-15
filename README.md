@@ -11,9 +11,10 @@
 
 >[CRTO](https://www.zeropointsecurity.co.uk/course/red-team-ops) Zero Point Security Study Notes for the Red Team Ops Exam  
 
-## Attack Chain Section Phases  
+## Attack Chain Phases  
 
 * [Cobalt Strike Primer](/cheatsheets/cobalt-strike-primer.md)  
+* [AppLocker](/cheatsheets/applocker.md)  
 * [Defence Evasion](/cheatsheets/defense-evasion.md)  
 * [Initial Access](/cheatsheets/initial-access.md)  
 * [Persistence](/cheatsheets/persistence.md)  
@@ -30,7 +31,6 @@
 * [Domain Dominance](/cheatsheets/domain-dominance.md)  
 * [Active Directory Certificate Services ADCS](/cheatsheets/adcs.md)  
 * [Forest & Domain Trusts](/cheatsheets/forest-domain-trusts.md)  
-* [AppLocker](/cheatsheets/applocker.md)  
 
 ## Labs & Challenges  
 
@@ -119,3 +119,4 @@
 
 <img src="/images/RedTeamOperationsPractitioner.png" width=400>  
 
+🇿🇦

