@@ -2,8 +2,10 @@
 
 > **Exam relevance:** This is one of the highest-value prep topics. The OPSEC score (50 pts) is
 > where most people fail. Defender must NOT block your payloads or fork&run post-ex commands.
-> Every technique in this lab maps directly to an OPSEC scoring criterion.
->
+> Every technique in this lab maps directly to an OPSEC scoring criterion.  
+
+> **Objective**: make Beacon more resilient against Windows Defender antivirus.  
+
 > **Exam application order (do this before touching any target):**
 > 1. SSH to team server → update Malleable C2 profile
 > 2. Patch and build Artifact Kit → ThreatCheck clean
@@ -799,12 +801,18 @@ exam environment. They address every layer Defender uses against CS. **But:**
 2. **Don't skip `c2lint`.** A profile syntax error means the team server runs without malleable
    settings → all default CS indicators present → immediate OPSEC deductions.
 
-3. **Run ETW patch after initial beacon check-in before any post-ex work.** The profile handles
-   AMSI in fork&run processes but not ETW. ETW (Event Tracing for Windows) feeds EDR telemetry
-   independently of AMSI. Patch it early:
+3. **ETW note — driver-bofs is NOT a userland ETW patch.** `C:\Tools\driver-bofs\etw.x64.o`
+   patches ETW kernel callbacks and requires a kernel driver already loaded — it will error with
+   `Error getting callback offsets` without one. This is a BYOVD/kernel-level kit (CRTO II scope).
 
+   For CRTO I exam: the profile's `amsi_disable "true"` in `post-ex` covers AMSI in fork&run
+   processes. A separate userland ETW BOF (patching `EtwEventWrite` in ntdll) is the correct
+   post-initial-access step if needed, but is **not staged in the lab tools** and is not a primary
+   OPSEC scoring criterion. Skip the ETW BOF step unless a userland variant is sourced separately.
+
+   If a userland ETW BOF becomes available:
    ```cs
-   beacon> inline-execute etw_patch.o    // OPSEC-SAFE — BOF, runs in beacon thread
+   beacon> inline-execute C:\path\to\etw_userland.x64.o    // patches EtwEventWrite in ntdll — no driver needed
    ```
 
    Repeat after every lateral move to a new host.
@@ -918,7 +926,7 @@ as the SMB listener pipe.
 6. Test beacon: Attacks > Scripted Web Delivery → iex on workstation → confirm callback
 
 7. After first beacon checks in:
-   beacon> inline-execute etw_patch.o
+   # NOTE: driver-bofs\etw.x64.o requires a kernel driver — skip on CRTO I, profile covers AMSI
    beacon> ps
    beacon> ppid <explorer.exe PID>
    beacon> spawnto x64 %windir%\sysnative\werfault.exe
