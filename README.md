@@ -64,7 +64,7 @@
 
 >[Ready to use scripts, payloads & code sample templates in CRTO exam](/code)  
 
-## Exam Instructions
+## Exam  
 
 * [Exam Instructions](/notes/Exam-Instructions.md)  
 * [CRTO Fast Reference Methodology Exam Day](/crto-fast-reference-methodology-exam-day.md)  
@@ -120,4 +120,4 @@
 
 <img src="/images/RedTeamOperationsPractitioner.png" width=400>  
 
-🇿🇦 16April2026
+🇿🇦 17April2026

