@@ -567,8 +567,7 @@ The shellcode performs **process hollowing** into `msedge.exe`:
 > **What to check after beacon appears:**
 > ```cs
 > beacon> getuid          // confirm running as the expected user
-> beacon> getpid          // note the PID — verify it matches an msedge.exe process
-> beacon> ps              // confirm beacon is inside msedge.exe, check for EDR processes
+> beacon> process_browser // GUI tab — confirm beacon PID is inside msedge.exe, check for EDR processes
 > ```
 > If no beacon appears: check that the malleable C2 profile is loaded (docker logs), that
 > the http listener is active, and that `AppDomainHijack.dll` is in the same CWD as

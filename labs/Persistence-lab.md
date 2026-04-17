@@ -100,8 +100,7 @@ From the Beacon running as pchilds:
 **Verification after Teams loads the DLL:**
 ```cs
 beacon> getuid          // confirm it's the correct user
-beacon> getpid          // confirm process is ms-teams.exe
-beacon> ps              // verify Teams is the parent, not a child beacon
+beacon> process_browser // GUI tab — confirm beacon PID is inside ms-teams.exe, right-click options available
 ```
 
 **Cleanup (if needed before exam submit):**

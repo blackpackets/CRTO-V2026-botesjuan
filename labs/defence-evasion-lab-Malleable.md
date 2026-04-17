@@ -821,7 +821,7 @@ exam environment. They address every layer Defender uses against CS. **But:**
    movement you should set context-appropriate values:
 
    ```cs
-   beacon> ps                                    // Find contextually appropriate parent PID
+   beacon> process_browser                       // GUI tab — find contextually appropriate parent PID
    beacon> ppid <explorer.exe PID>
    beacon> spawnto x64 %windir%\sysnative\werfault.exe
    ```
@@ -927,7 +927,7 @@ as the SMB listener pipe.
 
 7. After first beacon checks in:
    # NOTE: driver-bofs\etw.x64.o requires a kernel driver — skip on CRTO I, profile covers AMSI
-   beacon> ps
+   beacon> process_browser           # GUI tab — find explorer.exe PID
    beacon> ppid <explorer.exe PID>
    beacon> spawnto x64 %windir%\sysnative\werfault.exe
 

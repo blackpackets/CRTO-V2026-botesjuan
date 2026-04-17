@@ -67,6 +67,7 @@
 ## Exam Instructions
 
 * [Exam Instructions](/notes/Exam-Instructions.md)  
+* [CRTO Fast Reference Methodology Exam Day](/crto-fast-reference-methodology-exam-day.md)  
 
 ----  
 

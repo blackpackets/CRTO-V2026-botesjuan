@@ -427,7 +427,7 @@ Beacon inside `msedge.exe` spawning `cmd.exe` or `powershell.exe` as a child = i
 ### PPID Spoofing — `shell` and `run`
 
 ```
-beacon> ps                              # Find PID of desired parent (e.g. explorer.exe)
+beacon> process_browser                 # GUI tab — find PID of desired parent (e.g. explorer.exe), right-click → steal token / inject
 beacon> ppid <explorer PID>
 beacon> shell whoami                    # Appears as child of explorer.exe
 beacon> run net user

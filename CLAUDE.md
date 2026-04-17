@@ -112,10 +112,8 @@ CS:      beacon> spear-phish / macro delivery / HTA
 ### Phase 2 — Host Recon & Situational Awareness
 ```cs
 // OPSEC-SAFE (inline / in-memory)
-beacon> getuid
-beacon> getpid
-beacon> ps                          // process list — check for EDR processes
-beacon> inline-execute bof_whoami   // BOF variant — no child process
+beacon> getuid                       // built-in — OPSEC-SAFE, no child process
+beacon> process_browser             // GUI tab — process list with inject/steal_token/keylog/screenshot options
 ```
 
 ### Phase 3 — Domain Recon (BloodHound / PowerView)

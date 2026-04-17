@@ -307,7 +307,7 @@ OPSEC: SAFE — no new process
 ```
 ```cs
 // Find a SYSTEM or high-priv process
-beacon> ps
+beacon> process_browser     // GUI tab — find SYSTEM/high-priv process, right-click → steal token / inject
 // Look for: lsass.exe, winlogon.exe, services.exe running as SYSTEM
 
 // Steal the token
