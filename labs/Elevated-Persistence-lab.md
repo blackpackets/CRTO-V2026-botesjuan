@@ -18,15 +18,15 @@
 > - [ ] DNS listener configured and running in CS GUI (distinct from HTTP listener)
 > - [ ] **`artifact.cna` loaded FIRST** — then generate dns_x64.exe (order matters — see note below)
 > - [ ] `C:\Payloads\dns_x64.exe` generated (Payloads > Windows Stageless Payload > dns > exe)
-> - [ ] `ThreatCheck.exe -f C:\Payloads\dns_x64.exe` → No threat found ✅ (confirms custom artifacts used)
+> - [ ] `C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f C:\Payloads\dns_x64.exe` → No threat found ✅ (confirms custom artifacts used)
 > - [ ] `C:\Tools\WmiPersistence.ps1` exists on attacker desktop (pre-staged in course)
 > - [ ] Malleable C2 profile active (`c2lint` passed) — DNS beacon must survive Defender
 >
 > **⚠️ Lab vs exam day difference:** In the course lab, the Elevated Persistence module inherits the Defence Evasion lab's pre-staged environment — `artifact.cna` is already loaded and the Malleable C2 profile is already active. On exam day **nothing is pre-staged**. You must complete Phase 0 (CS setup) and Phase 1 (Defence Evasion — Artifact Kit + profile) before generating any payload. A payload generated before `artifact.cna` is loaded uses default CS artifacts and will be flagged by Defender on disk write.
 >
 > **[2026-04-17] Lab-confirmed results (defence-evasion lab pre-staged):**
-> - `ThreatCheck.exe -f C:\Tools\WmiPersistence.ps1` → No threat found (expected — PS1 has no payload bytes)
-> - `ThreatCheck.exe -f C:\Payloads\dns_x64.exe` → No threat found (custom Artifact Kit confirmed active)
+> - `C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f C:\Tools\WmiPersistence.ps1` → No threat found (expected — PS1 has no payload bytes)
+> - `C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f C:\Payloads\dns_x64.exe` → No threat found (custom Artifact Kit confirmed active)
 > - Malleable C2 profile confirmed loaded in CS client (stage + post-ex + process-inject blocks active)
 > - Combined: full kill chain (disk → execution → memory) is covered against Defender
 
@@ -72,12 +72,12 @@ beacon> mv dns_x64.exe windbg.exe
 > **OPSEC note:** The beacon EXE is still on disk — if Defender does a memory scan and you haven't built a clean Artifact Kit payload, it will be caught. Always build the DNS payload from your custom artifact.cna, not the default CS output.
 
 > **[2026-04-17] ThreatCheck Observation — WmiPersistence.ps1**
-> Running `ThreatCheck.exe -f C:\Tools\WmiPersistence.ps1` returns "No threat found" — **this is expected and does not mean the technique is undetected.**
+> Running `C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f C:\Tools\WmiPersistence.ps1` returns "No threat found" — **this is expected and does not mean the technique is undetected.**
 > The PS1 contains no payload bytes, no shellcode, no encoded strings — only standard WMI management cmdlets (`Set-WmiInstance`, `Get-WMIObject`). Defender's AMSI engine has nothing to match. The threat is not inside the script; it's in what the script registers.
 >
 > **The file you must ThreatCheck is the payload EXE:**
 > ```cmd
-> ThreatCheck.exe -f "C:\Payloads\dns_x64.exe"
+> C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f "C:\Payloads\dns_x64.exe"
 > ```
 > If the EXE is flagged → rebuild Artifact Kit. If the EXE is clean → the PS1 result is irrelevant.
 >

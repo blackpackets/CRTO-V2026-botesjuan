@@ -476,7 +476,7 @@ The shellcode performs **process hollowing** into `msedge.exe`:
 
 > **Before copying: run ThreatCheck against the compiled DLL.**
 > ```cmd
-> ThreatCheck.exe -f "C:\Users\Attacker\source\repos\AppDomainHijack\bin\Release\AppDomainHijack.dll"
+> C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f "C:\Users\Attacker\source\repos\AppDomainHijack\bin\Release\AppDomainHijack.dll"
 > ```
 > If Defender flags the DLL: the embedded shellcode bytes are being matched by a static
 > signature. Solutions: XOR-encrypt the shellcode in the embedded resource and decrypt it
@@ -860,7 +860,7 @@ EXAM (assume-breach — direct workstation access):
 On attacker Windows dev box:
   1. Generate raw shellcode → CS → Payloads → Windows Stageless Payload → Raw → http_x64.xprocess.bin
   2. Build AppDomainHijack.dll in VS (Release, .NET Framework)
-  3. ThreatCheck.exe -f AppDomainHijack.dll  → must be clean
+  3. C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f AppDomainHijack.dll  → must be clean
   4. Copy AppDomainHijack.dll to delivery location (CS web server or USB/share)
   5. Copy ngentask.exe from WinSxS to same location
 

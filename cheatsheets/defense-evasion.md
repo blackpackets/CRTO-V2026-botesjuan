@@ -127,7 +127,7 @@ Cobalt Strike → Script Manager → Load → <output_dir>/artifact.cna
 ## ThreatCheck  
 
 ```dos
-ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe" 
+C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe" 
 ```  
 
 >Identified bits that is detected by Defender and a HEX offset provided.
@@ -187,7 +187,7 @@ file(0x9CF)
 
 **1. ThreatCheck — get the flagged offset:**
 ```cmd
-ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
+C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
 # Output: Byte[]: 0x00004C20
 #         HEX: 31 C0 48 FF C8 ...   ← these are the exact bytes Defender matched
 ```
@@ -244,7 +244,7 @@ cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/artifact
 
 **6. ThreatCheck again:**
 ```cmd
-ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
+C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
 ```
 - No output → **CLEAN** — load `artifact.cna` and move on.
 - New offset output → Defender found a *different* signature → repeat from Step 2 with the new offset.
@@ -264,7 +264,7 @@ ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64bi
 >Scanning template with ThreatCheck's AMSI engine  
 
 ```ps1
-.\ThreatCheck.exe -f .\template.x64.ps1 -e AMSI -t Script
+.\C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f .\template.x64.ps1 -e AMSI -t Script
 ```
 
 >Based on ThreatCheck output, simple String concatenation attempt in source code change.  
@@ -554,7 +554,7 @@ Cannot disable kernel callbacks without kernel code execution. **Find an alterna
 |---------|------------|
 | `schtasks.exe /SilentCleanup` | COM object or API that triggers the task directly |
 | `pth` (Mimikatz CLI) | `Rubeus.exe createnetonly` + `ptt` for token impersonation |
-| Direct LSASS dump CLI tools | `nanodump` BOF (in-process, no command-line artifact) |
+| Direct LSASS dump CLI tools | `krb_dump` (Kerbeus-BOF) — Kerberos API, no raw LSASS read; use `dcsync` from DA beacon for NTLM hashes |
 
 ---
 
@@ -591,14 +591,14 @@ Before DCSync, Kerberoast, BloodHound collection
 ```
 1. Build Artifact Kit
    → ./build.sh <technique> VirtualAlloc ... ./custom-artifacts
-   → ThreatCheck.exe -f artifact64big.exe -e Defender
+   → C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f artifact64big.exe -e Defender
    → Fix signature in patch.c (recompile to different bytecode)
    → Repeat until clean
    → Load artifact.cna in CS Script Manager
 
 2. Build Resource Kit
    → ./build.sh ./custom-resources
-   → ThreatCheck.exe -f template.x64.ps1 -e AMSI -t Script
+   → C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f template.x64.ps1 -e AMSI -t Script
    → Fix PS1 (string concat, replace Marshal.Copy, obfuscate compress.ps1)
    → Load resources.cna in CS Script Manager
 
@@ -820,7 +820,7 @@ Cobalt Strike > Script Manager > Load
 **4. ThreatCheck after build**
 
 ```cmd
-ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
+C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
 # Clean = no output. Detected = offset + hex bytes → go fix in patch.c → rebuild
 ```
 
@@ -871,7 +871,7 @@ SET-itEm  VarIABLe:WyizE ([tyPe]('conVE'+'Rt') ) ;  seT-variAbLe  0eXs  (  [tYpe
 **4. ThreatCheck AMSI scan**
 
 ```cmd
-.\ThreatCheck.exe -f .\template.x64.ps1 -e AMSI -t Script
+.\C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f .\template.x64.ps1 -e AMSI -t Script
 # Clean = "No threat found". Detected = fix the flagged line → re-scan
 ```
 

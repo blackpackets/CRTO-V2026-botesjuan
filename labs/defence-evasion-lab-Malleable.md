@@ -15,6 +15,24 @@
 
 ---
 
+## Confirmed EDR Stack in CRTO Lab Environment
+
+Observed on `lon-ws-1` during lab session (2026-04-18). Assume same stack on all workstations:
+
+| Process | Role | OPSEC implication |
+|---------|------|-------------------|
+| `elastic-agent.exe` | Elastic EDR agent | Behavioural telemetry shipped to SIEM |
+| `elastic-endpoint.exe` | Elastic endpoint protection | Process injection and anomalous thread detection |
+| `Sysmon64.exe` | Sysmon telemetry | Event 1 (process create), Event 8 (remote thread), Event 17/18 (named pipes) |
+| `MsMpEng.exe` | Windows Defender AV | Static + memory scan |
+| `NisSrv.exe` | Defender Network Inspection | Network-based signature detection |
+
+**Every** process spawn, named pipe, remote thread, and network connection is logged.
+The malleable profile `post-ex` block (`ppid`, `spawnto`, `pipename`, `thread_hint`) is not
+optional — it is the minimum required to avoid generating alerts on this stack.
+
+---
+
 ## Why Defence Evasion Exists — The Detection Layers
 
 Defender (and any EDR) operates at multiple scan layers. You must defeat each layer
@@ -366,7 +384,7 @@ cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/artifact
 ### Step 3 — ThreatCheck after build
 
 ```cmd
-ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
+C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
 ```
 
 - **No output** = clean. Proceed to load.
@@ -543,7 +561,7 @@ Save the changes (File > Save).
 ### Step 4 — ThreatCheck AMSI scan
 
 ```cmd
-.\ThreatCheck.exe -f .\template.x64.ps1 -e AMSI -t Script
+.\C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f .\template.x64.ps1 -e AMSI -t Script
 # Clean = "No threat found". If detected → fix the flagged line → re-scan.
 ```
 
@@ -968,7 +986,7 @@ as the SMB listener pipe.
    → cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/artifact
    → Edit src-common/patch.c (lines ~45 and ~116 — backward while loops)
    → ./build.sh mailslot VirtualAlloc 351363 0 false false none /mnt/c/Tools/cobaltstrike/custom-artifacts
-   → ThreatCheck.exe -f "C:\tools\...\artifact64big.exe"
+   → C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f "C:\tools\...\artifact64big.exe"
    → If detected: fix patch.c → rebuild → ThreatCheck until clean
 
 3. WSL (Ubuntu) on Windows dev box:
@@ -976,7 +994,7 @@ as the SMB listener pipe.
    → ./build.sh /mnt/c/Tools/cobaltstrike/custom-resources
    → VSCode: fix template.x64.ps1 (line 5 string concat + line 32 WriteProcessMemory)
    → VSCode: replace compress.ps1 content with obfuscated version
-   → ThreatCheck.exe -f .\template.x64.ps1 -e AMSI -t Script   (until clean)
+   → C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f .\template.x64.ps1 -e AMSI -t Script   (until clean)
 
 4. CS Script Manager → Load:
    → C:\Tools\cobaltstrike\custom-artifacts\mailslot\artifact.cna

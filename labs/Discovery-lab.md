@@ -89,3 +89,48 @@
 BloodHound will now show that rsteel has local administrative privileges on WKSTN-1 and 2.
 
 ⚠️ In this lab, you have used LDAP queries and BloodHound to map part of the CONTOSO domain.
+
+---
+
+## OPSEC Warnings & Exam-Day Notes
+
+### ldapsearch Returns 0 Results — WinRM Token Limitation
+
+`ldapsearch` binds to the DC using the beacon's current Kerberos token. A beacon landed via
+`jump winrm64` has a **Type 3 network logon token** — it is non-forwardable and does not carry
+Kerberos credentials for onward connections to the DC.
+
+**Symptom:**
+```
+Binding to 10.10.120.1
+retrieved 0 results total
+```
+
+**Fix — establish a proper Kerberos token before running ldapsearch:**
+
+```cs
+// Option 1 — make_token with known creds (OPSEC-🟠CAUTION — Event 4648)
+beacon> make_token CONTOSO\rsteel <password>
+beacon> ldapsearch (samAccountType=805306369) --attributes name,dnsHostName,operatingSystem
+
+// Option 2 — inject a TGT (OPSEC-🟢SAFE — no new logon event)
+beacon> kerberos_ticket_use C:\path\to\rsteel.kirbi
+beacon> ldapsearch (samAccountType=805306369) --attributes name,dnsHostName,operatingSystem
+```
+
+> This affects **any** beacon that arrived via WinRM, SCShell, or WMI — all produce
+> non-forwardable network logon tokens. Only beacons from interactive sessions or `make_token`
+> / `kerberos_ticket_use` have usable Kerberos context for LDAP queries.
+
+---
+
+### `net computers` — Never Use
+
+`net computers` (and all `net *` beacon commands) run via the `shell` built-in which spawns
+`cmd.exe` — OPSEC-🔴UNSAFE. It also fails with Error 5 from a network logon token.
+
+| Command | OPSEC | Replacement |
+|---------|-------|-------------|
+| `net computers` | 🔴UNSAFE — spawns cmd.exe | `ldapsearch (samAccountType=805306369)` |
+| `net users` | 🔴UNSAFE — spawns cmd.exe | `ldapsearch (samAccountType=805306368)` |
+| `net groups` | 🔴UNSAFE — spawns cmd.exe | `ldapsearch (samAccountType=268435456)` |
