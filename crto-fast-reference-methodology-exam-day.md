@@ -177,11 +177,19 @@ cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/resource
 C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f .\template.x64.ps1 -e AMSI -t Script
 ```
 
+### CNA Scripts  
+
 ```
-# CS Script Manager → Load both:
+# CS Script Manager → Load all (Cobalt Strike → Script Manager → Load each):
 C:\Tools\cobaltstrike\custom-artifacts\mailslot\artifact.cna
 C:\Tools\cobaltstrike\custom-resources\resources.cna
+C:\Tools\CS-Situational-Awareness-BOF\SA\SA.cna        # ldapsearch BOF — required for exam-recon.cna
+C:\Tools\CS-Remote-OPs-BOF\Remote\Remote.cna            # remote BOF operations
+C:\Tools\Kerbeus-BOF\kerbeus_cs.cna                     # krb_triage, krb_dump, krb_s4u
+C:\Tools\exam-recon.cna                                  # custom: domain_recon_bulk + domain_recon_targeted
 ```
+
+⚠️ **Load SA.cna BEFORE exam-recon.cna** — exam-recon.cna calls `fireAlias` into ldapsearch which is registered by SA.cna. Wrong load order = `non-existent function` error when running `domain_recon_bulk`.
 
 **After first beacon checks in:**
 ```cs
@@ -277,7 +285,7 @@ beacon> ldapsearch (objectClass=trustedDomain) --attributes trustPartner,trustDi
 | Computer names — DB, FS, CS roles | Plan lateral movement targets |
 | `dyork`, `Administrator` in Domain Admins | DA accounts — final targets |
 
-> ⚠️ ldapsearch returns 0 results if beacon token is a WinRM/SCShell/WMI Type 3 network
+> ⚠️ `ldapsearch` returns 0 results if beacon token is a WinRM/SCShell/WMI Type 3 network
 > logon — non-forwardable, cannot authenticate to DC. Fix: `make_token CONTOSO\user pass`
 > or `kerberos_ticket_use <kirbi>` before running ldapsearch.
 
@@ -828,6 +836,9 @@ CLEANUP:
 [ ] Artifact Kit rebuilt + ThreatCheck clean (no output)
 [ ] Resource Kit rebuilt + ThreatCheck AMSI clean ("No threat found")
 [ ] artifact.cna + resources.cna loaded in CS Script Manager
+[ ] SA.cna loaded (CS-Situational-Awareness-BOF) — required before exam-recon.cna
+[ ] Kerbeus-BOF kerbeus_cs.cna loaded — required for krb_triage/krb_dump
+[ ] exam-recon.cna loaded AFTER SA.cna — confirms domain_recon_bulk + domain_recon_targeted available
 [ ] HTTP listener live with masquerading Host header
 [ ] SMB listener live with CUSTOM pipename (not TSVCPIPE-*)
 [ ] Test beacon from workstation → Defender does NOT block

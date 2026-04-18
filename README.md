@@ -2,21 +2,21 @@
 
 <img src="/images/crto_study_c2_pathways.png" width=800>  
 
-## OPSEC      
+## OPSEC ROBOT  
 
-🔴UNSAFE
-🟠CAUTION
-🟢SAFE
+🔴 UNSAFE  
+🟠 CAUTION  
+🟢 SAFE  
 
->**Red Team Ops** remain ***undetected*** and avoiding security ***triggers***.  
->Perform **stealthy** techniques that blends into normal activity, maintain a low profile. 
->Leverage trusted processes and native tools living off the land.  
->Reuse credentials, impersonating legitimate users, and mimicking normal behavior to **evade antivirus**.
->Bypass endpoint defenses without alerting defenders.  
+* **Red Team Ops** remain ***undetected*** and avoiding security ***triggers***.  
+* Perform **stealthy** techniques that blends into normal activity, maintain a low profile.  
+* Leverage trusted processes and native tools living off the land.  
+* Reuse credentials, impersonating legitimate users, and mimicking normal behavior to **evade antivirus**.  
+ *Bypass endpoint defenses without alerting defenders.  
 
 >[CRTO](https://www.zeropointsecurity.co.uk/course/red-team-ops) Zero Point Security Study Notes for the Red Team Ops Exam  
 
-## Attack Chain Phases  
+## Red Team Ops Phases    
 
 * [Cobalt Strike Primer](/cheatsheets/cobalt-strike-primer.md)  
 * [AppLocker](/cheatsheets/applocker.md)  
@@ -40,6 +40,7 @@
 ## Labs & Challenges  
 
 * [Cobalt Strike Initial Commands Lab](/labs/2-Cobalt-Strike-Primer.md)  
+* [AppLocker Challenge](/labs/applocker-challenge.md)  
 * [Defence-evasion-lab-Malleable.md](/labs/defence-evasion-lab-Malleable.md)  
 * [Initial Access Lab](/labs/Initial-Access-lab.md)  
 * [Persistence lab](/labs/Persistence-lab.md)  
@@ -47,27 +48,25 @@
 * [Elevated Persistence lab](/labs/Elevated-Persistence-lab.md)  
 * [Credential Access Challenge](/labs/credential-access-challenge-commands.md)  
 * [User Impersonation Lab](/labs/User-Impersonation-lab.md)  
-* [Discovery Lab](/labs/Discovery-lab.md)
+* [Discovery Lab](/labs/Discovery-lab.md)  
 * [Lateral Movement Lab](/labs/Lateral-Movement-lab.md)  
 * [SOCKS Pivoting Lab](/labs/pivoting-SOCKS-lab.md)  
-* [Kerberos - Unconstrained Delegation Lab](/labs/Unconstrained-Delegation-Kerberos-lab.md)  
-* [Kerberos - Constrained Delegation - Protocol Transition Lab](/labs/Constrained-Delegation-kerberos-lab.md)  
-* [Kerberos - Constrained Delegation - Service Name Substitution Lab](/labs/Service-Name-Substitution-Kerberos-lab.md)  
-* [Kerberos - S4U2self](/labs/S4U2self-lab.md)
-* [Kerberos - Resource-Based Constrained Delegation Lab](/labs/RBCD-lab.md)  
-* [Kerberos Challenge](/labs/kerberos-challenge.md)  
+* Kerberos  
+  * [Kerberos - Unconstrained Delegation Lab](/labs/Unconstrained-Delegation-Kerberos-lab.md)  
+  * [Kerberos - Constrained Delegation - Protocol Transition Lab](/labs/Constrained-Delegation-kerberos-lab.md)  
+  * [Kerberos - Constrained Delegation - Service Name Substitution Lab](/labs/Service-Name-Substitution-Kerberos-lab.md)  
+  * [Kerberos - S4U2self](/labs/S4U2self-lab.md)  
+  * [Kerberos - Resource-Based Constrained Delegation Lab](/labs/RBCD-lab.md)  
+  * [Kerberos Challenge](/labs/kerberos-challenge.md)  
 * [SQL Servers Lab](labs/SQL-Servers-lab.md)  
-* [ESC1 Misconfigured Client Authentication Templates](/labs/esc1.md)  
-* [ESC8 NTLM Relay to ADCS HTTP Endpoints](/labs/esc8.mdd)  
-* [DPERSIST1 Golden Certificates](/labs/dpersist1.md)  
-* [Parent-Child Trust Lab](/labs/Parent-Child-Trusts.md)  
-* [Inbound Trust Lab](/labs/Inbound-Trusts-lab.md)  
-* [Outbound Trust Lab](/labs/Outbound-Trusts-lab.md)  
-* [AppLocker Challenge](/labs/applocker-challenge.md)  
-
-## Scripts, Payloads & Code
-
->[Ready to use scripts, payloads & code sample templates in CRTO exam](/code)  
+* ADCS  
+  * [ESC1 Misconfigured Client Authentication Templates](/labs/esc1.md)  
+  * [ESC8 NTLM Relay to ADCS HTTP Endpoints](/labs/esc8.mdd)  
+  * [DPERSIST1 Golden Certificates](/labs/dpersist1.md)  
+* Domains & Forests
+  * [Parent-Child Trust Lab](/labs/Parent-Child-Trusts.md)  
+  * [Inbound Trust Lab](/labs/Inbound-Trusts-lab.md)  
+  * [Outbound Trust Lab](/labs/Outbound-Trusts-lab.md)  
 
 ## Exam  
 

