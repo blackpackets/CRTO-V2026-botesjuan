@@ -4,10 +4,15 @@
 
 ## OPSEC      
 
->**Red Team Ops** emulate real-world adversary, remaining ***undetected*** by minimizing noise and avoiding security ***triggers***.  
->***OPSEC*** describe the likelihood of actions being ***detected*** by victim. Red team actions uninterrupted by the defenders and not interrupted by the defenders.  
->This involves performing **stealthy** techniques that blends into normal activity, maintaining a low profile on compromised systems. Leverage trusted processes and native tools living off the land.  
->Reusing credentials, impersonating legitimate users, and mimicking normal behavior, the operator seeks to **evade antivirus**. Bypass endpoint defenses to achieve mission objectives without alerting defenders.  
+🔴UNSAFE
+🟠CAUTION
+🟢SAFE
+
+>**Red Team Ops** remain ***undetected*** and avoiding security ***triggers***.  
+>Perform **stealthy** techniques that blends into normal activity, maintain a low profile. 
+>Leverage trusted processes and native tools living off the land.  
+>Reuse credentials, impersonating legitimate users, and mimicking normal behavior to **evade antivirus**.
+>Bypass endpoint defenses without alerting defenders.  
 
 >[CRTO](https://www.zeropointsecurity.co.uk/course/red-team-ops) Zero Point Security Study Notes for the Red Team Ops Exam  
 

@@ -27,7 +27,7 @@
 > - [ ] Beacon running as target user (pchilds) with at least medium integrity
 > - [ ] `spawnto` set away from `rundll32.exe` before generating the DLL
 
-> **OPSEC classification:** `OPSEC-CAUTION` — DLL written to disk (survives disk scan if Artifact Kit is clean). Registry writes to HKCU only (no admin, no Event 4657 for HKLM). Teams loading an unrecognised DLL is the detection risk.
+> **OPSEC classification:** `OPSEC-🟠CAUTION` — DLL written to disk (survives disk scan if Artifact Kit is clean). Registry writes to HKCU only (no admin, no Event 4657 for HKLM). Teams loading an unrecognised DLL is the detection risk.
 
 ===
 

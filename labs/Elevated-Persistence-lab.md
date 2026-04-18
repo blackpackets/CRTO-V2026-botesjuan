@@ -95,6 +95,17 @@ The persistence script (`WmiPersistence.ps1`) creates three WMI objects that for
 | Event Consumer | `CommandLineEventConsumer` | `Debug Consumer` | Runs `windbg.exe -trace` when filter fires |
 | Binding | `__FilterToConsumerBinding` | (links above two) | Connects filter → consumer |
 
+> ⚠️ **CRITICAL ORDER — do NOT install the subscription before uploading the payload.**
+> The WMI consumer runs `windbg.exe -trace` the moment Event 1502 fires. If `windbg.exe`
+> does not exist at `C:\Windows\System32\windbg.exe` when the trigger fires, nothing executes
+> and you get no beacon. Upload and rename the DNS payload (Parts 1 & 2 above) **first**,
+> then install the subscription.
+
+> ⚠️ **WmiPersistence.ps1 is NOT loaded via CS Script Manager.**
+> CS Script Manager only accepts `.cna` aggressor scripts (Kerbeus-BOF, SCShell, etc.).
+> `WmiPersistence.ps1` is a PowerShell script — load it from the beacon using
+> `powershell-import`, then call the function via `psinject`.
+
 **Install via `psinject`** (injects unmanaged PowerShell into the SYSTEM beacon process — no `powershell.exe` spawn):
 
 ```cs

