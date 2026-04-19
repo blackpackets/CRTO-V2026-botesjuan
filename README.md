@@ -125,4 +125,4 @@
 
 <img src="/images/RedTeamOperationsPractitioner.png" width=400>  
 
-🇿🇦 18April2026
+🇿🇦 19April2026 🇿🇦  
