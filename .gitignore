@@ -1,6 +1,0 @@
-# Never push live payloads or loot
-payloads/staged/
-loot/
-# OS noise
-.DS_Store
-*.swp
