@@ -14,7 +14,11 @@
 * Reuse credentials, impersonating legitimate users, and mimicking normal behavior to **evade antivirus**.  
 * **Bypass** endpoint defenses without alerting defenders.  
 
->[CRTO](https://www.zeropointsecurity.co.uk/course/red-team-ops) Zero Point Security Study Notes for the Red Team Ops Exam  
+## Exam  
+
+* [CRTO](https://www.zeropointsecurity.co.uk/course/red-team-ops) Zero Point Security red Team Ops Course
+* [Exam Instructions](/notes/Exam-Instructions.md)  
+* [CRTO Fast Reference Methodology Exam Day](/crto-fast-reference-methodology-exam-day.md)  
 
 ## Labs & Challenges    
 
@@ -46,11 +50,6 @@
   * [Parent-Child Trust Lab](/labs/Parent-Child-Trusts.md)  
   * [Inbound Trust Lab](/labs/Inbound-Trusts-lab.md)  
   * [Outbound Trust Lab](/labs/Outbound-Trusts-lab.md)  
-
-## Exam  
-
-* [Exam Instructions](/notes/Exam-Instructions.md)  
-* [CRTO Fast Reference Methodology Exam Day](/crto-fast-reference-methodology-exam-day.md)  
 
 ----  
 

