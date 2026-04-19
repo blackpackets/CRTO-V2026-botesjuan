@@ -353,13 +353,17 @@ Start → Read scope & engagement rules (exam brief in-platform)
 - Document every command run — you want the OPSEC score, not just flags
 - Revert machines if environment gets polluted — don't try to clean up manually
 
-## QUICK REFERENCE CARD (Exam Day Pocket Guide)
+## OPSEC Risk Levels  
 
 ```
 OPSEC-🟢SAFE:    inline-execute, ldapsearch, powerpick, steal_token, jump winrm64, krb_triage, krb_dump, getuid
 OPSEC-🟠CAUTION: execute-assembly, make_token, remote-exec wmi, jump scshell64, getsystem, dcsync, pth
 OPSEC-🔴UNSAFE:  shell, powershell, run, jump psexec64, mimikatz direct
+```
 
+## QUICK REFERENCE CARD (Exam Day Pocket Guide)
+
+```
 RECON:         ldapsearch <filter> --attributes ... (BOF — primary, OPSEC-🟢SAFE)
                BOFHound → BloodHound (preferred over SharpHound)
 KERBEROAST:    execute-assembly C:\Tools\Rubeus\...\Rubeus.exe kerberoast /user:<svc> /nowrap
