@@ -12,32 +12,11 @@
 * Perform **stealthy** techniques that blends into normal activity, maintain a low profile.  
 * Leverage trusted processes and native tools living off the land.  
 * Reuse credentials, impersonating legitimate users, and mimicking normal behavior to **evade antivirus**.  
- *Bypass endpoint defenses without alerting defenders.  
+* **Bypass** endpoint defenses without alerting defenders.  
 
 >[CRTO](https://www.zeropointsecurity.co.uk/course/red-team-ops) Zero Point Security Study Notes for the Red Team Ops Exam  
 
-## Red Team Ops Phases    
-
-* [Cobalt Strike Primer](/cheatsheets/cobalt-strike-primer.md)  
-* [AppLocker](/cheatsheets/applocker.md)  
-* [Defence Evasion](/cheatsheets/defense-evasion.md)  
-* [Initial Access](/cheatsheets/initial-access.md)  
-* [Persistence](/cheatsheets/persistence.md)  
-* [Post-Exploitation](/cheatsheets/post-exploitation.md)  
-* [Privilege Escalation](/cheatsheets/privilege-escalation.md)  
-* [Elevated Persistence](/cheatsheets/elevated-persistence.md)  
-* [Credential Access](/cheatsheets/credential-access.md)  
-* [User Impersonation](/cheatsheets/user-impersonation.md)  
-* [Discovery](/cheatsheets/discovery.md)  
-* [Lateral Movement](/cheatsheets/lateral-movement.md)  
-* [Pivoting](/cheatsheets/pivoting.md)
-* [Kerberos](/cheatsheets/kerberos.md)  
-* [Microsoft SQL Server](/cheatsheets/ms-sql-server.md)  
-* [Domain Dominance](/cheatsheets/domain-dominance.md)  
-* [Active Directory Certificate Services ADCS](/cheatsheets/adcs.md)  
-* [Forest & Domain Trusts](/cheatsheets/forest-domain-trusts.md)  
-
-## Labs & Challenges  
+## Labs & Challenges    
 
 * [Cobalt Strike Initial Commands Lab](/labs/2-Cobalt-Strike-Primer.md)  
 * [AppLocker Challenge](/labs/applocker-challenge.md)  
@@ -72,6 +51,29 @@
 
 * [Exam Instructions](/notes/Exam-Instructions.md)  
 * [CRTO Fast Reference Methodology Exam Day](/crto-fast-reference-methodology-exam-day.md)  
+
+----  
+
+## Red Team Ops Phases    
+
+* [Cobalt Strike Primer](/cheatsheets/cobalt-strike-primer.md)  
+* [AppLocker](/cheatsheets/applocker.md)  
+* [Defence Evasion](/cheatsheets/defense-evasion.md)  
+* [Initial Access](/cheatsheets/initial-access.md)  
+* [Persistence](/cheatsheets/persistence.md)  
+* [Post-Exploitation](/cheatsheets/post-exploitation.md)  
+* [Privilege Escalation](/cheatsheets/privilege-escalation.md)  
+* [Elevated Persistence](/cheatsheets/elevated-persistence.md)  
+* [Credential Access](/cheatsheets/credential-access.md)  
+* [User Impersonation](/cheatsheets/user-impersonation.md)  
+* [Discovery](/cheatsheets/discovery.md)  
+* [Lateral Movement](/cheatsheets/lateral-movement.md)  
+* [Pivoting](/cheatsheets/pivoting.md)
+* [Kerberos](/cheatsheets/kerberos.md)  
+* [Microsoft SQL Server](/cheatsheets/ms-sql-server.md)  
+* [Domain Dominance](/cheatsheets/domain-dominance.md)  
+* [Active Directory Certificate Services ADCS](/cheatsheets/adcs.md)  
+* [Forest & Domain Trusts](/cheatsheets/forest-domain-trusts.md)  
 
 ----  
 

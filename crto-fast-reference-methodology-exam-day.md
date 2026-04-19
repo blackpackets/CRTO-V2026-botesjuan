@@ -840,7 +840,8 @@ CLEANUP:
 [ ] Kerbeus-BOF kerbeus_cs.cna loaded — required for krb_triage/krb_dump
 [ ] exam-recon.cna loaded AFTER SA.cna — confirms domain_recon_bulk + domain_recon_targeted available
 [ ] HTTP listener live with masquerading Host header
-[ ] SMB listener live with CUSTOM pipename (not TSVCPIPE-*)
+[ ] SMB listener live with CUSTOM pipename — use dotnet-diagnostic-##### or ########-####-####-####-############
+    DO NOT use: TSVCPIPE-* (CS default), mojo.* (documented IOC since 2019), msagent_*, postex_*, MSSE-*
 [ ] Test beacon from workstation → Defender does NOT block
 [ ] spawnto set to werfault.exe after first beacon
 [ ] ppid set to explorer.exe PID
