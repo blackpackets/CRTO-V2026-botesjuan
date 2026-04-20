@@ -17,7 +17,7 @@ This lab is the **opposite direction** to the Inbound Trusts lab. Read this care
 │  S-1-5-21-4244029708-               │        │  S-1-5-21-3926355307-               │
 │       1901239654-2578485347         │        │       1661546229-813047887          │
 │                                     │        │                                     │
-│  trustDirection = 2 (OUTBOUND) ─────┼───────►│  PARTNER trusts CONTOSO            │
+│  trustDirection = 2 (OUTBOUND) ─────┼───────►│  PARTNER trusts CONTOSO             │
 │                                     │        │                                     │
 │  Our resources trust CONTOSO users  │        │  DC: lon-dc-1.contoso.com           │
 │  CONTOSO users can access US        │        │  KDC: 10.10.120.1                   │
@@ -27,14 +27,19 @@ This lab is the **opposite direction** to the Inbound Trusts lab. Read this care
 ```
 
 **Trust Direction Rule for the exam:**
-- `trustDirection=2 OUTBOUND` (queried from PARTNER) → PARTNER trusts CONTOSO → CONTOSO users can access PARTNER resources. The arrow points AWAY from us toward them.
-- `trustDirection=1 INBOUND` → they trust us → our users access their resources.
-- `trustDirection=3` → bidirectional.
-- `trustAttributes=8` → forest trust → SID filtering ON between forest boundaries.
+- `trustDirection=2 OUTBOUND` (queried from PARTNER) → PARTNER trusts CONTOSO → CONTOSO users can access PARTNER resources. The arrow points AWAY from us toward them.  
+- `trustDirection=1 INBOUND` → they trust us → our users access their resources.  
+- `trustDirection=3` → bidirectional.  
+- `trustAttributes=8` → forest trust → SID filtering ON between forest boundaries.  
 
-**The normal flow** (legitimate): CONTOSO users authenticate to PARTNER's DC → present credentials → access PARTNER resources. PARTNER users get nothing on CONTOSO (one-way).
+**The normal flow** (legitimate):  
+> CONTOSO users authenticate to PARTNER's DC → present credentials → access PARTNER resources. PARTNER users get nothing on CONTOSO (one-way).  
 
-**The attack**: We are on PARTNER (the trusting domain). We should have no access to CONTOSO (the trusted domain). BUT — the inter-realm trust key is stored on BOTH sides. We can DCSync PARTNER's TDO to get that shared key, then use it to authenticate to CONTOSO's KDC as the trust account. This gets us an authenticated foothold in CONTOSO for enumeration.
+**The attack**:  
+> We are on PARTNER (the trusting domain). We should have no access to CONTOSO (the trusted domain).  
+> BUT — the inter-realm trust key is stored on BOTH sides.  
+> We can DCSync PARTNER's TDO to get that shared key, then use it to authenticate to CONTOSO's KDC as the trust account.  
+> This gets us an authenticated foothold in CONTOSO for enumeration.  
 
 ---
 
@@ -107,15 +112,17 @@ Step 8:    Use TGT to enumerate CONTOSO via LDAP → find attack paths
 
     > **Why we need the GUID:** DCSync normally replicates user or computer account objects identified by their `sAMAccountName`. The TDO is neither — it is a `trustedDomain` object stored in `CN=System`. To replicate it with DCSync (mimikatz `lsadump::dcsync`), you must identify the object by its `objectGUID` using the `/guid:` flag.
     >
-    > The GUID returned (e.g. `{288d9ee6-2b3c-42aa-bef8-959ab4e484ed}`) is PARTNER's TDO object for the CONTOSO trust. Note it — this is `[TDO_GUID]` used in step 5.
+    > The GUID returned `{288d9ee6-2b3c-42aa-bef8-959ab4e484ed}` is PARTNER's TDO object for the CONTOSO trust. Note it — this is `[TDO_GUID]` used in step 5.
 
 4. Inject a Beacon payload into a *vwebber* process.
 
-    > **Why vwebber?** DCSync requires the replication privileges `DS-Replication-Get-Changes` and `DS-Replication-Get-Changes-All`. These are held by Domain Admins and Domain Controllers — regular users cannot run DCSync. `vwebber` is a Domain Admin on PARTNER. By injecting into one of vwebber's processes, we steal their security token and run DCSync under their context.
+    > **Why vwebber?** DCSync requires the replication privileges `DS-Replication-Get-Changes` and `DS-Replication-Get-Changes-All`.  
+    > These are held by Domain Admins and Domain Controllers — regular users cannot run DCSync.  
+    > `vwebber` is a Domain Admin on PARTNER.  
+    > By injecting into one of vwebber's processes, we steal their security token and run DCSync under their context.  
+    > Use `process_browser` to find a process owned by `vwebber`, then `inject <pid> x64 <listener>` or `steal_token <pid>`.  
     >
-    > Use `process_browser` to find a process owned by `vwebber`, then `inject <pid> x64 <listener>` or `steal_token <pid>`.
-    >
-    > **OPSEC-CAUTION** — Process injection generates telemetry. Prefer `steal_token <pid>` (no new thread injection) over `inject` if the goal is just token impersonation for the DCSync call.
+    > **OPSEC-🟠CAUTION** — Process injection generates telemetry. Prefer `steal_token <pid>` (no new thread injection) over `inject` if the goal is just token impersonation for the DCSync call.  
 
 5. Use the new Beacon to DCSync the shared inter-realm key from the TDO.
 
@@ -123,7 +130,7 @@ Step 8:    Use TGT to enumerate CONTOSO via LDAP → find attack paths
     mimikatz lsadump::dcsync /domain:partner.com /guid:{288d9ee6-2b3c-42aa-bef8-959ab4e484ed}
     ```
 
-    > **What this does:** Performs a DCSync replication request against PARTNER's DC (`/domain:partner.com` targets PARTNER's DC — this is OUR domain). The `/guid:` flag tells mimikatz to replicate the specific TDO object rather than a user account.
+    > **What this does:** OPSEC-🔴UNSAFE Performs a DCSync replication request against PARTNER's DC (`/domain:partner.com` targets PARTNER's DC — this is OUR domain). The `/guid:` flag tells mimikatz to replicate the specific TDO object rather than a user account.
     >
     > The TDO object stores the trust password in the same way a machine account stores its password. Mimikatz extracts:
     > - `rc4_hmac_nt` — the RC4 (NT hash) of the trust key → this is `[TRUST KEY]` used in step 6
@@ -131,7 +138,7 @@ Step 8:    Use TGT to enumerate CONTOSO via LDAP → find attack paths
     >
     > Note the `rc4_hmac_nt` value from the output.
     >
-    > **OPSEC-CAUTION** — DCSync generates **Event 4662** on PARTNER's DC. Running DCSync against the TDO (rather than a user account) is unusual and may stand out in logs compared to a normal user account DCSync. Use AES256 if available.
+    > **OPSEC-🔴UNSAFE** — DCSync generates **Event 4662** on PARTNER's DC. Running DCSync against the TDO (rather than a user account) is unusual and may stand out in logs compared to a normal user account DCSync. Use AES256 if available.
 
 6. Request a TGT for the trust account using the shared secret.
 
@@ -147,7 +154,7 @@ Step 8:    Use TGT to enumerate CONTOSO via LDAP → find attack paths
     >
     > **Ticket in hand:** `TGT_PARTNER$` — a valid Kerberos TGT, issued by CONTOSO's KDC, for the `PARTNER$` account. This is an authenticated identity inside CONTOSO's Kerberos realm. `PARTNER$` is treated as a low-privilege domain account in CONTOSO — enough for LDAP enumeration.
     >
-    > **OPSEC-CAUTION** — Generates **Event 4768** (AS-REQ) on CONTOSO's DC (`lon-dc-1`). The account name `PARTNER$` authenticating via RC4 from an unexpected source IP may flag in MDI or SIEM. CONTOSO's defenders would see an authentication from a non-DC machine for the trust account.
+    > **OPSEC-🟠CAUTION** — Generates **Event 4768** (AS-REQ) on CONTOSO's DC (`lon-dc-1`). The account name `PARTNER$` authenticating via RC4 from an unexpected source IP may flag in MDI or SIEM. CONTOSO's defenders would see an authentication from a non-DC machine for the trust account.
 
 7. Inject the TGT into a sacrificial logon session.
 
@@ -165,7 +172,9 @@ Step 8:    Use TGT to enumerate CONTOSO via LDAP → find attack paths
 
     > **IMPORTANT:** `kerberos_ticket_use` expects a **file path to a `.kirbi` file** on the CS client (attacker desktop) — NOT a raw base64 string. Passing base64 directly causes the error: `'C:\Tools\cobaltstrike\client\doIFZD...' does not exist`.
     >
-    > `kerberos_ticket_use` is the **recommended method** — it uses CS's native ticket injection via Windows API. No process spawn, no CLR load, no Rubeus signatures. Rubeus `ptt` via `execute-assembly` is OPSEC-CAUTION (spawns a sacrificial process and loads the .NET CLR) — avoid it for pure ticket injection when `kerberos_ticket_use` is available.
+    > `kerberos_ticket_use` is the **recommended method** — it uses CS's native ticket injection via Windows API.  
+    > No process spawn, no CLR load, no Rubeus signatures. Rubeus `ptt` via `execute-assembly` is OPSEC-🟠CAUTION spawns a sacrificial process and loads the .NET CLR  
+    > avoid it for pure ticket injection when `kerberos_ticket_use` is available.  
 
     On attacker desktop PowerShell — decode base64 to .kirbi file:
 
@@ -179,7 +188,7 @@ Step 8:    Use TGT to enumerate CONTOSO via LDAP → find attack paths
     kerberos_ticket_use C:\Users\Attacker\Desktop\partner.kirbi
     ```
 
-    > **OPSEC-SAFE** — CS injects the ticket into the logon session via Windows Kerberos API. No process spawn, no CLR load, no disk write on the target. The `.kirbi` file lives only on the attacker desktop (CS client), never on the target machine.
+    > **OPSEC-🟢SAFE** — CS injects the ticket into the logon session via Windows Kerberos API. No process spawn, no CLR load, no disk write on the target. The `.kirbi` file lives only on the attacker desktop (CS client), never on the target machine.
 
 8. Enumerate the trusted domain.
 
@@ -196,7 +205,7 @@ Step 8:    Use TGT to enumerate CONTOSO via LDAP → find attack paths
     > - Mapping group memberships, admin accounts, GPOs
     > - Identifying further trust relationships FROM CONTOSO
     >
-    > **OPSEC-SAFE** — LDAP queries from an authenticated account are normal domain behaviour. Generates **Event 1644** only under verbose LDAP logging (not default).
+    > **OPSEC-🟢SAFE** — LDAP queries from an authenticated account are normal domain behaviour. Generates **Event 1644** only under verbose LDAP logging (not default).
 
 ⚠️ In this lab, you have learned how to abuse the trust account to obtain a usable TGT for the foreign domain. These can be used to find potential vulnerabilities, such as Kerberoastable accounts.
 
