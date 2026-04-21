@@ -14,11 +14,12 @@
 * Reuse credentials, impersonating legitimate users, and mimicking normal behavior to **evade antivirus**.  
 * **Bypass** endpoint defenses without alerting defenders.  
 
-## Exam  
+## Exam Ready  
 
-* [CRTO](https://www.zeropointsecurity.co.uk/course/red-team-ops) Zero Point Security red Team Ops Course
+* [Zero Point Security Red Team Ops Course Content](https://www.zeropointsecurity.co.uk/course/red-team-ops)  
 * [Exam Instructions](/notes/Exam-Instructions.md)  
-* [CRTO Fast Reference Methodology Exam Day](/crto-fast-reference-methodology-exam-day.md)  
+* [CRTO Fast Reference Methodology on Exam Day](/crto-fast-reference-methodology-exam-day.md)  
+* [Command Library](/crto-command-library.md)  
 
 ## Labs & Challenges    
 
