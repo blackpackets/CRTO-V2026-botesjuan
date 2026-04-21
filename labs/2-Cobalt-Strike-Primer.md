@@ -34,7 +34,7 @@ Add the following listeners:
 
 1. Name: `smb`
 1. Payload: Beacon SMB
-1. Pipename: `TSVCPIPE-4b2f70b3-ceba-42a5-a4b5-704e1c41337`
+1. Pipename: `srvsvc-a1b2c3d4-e5f6-7890-abcd-efabef56789a`  
 
 ## TCP
 
@@ -74,8 +74,9 @@ Add the following listeners:
 
 ## OPSEC Warnings & Exam-Day Notes
 
-### SMB Listener Pipename — Change on Exam Day
-`TSVCPIPE-4b2f70b3-ceba-42a5-a4b5-704e1c41337` is the lab default — it is a well-known CS IoC
+### SMB Listener Pipename — Change on Exam Day  
+
+`srvsvc-a1b2c3d4-e5f6-7890-abcd-efabef56789a` is the new pipename
 flagged by Defender and detection rules. **Never use this on exam day.**
 
 Create the SMB listener with a custom pipename that blends with legitimate Windows pipes:

