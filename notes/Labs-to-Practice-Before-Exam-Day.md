@@ -6,7 +6,7 @@
 
 ## Tier 1 — Hands-On Practice Required (must run, not just read)
 
-### 1. Defence Evasion — Artifact Kit + Resource Kit rebuild cycle
+### 1. [Defence Evasion — Artifact Kit + Resource Kit rebuild cycle](/labs/defence-evasion-lab-Malleable.md)
 
 Your notes are solid but this is the #1 exam failure reason. The ThreatCheck → Ghidra → `patch.c` backward-while-loop → rebuild cycle must be muscle memory. Practice the full loop until you can go from dirty artifact to ThreatCheck clean without notes.
 
@@ -32,7 +32,7 @@ Lab file: `labs/defence-evasion-lab-Malleable.md`
 
 ---
 
-### 2. SQL Servers lab
+### 2. [SQL Servers lab](/labs/SQL-Servers-lab.md)
 
 Mechanically the most complex lab. The beacon chain is:
 
