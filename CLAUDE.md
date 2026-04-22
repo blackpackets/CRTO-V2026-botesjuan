@@ -121,7 +121,7 @@ process-inject {
     }
 }
 ```
-- Run `c2lint` against profile before exam — catch syntax errors early
+
 - `sudo /usr/bin/docker restart cobaltstrike-cs-1` after any profile edit
 - Check `sudo /usr/bin/docker logs cobaltstrike-cs-1` — no `[!]` errors = profile loaded
 - `amsi_disable "true"` covers fork & run (`execute-assembly`, `powerpick`) but NOT `jump` commands

