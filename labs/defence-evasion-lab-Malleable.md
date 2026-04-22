@@ -1,12 +1,12 @@
 # Defence Evasion Lab — Malleable C2 & Artifact/Resource Kit
 
-> **Exam relevance:** This is one of the highest-value prep topics. The OPSEC score (50 pts) is
+> **Relevance:** This is one of the highest-value prep topics. The OPSEC score (50 pts) is
 > where most people fail. Defender must NOT block your payloads or fork&run post-ex commands.
 > Every technique in this lab maps directly to an OPSEC scoring criterion.  
 
 > **Objective**: make Beacon more resilient against Windows Defender antivirus.  
 
-> **Exam application order (do this before touching any target):**
+> **Application order (do this before touching any target):**
 > 1. SSH to team server → update Malleable C2 profile
 > 2. Patch and build Artifact Kit → ThreatCheck clean
 > 3. Build Resource Kit → fix templates → ThreatCheck AMSI clean
@@ -31,7 +31,7 @@ optional — it is the minimum required to avoid generating 🚨 alerts on this 
 
 ---
 
-## Why Defence Evasion Exists — The Detection Layers
+## Defence Evasion — Detection Layers
 
 Defender (and any EDR) operates at multiple scan layers. 👁️ passing one does not mean passing all:
 
@@ -188,17 +188,17 @@ spawns a sacrificial child process (the `spawnto` target), injects a post-ex DLL
 the task, receives output via a named pipe, then kills the child. This entire chain is what the
 `post-ex` block controls.
 
-**Why each setting:**
+**Setting:**
 
 | Setting | Default | What it fixes | OPSEC detection prevented |
 |---------|---------|--------------|--------------------------|
 | `spawnto_x64 "werfault.exe"` | `rundll32.exe` | `rundll32.exe` is heavily signatured as a CS spawnto default. Defender, SysMon, and EDRs have detection rules for CS beacons spawning `rundll32`. `werfault.exe` (Windows Error Reporting) is a legitimate system process that spawns frequently and makes sense as a child of many processes. | Suspicious process hierarchy / default CS indicator |
 | `cleanup "true"` | Post-ex DLL stays in sacrificial process | Removes the injected shellcode from the sacrificial process memory once the task finishes — no leftover artifacts for a memory scanner to find | Memory scan of completed process |
-| `pipename "dotnet-diagnostic-#####, ..."` | `msagent_*`, `postex_*`, `MSSE-*` patterns | **Critical for exam OPSEC score.** Default CS pipe names are on Defender's signature list. The `dotnet-diagnostic-` prefix blends with .NET runtime named pipes (CLR debugging/profiling) — legitimate on any Windows system with .NET. The `#####` and `####-####...` are wildcards CS replaces with random digits at runtime. | Default CS named pipe detection — **explicit OPSEC scoring criterion** |
+| `pipename "dotnet-diagnostic-#####, ..."` | `msagent_*`, `postex_*`, `MSSE-*` patterns | **Critical for 🕵️  OPSEC score.** Default CS pipe names are on Defender's signature list. The `dotnet-diagnostic-` prefix blends with .NET runtime named pipes (CLR debugging/profiling) — legitimate on any Windows system with .NET. The `#####` and `####-####...` are wildcards CS replaces with random digits at runtime. | Default CS named pipe detection — **explicit OPSEC scoring criterion** |
 | `thread_hint "ntdll.dll!RtlUserThreadStart+0x2c"` | Suspicious thread start address | Threads created by CS injection start at an address that points into the injected shellcode — anomalous. `thread_hint` spoofs the thread start address to look like it began from `ntdll!RtlUserThreadStart`, which is where all legitimate user-mode threads start. EDR thread start address checks pass. | Anomalous thread start address detection |
 | `amsi_disable "true"` | AMSI active in sacrificial process | **For execute-assembly and powerpick to work, AMSI must be disabled in the sacrificial process.** AMSI in the fork&run process would scan the .NET assembly or PS script block before it runs. This setting patches AMSI in the sacrificial process memory before the post-ex DLL executes. Without this, Defender blocks execute-assembly and powerpick. | AMSI blocking execute-assembly / powerpick |
 
-**Why the `strrepex` transform entries:**
+** `strrepex` transform entries:**
 
 The post-ex DLLs (PowerPick.x64.dll, ExecuteAssembly.x64.dll) contain error message strings that Defender signatures recognise as CS-specific. `strrepex` patches strings in a named specific module only (unlike `strrep` which applies to the main beacon DLL):
 
@@ -244,7 +244,7 @@ This block governs two things: (1) how BOF (Beacon Object File / `inline-execute
 managed in the beacon process itself, and (2) how shellcode is injected and executed when CS
 injects into a remote process (fork&run, explicit injection).
 
-**Why each setting:**
+**setting:**
 
 | Setting | Value | Why |
 |---------|-------|-----|
@@ -299,7 +299,7 @@ The Artifact Kit is CS's source code for these stubs. By modifying and recompili
 you produce different bytecode — the logic is identical but the bytes on disk don't match the
 known signature.
 
-**You must do this before the exam. Defender will block default CS payloads immediately.**
+**Do this first 🕵️ Defender will block default CS payloads immediately.**
 
 ---
 
@@ -360,14 +360,14 @@ cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/artifact
 ./build.sh mailslot VirtualAlloc 351363 0 false false none /mnt/c/Tools/cobaltstrike/custom-artifacts
 ```
 
-**Why each build parameter:**
+**Build parameter:**
 
 | # | Param | Value | Why |
 |---|-------|-------|-----|
 | 1 | `technique` | `mailslot` | stub passes shellcode internally — mailslot IPC is less signatured than the default `pipe`. `readfile` is OPSEC-🟠CAUTION (writes to disk). |
 | 2 | `allocator` | `VirtualAlloc` | Memory allocation method. `VirtualAlloc` with no-RWX profile settings |
 | 3 | `magic_mz_x86` | `351363` | Replaces the `MZ` magic bytes (0x4D5A) at PE offset 0 with custom bytes (351363 decimal = 0x055C03 → bytes `03 5C`). On disk/scan: `03 5C ...` doesn't look like a PE → passes static scan. At runtime the stub patches it back to `4D 5A` before executing. |
-| 4 | `magic_mz_x64` | `0` | `0` = no substitution for x64 in this build. use a non-zero value for both archs — the lab used 0 for x64. |
+| 4 | `magic_mz_x64` | `0` | `0` = no substitution for x64 in this build. use a non-zero value for both archs — lab used 0 for x64. |
 | 5 | `rdll_x86` | `false` | No reflective DLL staging for x86 (not needed here). |
 | 6 | `rdll_x64` | `false` | Same for x64. |
 | 7 | `stack_spoof` | `none` | No call stack spoofing in this build. |
@@ -384,9 +384,9 @@ C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f "C:\tools\cobaltst
 - **No output** = clean. Proceed to load.
 - **Output with hex offset** = Defender still has a signature for something in the artifact.
 
-**If detected:** Use Ghidra to locate the flagged code at the offset ThreatCheck gives you,
-find the corresponding source in `patch.c`, modify the implementation (different loop structure,
-different variable operations), rebuild, and ThreatCheck again. Repeat until clean.
+**detected:** Use Ghidra to locate the flagged code at the offset ThreatCheck gives,
+find the corresponding source in `patch.c`, modify the implementation different loop structure,
+different variable operations, rebuild, and ThreatCheck again. Repeat until clean.
 
 ---
 
@@ -449,12 +449,12 @@ Open: template.x64.ps1
 on its pattern list. String concatenation is evaluated at runtime — AMSI sees `'Sys'+'tem.dll'`
 which does not match the pattern.
 
-**Is `'Sys'+'tem.dll'` enough for the exam**
+** 📝  `'Sys'+'tem.dll'` Obfuscation ?**
 
-In the ZPS lab environment with the Defender version at time of lab build — yes, ThreatCheck
+In the ZPS lab environment with the Defender version at time of lab build — ThreatCheck
 confirmed it clean. However, AMSI signatures update. The only reliable answer is: **run
-ThreatCheck AMSI on exam day after building and confirm `No threat found`**. If it comes back
-detected, escalate the obfuscation using one of these alternatives:
+ThreatCheck AMSI  📝 after building and confirm `No threat found`**. If it comes back
+detected, escalate the obfuscation using alternatives:
 
 ```powershell
 # Option 1 — variable substitution (breaks string-pattern matching entirely):
@@ -545,7 +545,7 @@ generation time.
 > **Critical:** Never rename or obfuscate `%%DATA%%`. CS does a literal string substitution to
 > inject the shellcode bytes. If `%%DATA%%` is missing, the payload generates with empty shellcode.
 
-**Why this obfuscation passes AMSI:** Token-level obfuscation (mixed case, backtick splits,
+**obfuscation bypasses AMSI:** Token-level obfuscation (mixed case, backtick splits, 🕵️ 
 variable aliasing) breaks the static string pattern matching AMSI uses without changing the
 PowerShell AST (abstract syntax tree) — the code runs correctly but looks entirely different
 to a regex/string match.
@@ -555,7 +555,7 @@ Save the changes (File > Save).
 ---
 
 ### Step 4 — ThreatCheck AMSI scan
-threa
+
 ```powershell
 cd C:\Tools\cobaltstrike\custom-resources\
 C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f .\template.x64.ps1 -e AMSI -t Script
@@ -620,11 +620,9 @@ The ZPS lab environment has internal DNS configured (or hosts file entries) that
 `www.bleepincomputer.com` to the team server IP `10.0.0.5`. This is a lab-only configuration.
 The TCP connection goes to 10.0.0.5 — only the Host header says bleepincomputer.com.
 
-**Exam day application:**
+**Name Resolution**
 
-The exam environment will have similar internal DNS pre-configured. When you set up your HTTP
-listener with a masquerading Host value, the DNS resolution routes to your team server. You
-do NOT need to configure DNS yourself — the lab/exam infrastructure handles it.
+📝  environment will have similar internal DNS pre-configured
 
 If you use just the raw team server IP as the listener host instead, Beacon's outbound HTTP
 traffic will have `Host: 10.0.0.5` — an obvious C2 indicator. The masquerading domain is what
@@ -636,20 +634,20 @@ makes your C2 traffic blend with legitimate web browsing.
 
 ---
 
-### Exam Initial Access — What You Will Actually Do
+###  📝  Initial Access 
 
-The exam is **assume-breach**. This means:
+Engagement context **assume-breach**.  📝  
 - You are given credentials to log in to a foothold workstation
 - There is NO pre-running Beacon — you must spawn one yourself
 - Defender is ON — your Artifact Kit and Resource Kit must be clean before you do anything
 - The phishing delivery chain (ISO, LNK, AppDomainManager) from the Initial Access lab is
   the full attack for delivering to a simulated victim — you do NOT need to build that chain
-  for your first exam beacon if you have direct workstation access
+  for your first beacon if you have direct workstation access
 
-**Fastest path to first beacon on exam day:**
+**Fastest path to first beacon**
 
 ```
-1. Log in to the exam foothold workstation with provided credentials
+1. Log in to the foothold workstation with provided credentials
 2. Open PowerShell
 3. Run Scripted Web Delivery payload (team server hosted it when you clicked Launch)
 ```
@@ -703,7 +701,7 @@ Switch back to Attacker Desktop — a new beacon should check in.
 
 ### Test lateral movement with custom service spawnto
 
-**`jump psexec64` — OPSEC-🔴UNSAFE. Do not use this in the exam unless every other path fails.**
+**`jump psexec64` — OPSEC-🔴UNSAFE. Do NOT use this unless every other path fails.**
 
 `jump psexec64` creates a Windows service on the remote target to execute the beacon payload.
 This produces multiple high-confidence detection events simultaneously:
@@ -735,7 +733,7 @@ which executable the service runs, not preventing the service from being created
 
 ---
 
-#### Option 1 — `jump winrm64` (OPSEC-🟢SAFE — preferred for exam)
+#### Option 1 — `jump winrm64` OPSEC-🟢SAFE
 
 ```cs
 // Impersonate a local admin on the target first:
@@ -833,34 +831,32 @@ beacon> jump psexec64 lon-ws-1 smb
 
 ---
 
-### Lateral Movement Decision Flow (Exam Day)
+### Lateral Movement Decision Flow
 
 ```
 Need to move to <target>?
        │
        ▼
 Test-WSMan <target> reachable?
-  YES → jump winrm64 <target> smb         ← stop here, OPSEC-🟢SAFE
+  YES → jump winrm64 <target> smb ← stop here, OPSEC-🟢SAFE
   NO  → try scshell64
            │
            ▼
         scshell64 works?
-          YES → jump scshell64 <target> smb   ← stop here, OPSEC-🟠CAUTION
+          YES → jump scshell64 <target> smb ← stop here, OPSEC-🟠CAUTION
           NO  → try remote-exec wmi
                     │
                     ▼
                  WMI reachable?
                    YES → remote-exec wmi <target> <staged payload>  ← OPSEC-🟠CAUTION
-                   NO  → jump psexec64 <target> smb  ← LAST RESORT — accept 7045 event
+                   NO  → jump psexec64 <target> smb ← LAST RESORT — accept 7045 event
 ```
 
 ---
 
-## Part 5 — Exam Day Application
+## Environment SITREP OPSEC scoring
 
-### What you have built and why it matters for OPSEC scoring
-
-| OPSEC scoring criterion (from Exam-Instructions.md) | What you built that addresses it |
+| OPSEC scoring criterion [notes/Exam-Instructions.md](Exam-Instructions.md) | What you built that addresses it |
 |----------------------------------------------------|----------------------------------|
 | Blocked by Defender / AppLocker | Custom Artifact Kit (backward while loop + magic_mz) + Resource Kit (string fixes + obfuscation) |
 | Default CS indicators (pipe names, injection) | `post-ex.pipename` = `dotnet-diagnostic-*`, `post-ex.spawnto_x64` = `werfault.exe`, `process-inject` execute block |
@@ -869,17 +865,17 @@ Test-WSMan <target> reachable?
 
 ### Is this enough to pass Defender? — Yes, with conditions
 
-The lab-proven values above are specifically tuned against Windows Defender in the Skillable
-exam environment. They address every layer Defender uses against CS. **But:**
+The lab-proven values above are specifically tuned against Windows Defender  
+They address every layer Defender uses against CS. **But:**
 
-1. **Run ThreatCheck every time you rebuild.** If CS is updated between your lab and exam, new
+1. **Run ThreatCheck every time on rebuild.** If CS is updated between new
    signatures may appear. The artifact/resource kit is not a one-time fix — verify clean each time.
 
 2. **ETW 🧠 — driver-bofs is NOT a userland ETW patch.** `C:\Tools\driver-bofs\etw.x64.o`
    patches ETW kernel callbacks and requires a kernel driver already loaded — it will error with
    `Error getting callback offsets` without one. This is a BYOVD/kernel-level kit (CRTO II scope).
 
-   For CRTO I exam: the profile's `amsi_disable "true"` in `post-ex` covers AMSI in fork&run
+   CRTO: the profile's `amsi_disable "true"` in `post-ex` covers AMSI in fork&run
    processes. A separate userland ETW BOF (patching `EtwEventWrite` in ntdll) is the correct
    post-initial-access step if needed, but is **not staged in the lab tools** and is not a primary
    OPSEC scoring criterion. Skip the ETW BOF step unless a userland variant is sourced separately.
@@ -900,12 +896,8 @@ exam environment. They address every layer Defender uses against CS. **But:**
    beacon> spawnto x64 %windir%\sysnative\werfault.exe
    ```
 
-### Do you need additional bypass code beyond what is in this lab?
 
-For the exam environment (Windows Defender on Skillable): **No**, if you follow the lab steps
-exactly and ThreatCheck confirms clean. The lab config covers all Defender detection layers.
-
-If you encounter a detection that the lab config doesn't address:
+### Encounter a detection  🕵️ 
 - Use ThreatCheck to identify the flagged bytes/pattern
 - Use Ghidra to locate in the compiled artifact
 - Modify the source-level code (not the bytes directly) → rebuild
@@ -925,8 +917,8 @@ Pipename: TSVCPIPE-4b2f70b3-ceba-42a5-a4b5-704e1c41337
 
  💡 ** DO NOT use this exact pipename **
 
-`TSVCPIPE-*` is a well-known CS default pattern. Defenders and detection rules flag it.
-On exam day, create the SMB listener with a custom unique pipename that blends with legitimate
+`TSVCPIPE-*` is a well-known CS default pattern. Defenders and detection rules flag 🕵️ .
+create the SMB listener with a custom unique pipename that blends with legitimate
 Windows pipe patterns. Examples of legitimate-looking patterns:
 
 ```
@@ -943,7 +935,7 @@ postex_*
 MSSE-*-server
 ```
 
-👁️ will need to recreate the SMB listener in the exam environment. Don't copy the lab pipename.
+👁️ will need to recreate the SMB listener in the environment. Do NOT copy the lab pipename.
 
 ### 2. `post-ex.pipename` in the Malleable C2 profile
 
@@ -961,14 +953,14 @@ as the SMB listener pipe.
 
 **Summary:**
 
-| Pipe | Controlled by | Lab value | Exam day — use |
+| Pipe | Controlled by | Lab value | 🕵️ |
 |------|--------------|-----------|----------------|
 | SMB C2 comms pipe | Listener settings in CS GUI | `TSVCPIPE-4b2f70b3-...` | Custom unique name — NOT TSVCPIPE |
 | Fork&run output pipe | `post-ex.pipename` in profile | `dotnet-diagnostic-#####...` | Use lab value — already OPSEC-🟢SAFE |
 
 ---
 
-## Complete Exam Day Sequence (Defence Evasion steps only)
+## Methodology - Defence Evasion Stpes
 
 ```
 1. SSH attacker@10.0.0.5 → cd /opt/cobaltstrike/profiles → nano default.profile
