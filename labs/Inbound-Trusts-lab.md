@@ -277,7 +277,7 @@ We have DA on CONTOSO. rsteel (a CONTOSO user) has local admin on all PARTNER ma
     beacon> dcsync contoso.com CONTOSO\rsteel
     ```
 
-    > **Why rsteel, not Administrator?** rsteel is the bridge account — member of "Partner Jump Users" which maps via FSP to PARTNER local admin. DCSync with dyork's token generates Event 4662 on the DC. Use the `aes256_hmac` value only — AES256 is normal pre-auth behaviour and less anomalous than RC4.
+    > **rsteel, not Administrator?** rsteel is the bridge account — member of "Partner Jump Users" which maps via FSP to PARTNER local admin. DCSync with dyork's token generates Event 4662 on the DC. Use the `aes256_hmac` value only — AES256 is normal pre-auth behaviour and less anomalous than RC4.
     >
     > Event log: **4662** on `lon-dc-1` — Directory Service access, Properties: `DS-Replication-Get-Changes-All`
 

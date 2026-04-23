@@ -45,7 +45,7 @@
 * [SQL Servers Lab](labs/SQL-Servers-lab.md)  
 * ADCS  
   * [ESC1 Misconfigured Client Authentication Templates](/labs/esc1.md)  
-  * [ESC8 NTLM Relay to ADCS HTTP Endpoints](/labs/esc8.mdd)  
+  * [ESC8 NTLM Relay to ADCS HTTP Endpoints](/labs/esc8.md)  
   * [DPERSIST1 Golden Certificates](/labs/dpersist1.md)  
 * Domains & Forests
   * [Parent-Child Trust Lab](/labs/Parent-Child-Trusts.md)  
