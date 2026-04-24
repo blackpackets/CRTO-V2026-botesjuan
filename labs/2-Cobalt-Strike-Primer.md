@@ -62,10 +62,21 @@ Add the following listeners:
 
 # Generate Payloads
 
-1. Generate payloads for each listener.
-  1. Go to **Payloads > Windows Stageless Generate All Payloads**
-  1. Folder: `C:\Payloads`
-  1. Click **Generate**
+> ⚠️ **PREREQUISITE — First Update C2 Malleable Profile**  
+
+> First update [Defence evasion Malleable C2 profile](https://github.com/botesjuan/CRTO-Study-Notes/blob/main/labs/defence-evasion-lab-Malleable.md#part-1--malleable-c2-profile)
+
+<img src="/images/malleable-c2-profile-updates.png">  
+
+> 1. Malleable C2 profile active (docker restart)  
+> 2. Artifact Kit built → ThreatCheck clean → `artifact.cna` loaded in Script Manager  
+> 3. Resource Kit built → ThreatCheck AMSI clean → `resources.cna` loaded in Script Manager  
+>
+> Now generate payloads — they will use the custom artifact stubs.
+
+1. Go to **Payloads > Windows Stageless Generate All Payloads**
+2. Folder: `C:\Payloads`
+3. Click **Generate**
 
 <img src="/images/generate_payloads.png">  
 
