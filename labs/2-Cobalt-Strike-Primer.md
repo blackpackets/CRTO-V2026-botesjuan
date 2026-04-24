@@ -1,10 +1,8 @@
 # Cobalt Strike Initial Commands  
 
-The objective of this lab is to familiarse yourself with Cobalt Strike.  You will create listeners, generate payloads, and interact with Beacon.
+The objective of this lab is to setup Cobalt Strike.  You will create listeners, Malleable C2 profile, generate payloads, and Beacons.  
 
-* [Beacon commands](https://www.zeropointsecurity.co.uk/path-player?courseid=red-team-ops&unit=696a1d7abd92eef9e30f7537Unit)
-
-===
+* [Beacon commands](https://www.zeropointsecurity.co.uk/path-player?courseid=red-team-ops&unit=696a1d7abd92eef9e30f7537Unit)  
 
 # Launch Cobalt Strike
 
@@ -13,8 +11,6 @@ The objective of this lab is to familiarse yourself with Cobalt Strike.  You wil
   1. Host: `10.0.0.5`
   1. Port: `50050`
   1. Password: `Passw0rd!`
-
-===
 
 # Create Listeners
 
@@ -58,8 +54,6 @@ Add the following listeners:
 
 <img src="/images/cs_setup4.png">
 
-===
-
 # Generate Payloads
 
 > ⚠️ **PREREQUISITE — First Update C2 Malleable Profile**  
@@ -80,16 +74,12 @@ Add the following listeners:
 
 <img src="/images/generate_payloads.png">  
 
-===
-
 # Interact with Beacon
 
 1. Run *C:\Payloads\http_x64.exe* and a new Beacon session should appear.
 1. Familiarise yourself with the client UI and running commands in Beacon.
 
 ⚠️ Use the `help` command to list all of the available commands, and `help [alias]` to get help for a specific command.
-
-⚠️ In this lab, you have begun to explore the basics of using Cobalt Strike.
 
 ---
 
