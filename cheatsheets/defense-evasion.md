@@ -606,7 +606,6 @@ Before DCSync, Kerberoast, BloodHound collection
    → stage { userwx=false, copyheaders=false, module_x64, obfuscate=true }
    → post-ex { amsi_disable=true, spawnto_x64=dllhost.exe }
    → process-inject { userwx=false, execute methods }
-   → c2lint profile → fix errors
 
 4. Test beacon in lab with Defender ON → confirm callback + survival
 
@@ -638,7 +637,6 @@ UNSAFE:  shell | powershell | run | runas | jump psexec | service creation
 - [ ] Beacon DLL strings reviewed (`strings beacon_raw.x64.dll`)
 - [ ] spawnto overridden from default `rundll32.exe`
 - [ ] PPID spoofing configured before post-ex commands
-- [ ] `c2lint` run against profile — zero errors
 
 ---
 
@@ -659,10 +657,6 @@ sudo /usr/bin/docker restart cobaltstrike-cs-1
 # Verify no profile errors
 sudo /usr/bin/docker logs cobaltstrike-cs-1
 ```
-
-> **c2lint** before restarting — catch syntax errors without downtime.
-
----
 
 ### Malleable C2 — stage Block (Lab-Proven)
 

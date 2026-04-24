@@ -15,14 +15,13 @@
 > | Technique | Admin needed | Disk write | Registry write | Noise |
 > |-----------|-------------|------------|----------------|-------|
 > | **COM hijack (HKCU)** | No | Yes (DLL) | HKCU only | Low — trusted process loads it |
-> | Scheduled task | Yes (SYSTEM tasks) | Yes | No | Medium — schtasks.exe visible |
 > | Registry Run key | No | Yes | HKCU/HKLM | High — signatured by Defender/EDR |
 > | WMI subscription | Yes | Yes | Yes | Medium — requires elevated beacon |
 >
 > COM hijack wins at user-level because: registry write stays in HKCU (no admin), beacon runs inside a signed Microsoft process (Teams), and Teams restarts naturally on every login — triggering your DLL automatically.
 
 > **Exam-day checklist before running this lab:**
-> - [ ] Malleable C2 profile active (`c2lint` passed, docker restarted)
+> - [ ] Malleable C2 profile active & docker restarted
 > - [ ] Artifact Kit loaded (`artifact.cna`) — the DLL payload must survive Defender static scan
 > - [ ] Beacon running as target user (pchilds) with at least medium integrity
 > - [ ] `spawnto` set away from `rundll32.exe` before generating the DLL

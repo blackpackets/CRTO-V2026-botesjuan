@@ -112,16 +112,15 @@ Seven phases, SOCKS required, three separate execution contexts that must stay s
 
 ## Tier 2 — Full Dry Run (simulate exam day sequencing)
 
-### 6. CS Team Server Setup — cold-start simulation
+### 6. [CS Team Server Setup]()  
 
 Do a complete cold-start dry run from the pre-exam checklist. Time yourself. Target: ready to receive first beacon within 30 minutes of starting.
 
 ```
 [ ] SSH to team server
 [ ] Paste/edit Malleable C2 profile (stage + post-ex + process-inject blocks)
-[ ] c2lint → zero [!] errors
 [ ] docker restart cobaltstrike-cs-1 → docker logs — no [!]
-[ ] Build Artifact Kit → ThreatCheck clean
+[ ] [Build Artifact Kit](/labs/defence-evasion-lab-Malleable.md) → ThreatCheck clean
 [ ] Build Resource Kit → fix template.x64.ps1 → ThreatCheck AMSI clean
 [ ] Load in CS Script Manager (in order):
       artifact.cna

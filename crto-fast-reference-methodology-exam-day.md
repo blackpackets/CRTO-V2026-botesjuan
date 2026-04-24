@@ -15,7 +15,6 @@ cd /opt/cobaltstrike/profiles
 nano default.profile                           # paste stage, post-ex, process-inject blocks
 
 # Validate profile — fix any [!] before restarting
-/opt/cobaltstrike/c2lint /opt/cobaltstrike/profiles/default.profile
 sudo /usr/bin/docker restart cobaltstrike-cs-1
 sudo /usr/bin/docker logs cobaltstrike-cs-1    # confirm no [!] errors
 ```
@@ -956,7 +955,7 @@ CLEANUP:
 ## Pre-Exam Go/No-Go Checklist
 
 ```
-[ ] SSH to team server — Malleable C2 profile loaded (c2lint + docker logs clean)
+[ ] SSH to team server — Malleable C2 profile loaded docker logs clean
 [ ] Artifact Kit rebuilt + ThreatCheck clean (no output)
 [ ] Resource Kit rebuilt + ThreatCheck AMSI clean ("No threat found")
 [ ] artifact.cna + resources.cna loaded in CS Script Manager

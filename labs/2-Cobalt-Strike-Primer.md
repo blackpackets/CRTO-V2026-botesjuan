@@ -30,11 +30,15 @@ Add the following listeners:
 1. HTTP Hosts: `www.bleepincomputer.com`
 1. HTTP Host (Stager) : `www.bleepincomputer.com`
 
+<img src="/images/cs_setup1.png">  
+
 ## SMB
 
 1. Name: `smb`
 1. Payload: Beacon SMB
 1. Pipename: `srvsvc-a1b2c3d4-e5f6-7890-abcd-efabef56789a`  
+
+<img src="/images/cs_setup2.png">  
 
 ## TCP
 
@@ -43,12 +47,16 @@ Add the following listeners:
 1. Port: `4444`
 1. Bind to localhost: False
 
+<img src="/images/cs_setup3.png">  
+
 ## TCP (local)
 
 1. Name: `tcp-local`
 1. Payload: Beacon TCP
 1. Port: `1337`
 1. Bind to localhost: True
+
+<img src="/images/cs_setup4.png">
 
 ===
 
@@ -58,6 +66,8 @@ Add the following listeners:
   1. Go to **Payloads > Windows Stageless Generate All Payloads**
   1. Folder: `C:\Payloads`
   1. Click **Generate**
+
+<img src="/images/generate_payloads.png">  
 
 ===
 

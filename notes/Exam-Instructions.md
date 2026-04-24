@@ -103,7 +103,6 @@ When you resume after saving, any SMB/P2P Beacon chain will be dead. Persistence
 [ ] Patch Artifact Kit (patch.c) → build → ThreatCheck clean
 [ ] Build Resource Kit → fix template.x64.ps1 → ThreatCheck AMSI clean
 [ ] Load artifact.cna + resources.cna in CS Script Manager
-[ ] c2lint against profile → zero errors → docker restart team server
 [ ] Test beacon callback with Defender ON before engaging targets
 [ ] Set spawnto away from default rundll32.exe
 [ ] Set custom named pipe pattern in post-ex.pipename
