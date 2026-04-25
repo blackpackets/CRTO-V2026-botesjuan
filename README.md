@@ -23,7 +23,7 @@
 
 ## Labs & Challenges    
 
-* [Cobalt Strike Prepare](/labs/2-Cobalt-Strike-Primer.md)  
+* [Cobalt Strike Prepare & Beyond](/labs/2-Cobalt-Strike-Primer.md)  
   * [Defence-evasion-lab-Malleable.md](/labs/defence-evasion-lab-Malleable.md)  
   * [AppLocker Challenge](/labs/applocker-challenge.md)  
 * [Initial Access Lab](/labs/Initial-Access-lab.md)  
