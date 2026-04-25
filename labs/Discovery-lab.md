@@ -1,6 +1,6 @@
 # Discovery Lab  
 
->The objective of this lab is to carry out discovery of the CONTOSO domain.  By the end, you will be able to collect data and map attack paths in BloodHound, in a more stealth OPSEC-safe way than using the default collectors that will be detected.
+>The objective of this lab is to carry out discovery of the CONTOSO domain.  By the end, you will be able to collect data and map attack paths in BloodHound, in a more stealth OPSEC-🟢SAFE way than using the default collectors that will be detected.
 
 ## BOFHound
 
@@ -19,7 +19,7 @@
   3. `scp -r attacker@10.0.0.5:/opt/cobaltstrike/logs .`
   4. The password is `Passw0rd!`.
 
-1. Parse the logs with BOFHound
+1. Parse the logs with BOFHound🧠
   1. `bofhound -i logs`
 
 ===
@@ -36,9 +36,9 @@
 
 ⚠️ You'll likely be prompted to set a new password. You can change it to anything you want.
 
-1. Ingest the BOFHound data.
+1. Ingest the BOFHound 🧠 data.
   1. After first login, click the 'start by uploading your data' link.
-  1. On the new page, click the 'Upload File(s)' button and select the JSON files produced by BOFHound.
+  1. On the new page, click the 'Upload File(s)' button and select the JSON files produced by BOFHound 🧠.
 
 ⚠️ They will be in *C:\\Users\\Attacker\\Desktop\\*.
 
@@ -122,7 +122,7 @@ CS → Cobalt Strike → Script Manager → Load → C:\Users\Attacker\Desktop\e
 
 **Fire from any beacon — two aliases, run in order:**
 ```cs
-beacon> domain_recon_bulk       // BOFHound base data — run immediately on first beacon
+beacon> domain_recon_bulk       // BOFHound 🧠 data — run immediately on first beacon
 // check SIEM if available — confirm no alerts before continuing
 beacon> domain_recon_targeted   // sensitive queries — run after bulk confirms no alerts
 ```
@@ -148,7 +148,7 @@ binput($1, "ldapsearch (filter) --attributes x,y");        // FAILS — display 
 
 ## Additional ldapsearch Queries — Exam-Day Privilege Path Finding
 
-The two Step 3 queries feed BOFHound/BloodHound and give the full domain picture.
+The two Step 3 queries feed BOFHound 🧠 BloodHound and give the full domain picture.
 Run these targeted queries in parallel to find quick privilege escalation paths before `BloodHound` finishes processing.
 All run as BOF — `OPSEC-🟢SAFE`.
 
@@ -208,7 +208,7 @@ Run in this sequence immediately after first beacon — before BloodHound is rea
 
 | Priority | Query | Why |
 |----------|-------|-----|
-| 1 | Combined users+groups+computers (`samAccountType` filter) | Full AD picture for BOFHound |
+| 1 | Combined users+groups+computers (`samAccountType` filter) | Full AD picture for BOFHound🧠 |
 | 2 | Domain/OU/GPO (`objectClass` filter) | BloodHound path data |
 | 3 | Unconstrained delegation | Fastest path to DA if any non-DC has it |
 | 4 | Kerberoastable accounts | Avoid honeypots (check SPN before roasting) |

