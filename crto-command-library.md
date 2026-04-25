@@ -2,13 +2,13 @@
 
 ## Description and commands    
 
->Attacker desktop add hosts file entry for internal DNS resolution OPSEC-🟢SAFE
+>Add hosts file entry for internal DNS resolution Attacker desktop OPSEC-🟢SAFE
 
 ```powershell
 Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "10.10.120.1 lon-dc-1 lon-dc-1.contoso.com contoso.com"
 ```
 
->Disable Antivirus real time monitor scanning OPSEC-🟠CAUTION
+>Disable Antivirus 🛡️ real time monitor scanning OPSEC-🟠CAUTION
 
 ```powershell
 Set-MpPreference -DisableRealtimeMonitoring $true

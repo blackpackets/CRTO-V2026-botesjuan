@@ -23,9 +23,9 @@
 
 ## Labs & Challenges    
 
-* [Cobalt Strike Initial Commands Lab](/labs/2-Cobalt-Strike-Primer.md)  
-* [AppLocker Challenge](/labs/applocker-challenge.md)  
-* [Defence-evasion-lab-Malleable.md](/labs/defence-evasion-lab-Malleable.md)  
+* [Cobalt Strike Prepare](/labs/2-Cobalt-Strike-Primer.md)  
+  * [Defence-evasion-lab-Malleable.md](/labs/defence-evasion-lab-Malleable.md)  
+  * [AppLocker Challenge](/labs/applocker-challenge.md)  
 * [Initial Access Lab](/labs/Initial-Access-lab.md)  
 * [Persistence lab](/labs/Persistence-lab.md)  
 * [Privilege Escalation lab](/labs/Privilege-Escalation-lab.md)  
