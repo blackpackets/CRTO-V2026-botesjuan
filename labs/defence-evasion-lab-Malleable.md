@@ -854,19 +854,17 @@ Test-WSMan <target> reachable?
 
 ---
 
-## Environment SITREP OPSEC scoring
+## SITREP OPSEC Score
 
-| OPSEC scoring criterion [notes/Exam-Instructions.md](Exam-Instructions.md) | What you built that addresses it |
+| OPSEC Score Criteria [notes/Exam-Instructions.md](Exam-Instructions.md) | addresses OPSEC |
 |----------------------------------------------------|----------------------------------|
-| Blocked by Defender / AppLocker | Custom Artifact Kit (backward while loop + magic_mz) + Resource Kit (string fixes + obfuscation) |
-| Default CS indicators (pipe names, injection) | `post-ex.pipename` = `dotnet-diagnostic-*`, `post-ex.spawnto_x64` = `werfault.exe`, `process-inject` execute block |
+| Blocked by Defender / AppLocker | Custom Artifact Kit backward while loop + magic_mz + Resource Kit string obfuscation |
+| Default CS indicators pipe names, injection | `post-ex.pipename` = `dotnet-diagnostic-*`, `post-ex.spawnto_x64` = `werfault.exe`, `process-inject` execute block |
 | Outbound from unusual processes | `post-ex.spawnto_x64` controls which process handles fork&run (werfault.exe) |
 | Suspicious lateral movement | This is separate — prefer `jump winrm64` over `jump psexec64` |
 
-### Is this enough to pass Defender? — Yes, with conditions
-
 The lab-proven values above are specifically tuned against Windows Defender  
-They address every layer Defender uses against CS. **But:**
+They address every layer Defender uses against CS.  
 
 1. **Run ThreatCheck every time on rebuild.** If CS is updated between new
    signatures may appear. The artifact/resource kit is not a one-time fix — verify clean each time.

@@ -353,8 +353,6 @@ beacon> powerpick $env:computername
 beacon> powerpick Get-Domain
 
 beacon> execute-assembly C:\Tools\Seatbelt\Seatbelt\bin\Release\Seatbelt.exe AntiVirus
-
-beacon> inline-execute [/path/to/file.o] [args]
 ```
 
 ---

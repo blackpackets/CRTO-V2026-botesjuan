@@ -93,15 +93,13 @@ ldapsearch (objectClass=trustedDomain) --attributes trustPartner,trustDirection,
 1. Launch Cobalt Strike and connect to the team server.
 2. Interact with the Beacon.
 3. `ldapsearch` Enumerate the domain, users, groups, OUs, and GPOs.
-4. Copy the raw Beacon logs to the Attacker Desktop.  
-
-  1. From the Windows 🖥️ Terminal, open a tab for Ubuntu🟣🐧.
-  2. `cd /mnt/c/Users/Attacker/Desktop`
-  3. `scp -r attacker@10.0.0.5:/opt/cobaltstrike/logs .`
-  4. The password is `Passw0rd!`.  
-
-5. 🧠 BOFHound 📂 output 📝 logs❗parsed for BloodHound❗  
-  1. `bofhound -i logs`
+4. Copy the raw Beacon logs to the Attacker Desktop 
+5. From the Windows 🖥️ Terminal, open a tab for Ubuntu🟣🐧.
+6. `cd /mnt/c/Users/Attacker/Desktop`
+7. `scp -r attacker@10.0.0.5:/opt/cobaltstrike/logs .`
+8. The password is `Passw0rd!`.
+9. 🧠 BOFHound 📂 output 📝 logs❗parsed for BloodHound❗ 
+10. `bofhound -i logs`
 
 ----  
 

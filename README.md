@@ -30,16 +30,16 @@
   
 * [Post-Exploitation](/cheatsheets/post-exploitation.md)  
   * Local Enumeration  
-  * [User Impersonation Lab](/labs/User-Impersonation-lab.md)  
   * [Persistence lab](/labs/Persistence-lab.md)  
+  * [Credential Access Challenge](/labs/credential-access-challenge-commands.md)
+  * [Privilege Escalation lab](/labs/Privilege-Escalation-lab.md)  
+  * [User Impersonation Lab](/labs/User-Impersonation-lab.md)  
   
 * Domain Dominance  
   * [Active Directory Recon Discovery Lab](/labs/Discovery-lab.md)  
-  * [Credential Access Challenge](/labs/credential-access-challenge-commands.md)  
   * [User Impersonation Lab](/labs/User-Impersonation-lab.md)
   * [Lateral Movement Lab](/labs/Lateral-Movement-lab.md)  
   * [Persistence lab](/labs/Persistence-lab.md)  
-  * [Privilege Escalation lab](/labs/Privilege-Escalation-lab.md)  
   * [Elevated Persistence lab](/labs/Elevated-Persistence-lab.md)  
 
 * [SOCKS Pivoting Tunnels Lab](/labs/pivoting-SOCKS-lab.md)  
@@ -138,4 +138,4 @@
 
 <img src="/images/RedTeamOperationsPractitioner.png" width=400>  
 
-🇿🇦 21April2026 🇿🇦  
+🇿🇦 26April2026 🇿🇦  
