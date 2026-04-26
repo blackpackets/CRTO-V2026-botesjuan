@@ -1,6 +1,6 @@
 # Discovery Lab  
 
->The objective of this lab is to carry out discovery of the CONTOSO domain.  By the end, you will be able to collect data and map attack paths in BloodHound, in a more stealth OPSEC-🟢SAFE way than using the default collectors that will be detected.
+>The objective of this lab is to do discovery of the Active Directory domain.  Collect data and map attack paths in BloodHound in OPSEC-🟢SAFE way, instead of using collectors that will be 🚨 detected.
 
 ## Auth Check
 
@@ -11,23 +11,23 @@ kerberos_ticket_use C:\path\to\rsteel.kirbi
 ldapsearch (samAccountType=805306369) --attributes name,dnsHostName,operatingSystem
 ```
 
-## Domain-Level Privesc Paths OPSEC-🟢SAFE
+## Domain-Level LDAPSEARCH Paths OPSEC-🟢SAFE
 
 ```cs
 // GPO abuse — find GPOs applied to current machine/user OUs where we can write
-beacon> ldapsearch (&(objectClass=groupPolicyContainer)) --attributes displayName,gPCFileSysPath,ntsecuritydescriptor
+ldapsearch (&(objectClass=groupPolicyContainer)) --attributes displayName,gPCFileSysPath,ntsecuritydescriptor
 
 // Kerberoastable accounts (SPN holders) — weak password = privesc path
-beacon> ldapsearch (&(samAccountType=805306368)(servicePrincipalName=*)(!samAccountName=krbtgt)(!(UserAccountControl:1.2.840.113556.1.4.803:=2))) --attributes samAccountName,servicePrincipalName,memberOf
+ldapsearch (&(samAccountType=805306368)(servicePrincipalName=*)(!samAccountName=krbtgt)(!(UserAccountControl:1.2.840.113556.1.4.803:=2))) --attributes samAccountName,servicePrincipalName,memberOf
 
 // LAPS — find computers where current user can read ms-Mcs-AdmPwd
-beacon> ldapsearch (&(objectClass=computer)(ms-Mcs-AdmPwd=*)) --attributes name,ms-Mcs-AdmPwd,ms-Mcs-AdmPwdExpirationTime
+ldapsearch (&(objectClass=computer)(ms-Mcs-AdmPwd=*)) --attributes name,ms-Mcs-AdmPwd,ms-Mcs-AdmPwdExpirationTime
 
 // AdminSDHolder protected accounts (SDProp targets — ACL abuse paths)
-beacon> ldapsearch (&(adminCount=1)(objectClass=user)) --attributes samAccountName,memberOf,ntsecuritydescriptor
+ldapsearch (&(adminCount=1)(objectClass=user)) --attributes samAccountName,memberOf,ntsecuritydescriptor
 
 // Delegation misconfig — unconstrained delegation (TGT theft risk)
-beacon> ldapsearch (&(samAccountType=805306369)(!(UserAccountControl:1.2.840.113556.1.4.803:=2))(userAccountControl:1.2.840.113556.1.4.803:=524288)) --attributes name,userAccountControl,msDS-AllowedToDelegateTo
+ldapsearch (&(samAccountType=805306369)(!(UserAccountControl:1.2.840.113556.1.4.803:=2))(userAccountControl:1.2.840.113556.1.4.803:=524288)) --attributes name,userAccountControl,msDS-AllowedToDelegateTo
 ```
 
 ## BOFHound
@@ -36,13 +36,13 @@ beacon> ldapsearch (&(samAccountType=805306369)(!(UserAccountControl:1.2.840.113
 2. Interact with the Beacon.
 3. Enumerate the domain, users, groups, OUs, and GPOs.
 
-    ```Beacon-nocolor
-    ldapsearch (|(objectClass=domain)(objectClass=organizationalUnit)(objectClass=groupPolicyContainer)) --attributes *,ntsecuritydescriptor
-    ldapsearch (|(samAccountType=805306368)(samAccountType=805306369)(samAccountType=268435456)) --attributes *,ntsecuritydescriptor
-    ```
+```Beacon-nocolor
+ldapsearch (|(objectClass=domain)(objectClass=organizationalUnit)(objectClass=groupPolicyContainer)) --attributes *,ntsecuritydescriptor
+ldapsearch (|(samAccountType=805306368)(samAccountType=805306369)(samAccountType=268435456)) --attributes *,ntsecuritydescriptor
+```
 
 1. Copy the raw Beacon logs to the Attacker Desktop.
-  1. From the Windows Terminal, open a tab for Ubuntu.
+  1. From the Windows 🖥️Terminal, open a tab for Ubuntu🟣🐧.
   2. `cd /mnt/c/Users/Attacker/Desktop`
   3. `scp -r attacker@10.0.0.5:/opt/cobaltstrike/logs .`
   4. The password is `Passw0rd!`.
@@ -57,12 +57,12 @@ beacon> ldapsearch (&(samAccountType=805306369)(!(UserAccountControl:1.2.840.113
 1. Run BloodHound.
   1. From the Start Menu, open Docker Desktop.
   1. Click the **Containers** link on the left-hand side.
-  1. Start all the containers by clicking the 'play' button, and wait for them to start.
+  1. Start all the containers by clicking the 'play' button, 🧠  wait for them to start.
   1. From the taskbar, open Microsoft Edge.
   1. Click the BloodHound shortcut in the favourites bar, or manually browse to `http://localhost:8080/ui/login`
   1. The browser should autofil the credentials.  If not, use `admin` : `eA%N4frBrnn2`.
 
-⚠️ You'll likely be prompted to set a new password. You can change it to anything you want.
+⚠️ You'll likely be prompted to set a new password. You can change it to anything you want.⚠️
 
 1. Ingest the BOFHound 🧠 data.
   1. After first login, click the 'start by uploading your data' link.
@@ -83,8 +83,6 @@ beacon> ldapsearch (&(samAccountType=805306369)(!(UserAccountControl:1.2.840.113
   1. Expand its 'Affected Objects' and select 'Computers'.
 
 1. Select each computer and note their Obiect ID.
-
-===
 
 ## Restricted Groups Data
 
@@ -118,7 +116,6 @@ BloodHound will now show that rsteel has local administrative privileges on WKST
 
 ⚠️ In this lab, you have used LDAP queries and BloodHound to map part of the CONTOSO domain.
 
----
 
 ## Additional ldapsearch Queries — Exam-Day Privilege Path Finding
 
@@ -194,13 +191,10 @@ retrieved 0 results total
 
 ---
 
-### ⛔net computers⛔Never Use⛔
+### OPSEC-🔴UNSAFE Never Use⛔
 
-`net computers` ⛔ `net *` beacon commands run via the `shell` built-in which spawns
+`net computers` ⛔ `net *` OPSEC-🔴UNSAFE beacon commands run via the `shell` built-in which spawns
 `cmd.exe` — OPSEC-🔴UNSAFE. ⛔ fails with Error 5 from a network logon token.
-
-| Command | OPSEC | Replacement |
-|---------|-------|-------------|
-| `net computers` | 🔴UNSAFE — spawns cmd.exe | `ldapsearch (samAccountType=805306369)` |
-| `net users` | 🔴UNSAFE — spawns cmd.exe | `ldapsearch (samAccountType=805306368)` |
-| `net groups` | 🔴UNSAFE — spawns cmd.exe | `ldapsearch (samAccountType=268435456)` |
+| `net computers` | OPSEC-🔴UNSAFEE — spawns cmd.exe | `ldapsearch (samAccountType=805306369)` |
+| `net users` | OPSEC-🔴UNSAFE — spawns cmd.exe | `ldapsearch (samAccountType=805306368)` |
+| `net groups` | OPSEC-🔴UNSAFE — spawns cmd.exe | `ldapsearch (samAccountType=268435456)` |
