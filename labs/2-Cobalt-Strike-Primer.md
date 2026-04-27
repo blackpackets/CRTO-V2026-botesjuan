@@ -228,7 +228,7 @@ Go to **Cobalt Strike > Listeners > Add** to create a new listener.
 
 # Load CNA Scripts  
 
->Script Manager > Load CNA - Aggressor Scripts:  
+>Script Manager > Load > CNA Script File 💡 Aggressor Scripts:  
 
 * C:\Tools\cobaltstrike\arsenal-kit\kits\elevate\elevate.cna
 * C:\Tools\CS-Situational-Awareness-BOF\SA\SA.cna
@@ -237,6 +237,7 @@ Go to **Cobalt Strike > Listeners > Add** to create a new listener.
 * C:\Tools\cobaltstrike\custom-resources\resources.cna
 * C:\Tools\Kerbeus-BOF\kerbeus_cs.cna
 * C:\Tools\SQL-BOF\SQL\SQL.cna
+* C:\Tools\SCShell\CS-BOF\scshell.cna
 
 ----  
 

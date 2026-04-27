@@ -27,11 +27,12 @@
   * [Credential Access Challenge](/labs/credential-access-challenge-commands.md)
   * [Privilege Escalation lab](/labs/Privilege-Escalation-lab.md)  
   * [User Impersonation Lab](/labs/User-Impersonation-lab.md)  
+  * [Lateral Movement Lab - Jump](/labs/Lateral-Movement-lab.md)  
   
 * Domain Dominance  
   * [Active Directory Recon Discovery Lab](/labs/Discovery-lab.md)  
   * [User Impersonation Lab](/labs/User-Impersonation-lab.md)
-  * [Lateral Movement Lab](/labs/Lateral-Movement-lab.md)  
+  * [Lateral Movement Lab - Jump](/labs/Lateral-Movement-lab.md)  
   * [Persistence lab](/labs/Persistence-lab.md)  
   * [Elevated Persistence lab](/labs/Elevated-Persistence-lab.md)  
 

@@ -11,7 +11,7 @@
 
 ## Prerequisite
 
-⚠️ Load Kerbeus-BOF aggressor script if not already loaded:
+⚠️ Load Kerbeus-BOF aggressor script if not already loaded💡:
 ```
 CS → Cobalt Strike → Script Manager → Load → C:\Tools\Kerbeus-BOF\kerbeus_cs.cna
 ```
@@ -68,7 +68,7 @@ Copy the base64 kirbi from the output.
 ## Create sacrificial logon session  
 
 ```cs
-beacon> make_token CONTOSO\rsteel FakePass
+make_token CONTOSO\rsteel FakePass
 ```
 
 **OPSEC:** `OPSEC-🟠CAUTION`
