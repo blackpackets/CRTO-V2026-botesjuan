@@ -316,25 +316,6 @@ Returns the environment to its pre-attack state. No visible difference from befo
 
 ---
 
-## OPSEC Summary for This Phase
-
-| Step | Command | Tier | Events generated | Key mitigation |
-|------|---------|------|-----------------|----------------|
-| Set fork & run spawnto | `spawnto x64 msedge.exe`  | OPSEC-🟢SAFE | None | Set before any powerpick/execute-assembly |
-| Enumerate service ACLs | `powerpick $lowpriv...` | CAUTION | 4688 (msedge.exe child) | spawnto = context-appropriate process |
-| Set service payload spawnto | `ak-settings spawnto_x64 svchost.exe`  | OPSEC-🟢SAFE | None | Must be set before generating service EXE |
-| Stop service | `sc_stop` | CAUTION | 7036 (stopped) | Consistent with maintenance |
-| Upload payload | `upload` | CAUTION | Defender scan on write | Artifact Kit must be loaded |
-| Record config | `sc_qc`  | OPSEC-🟢SAFE | None | Record before modifying |
-| Reconfigure service | `sc_config` (payload) | CAUTION | 4657 (if auditing on) | Keep window short |
-| Start service | `sc_start` | CAUTION | 7036, 4688 — **no 7045** | ak-settings for process chain |
-| Restore service | `sc_config` (restore) | CAUTION | 4657 | Removes residual artifact |
-| Delete payload | `rm`  | OPSEC-🟢SAFE | File deletion | Removes disk artifact |
-
-**No Event 7045 is generated.** That is the exam-critical distinction. All other events are consistent with a service restart cycle.
-
----
-
 ## What to Do Immediately After SYSTEM Beacon Appears
 
 ```cs

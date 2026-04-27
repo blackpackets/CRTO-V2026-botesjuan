@@ -14,13 +14,6 @@
 * Reuse credentials, impersonating legitimate users, and mimicking normal behavior to **evade antivirus**.  
 * **Bypass** endpoint defenses without alerting defenders.  
 
-## Exam Ready  
-
-* [Zero Point Security Red Team Ops Course Content](https://www.zeropointsecurity.co.uk/course/red-team-ops)  
-* [Exam Instructions](/notes/Exam-Instructions.md)  
-* [CRTO Fast Reference Methodology on Exam Day](/crto-fast-reference-methodology-exam-day.md)  
-* [Command Library](/crto-command-library.md)  
-
 ## Labs & Challenges    
 
 * [Cobalt Strike Prepare & Initial Beacon](/labs/2-Cobalt-Strike-Primer.md)  
@@ -86,6 +79,15 @@
 * [Domain Dominance](/cheatsheets/domain-dominance.md)  
 * [Active Directory Certificate Services ADCS](/cheatsheets/adcs.md)  
 * [Forest & Domain Trusts](/cheatsheets/forest-domain-trusts.md)  
+
+----  
+
+## Exam Context  
+
+* [Zero Point Security Red Team Ops Course Content](https://www.zeropointsecurity.co.uk/course/red-team-ops)  
+* [Exam Instructions](/notes/Exam-Instructions.md)  
+* [CRTO Fast Reference Methodology on Exam Day](/crto-fast-reference-methodology-exam-day.md)  
+* [Command Library](/crto-command-library.md)  
 
 ----  
 

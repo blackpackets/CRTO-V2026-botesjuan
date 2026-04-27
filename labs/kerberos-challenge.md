@@ -1,10 +1,11 @@
-# Kerberos Challenge — Chapter 16
+# Kerberos Challenge  
 
 > **Objective:** Identify and exploit a Kerberos misconfiguration to move laterally to `lon-dc-1` and list the contents of `C$` on the domain controller.
 
-> **Technique:** Constrained delegation with **service name substitution** (`ldap` → `cifs`). `LON-WKSTN-1$` is delegated to `ldap/lon-dc-1` — no CIFS in the delegation list. By substituting the service class in the unencrypted ticket header, the CIFS ticket is accepted by the target because the DC only validates the encrypted PAC, not the SPN prefix.
+> **Technique:** Constrained delegation with **service name substitution** (`ldap` → `cifs`). `LON-WKSTN-1$` is delegated to `ldap/lon-dc-1` — no CIFS in the delegation list.  
+> By substituting the service class in the unencrypted ticket header, the CIFS ticket is accepted by the target because the DC only validates the encrypted PAC, not the SPN prefix.  
 
-> **Differs from the training lab** (`Service-Name-Substitution-Kerberos-lab.md`): the lab used `time/lon-fs-1` → `cifs/lon-fs-1` against `lon-fs-1`. This challenge uses `ldap/lon-dc-1` → `cifs/lon-dc-1` against the domain controller itself.
+>This challenge uses `ldap/lon-dc-1` → `cifs/lon-dc-1` against the domain controller itself.  
 
 ---
 
