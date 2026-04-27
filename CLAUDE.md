@@ -1,6 +1,8 @@
 # CLAUDE.md — CRTO Study Environment
 # Juan | Senior Penetration Tester
 
+@crto-command-library.md
+
 ## BACKUP & RECOVERY
 
 **Primary repo:** https://github.com/botesjuan/crto-study-notes
