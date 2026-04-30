@@ -143,6 +143,8 @@ Click **OK** again.
 | Target ports | `Any`                        |
 | Action       | Proxy SOCKS5 10.0.0.5        |
 
+<img src="/images/Proxification-Rules-target-hosts-network-subnet-proxychains.png">  
+
 Click **OK** → **OK**.
 
 > **Why `/23`?** The CONTOSO lab environment spans `10.10.120.0/23` (covers `.120.x` and `.121.x` subnets). Adjust the CIDR to match the actual target range shown in your lab environment. Routing only the target subnet prevents all Attacker Desktop traffic from going through the beacon.

