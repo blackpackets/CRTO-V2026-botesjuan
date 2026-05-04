@@ -51,7 +51,7 @@ stage {
 post-ex {
     set spawnto_x64 "%windir%\\\\sysnative\\\\werfault.exe";
     set cleanup "true";
-    set pipename "dotnet-diagnostic-#####, ########-####-####-####-############";
+    set pipename "dotnet-diagnostic-#####-##########, mojo.####.####.##########, perflib_perfmon_######";
     set thread_hint "ntdll.dll!RtlUserThreadStart+0x2c";
     set amsi_disable "true";
 
@@ -204,7 +204,7 @@ Go to **Cobalt Strike > Listeners > Add** to create a new listener.
 
 1. Name: `smb`
 1. Payload: Beacon SMB
-1. Pipename: `PSHost.133946823881593750.1234.DefaultAppDomain.powershell`  
+1. Pipename: `dotnet-diagnostic-6845-636768274066975`  
 
 <img src="/images/cs_setup2.png">  
 

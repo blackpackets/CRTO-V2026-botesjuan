@@ -60,7 +60,7 @@ Cobalt Strike > Payloads > Windows Stageless Payload
 
 ```
 Site Management > Host File
-  File:   beacon.dll
+  File:   C:\Payloads\beacon.dll
   URI:    /beacon.dll
   Port:   80
 ```
