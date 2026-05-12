@@ -36,7 +36,7 @@
     > The SPN value (`MSSQLSvc/lon-db-1.contoso.com:1433`) is also what you will use later when requesting Kerberos service tickets — note it now.  
     > `OPSEC-🟢SAFE` LDAP query uses existing domain connection inside the beacon.
 
-4. **[BEACON: User** — 🔍 information about the *lon-db-1* instance and your current privileges:
+4. **BEACON: User** — 🔍 information about the *lon-db-1* instance and your current privileges:
 
     ```
     sql-info lon-db-1
@@ -48,7 +48,7 @@
 
     > **Expected output:** You are authenticated as `pchilds` but only have `public/guest` privileges — not sysadmin. You cannot run CLR or xp_cmdshell with guest privileges. This tells you impersonation is needed.
 
-5. **[BEACON: User** — Find groups that grant sysadmin on the SQL server.
+5. **BEACON: User** — Find groups that grant sysadmin on the SQL server.
 
     ```
     ldapsearch (&(samAccountType=268435456)(|(name=*SQL*)(name=*DB*)(name=*Database*))) --attributes distinguishedName,member
