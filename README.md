@@ -20,9 +20,9 @@
 [Cobalt Strike Setup Lab - 45 Minutes | Attacker, DC, Workstation, Web Server | User: pchilds](/labs/2-Cobalt-Strike-Primer.md)  
 
 2. Custom Malleable C2 Profile and payloads, ThreatCheck binaries.  
-[Defence Evasion Lab](/labs/defence-evasion-lab-Malleable.md)  
+[Defence Evasion Lab - 45 Minutes | Attacker, DC, Workstation, Web Server | User: pchilds](/labs/defence-evasion-lab-Malleable.md)  
 
-3. Enumerate with provided credentials on workstation the applocker, UAC and 🛡️antivirus policies to find bypasses to abuse.  
+3. Enumerate with provided credentials on workstation the AppLocker, UAC and 🛡️antivirus policies to find bypasses to abuse.  
 [AppLocker Challenge - 45 Minutes | Attacker, DC, Workstation | User: pchilds](/labs/applocker-challenge.md)  
 
 3. On initial workstation start powershell as administrator elevated terminal, and get beacon using rundll32 beacon.dll to gain SYSTEM.  
@@ -37,7 +37,7 @@
 7. Jump as user and Spawn beacon on next target  
 [Lateral Movement Lab - 30 Minutes | Attacker, DC, Workstation, Web Server | Users: pchilds, rsteel](/labs/Lateral-Movement-lab.md)  
 
-8. Perform s4u technique on server to impersonate admin user  
+8. Perform S4U technique on server to impersonate admin user  
 [Constrained Delegation Kerberos Lab - 30 Minutes | Attacker, Workstation, DC, Web Server, File Server | Users: pchilds](/labs/Constrained-Delegation-kerberos-lab.md)  
 
 9. On server impersonate user by abusing SQL DB owner permissions with MyProcedure.dll payload  
@@ -46,7 +46,7 @@
 10. On server abuse SeImpersonatePrivilege and connect to localhost  
 [SQL Server Lab - 45 Minutes (Attacker, Workstation, DC, SQL 1, SQL 2 | Users: pchilds, rsteel](labs/SQL-Servers-lab.md)  
 
-11. On Domain Controler with Child Trust use Golden ticket impersonation and spawn beacon  
+11. On Domain Controller with Child Trust use Golden ticket impersonation and spawn beacon  
 [Parent Child Trust Lab - 30 minutes | Attacker, Dublin Workstation, Contoso DC, Dublin DC | Users: DUBLIN\sguest](/labs/Parent-Child-Trusts.md)  
 
 12. On domain controller establish a DNS beacon for resilient backup  
