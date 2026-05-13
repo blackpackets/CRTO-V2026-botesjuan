@@ -16,11 +16,11 @@
 
 ## CRTO Exam Practice with Course Labs
 
-1. Prepare Cobalt Strike
-* [Cobalt Strike Setup Lab - 45 Minutes | Attacker, DC, Workstation, Web Server | User: pchilds](/labs/2-Cobalt-Strike-Primer.md)
+1. Prepare Cobalt Strike  
+[Cobalt Strike Setup Lab - 45 Minutes | Attacker, DC, Workstation, Web Server | User: pchilds](/labs/2-Cobalt-Strike-Primer.md)  
 
 2. Custom Malleable C2 Profile and payloads, ThreatCheck binaries.  
-* [Defence Evasion Lab](/labs/defence-evasion-lab-Malleable.md)  
+[Defence Evasion Lab](/labs/defence-evasion-lab-Malleable.md)  
 
 3. Enumerate with provided credentials on workstation the applocker, UAC and 🛡️antivirus policies to find bypasses to abuse.  
 [AppLocker Challenge - 45 Minutes | Attacker, DC, Workstation | User: pchilds](/labs/applocker-challenge.md)  
@@ -58,7 +58,7 @@
 14. Do Active Directory Discovery  
 [Discovery Lab - 30 Minutes | Attacker, DC, Workstation | User: pchilds, rsteel](/labs/Discovery-lab.md)  
 
-15. Write Flag using XXX Lab exploit technique...  
+15. Write Flag using XXX Lab exploit technique...⬆️  
 
 ## Key CRTO Labs  
 
