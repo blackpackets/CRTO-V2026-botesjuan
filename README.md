@@ -14,48 +14,48 @@
 * Reuse credentials, impersonating legitimate users, and mimicking normal behavior to **evade antivirus**.  
 * **Bypass** endpoint defenses without alerting defenders.  
 
-## CRTO Exam Practice with Course Labs
+## CRTO Exam Practice using Course Labs Simulation  
 
-1. Prepare Cobalt Strike  
-[Cobalt Strike Setup Lab - 45 Minutes | Attacker, DC, Workstation, Web Server | User: pchilds](/labs/2-Cobalt-Strike-Primer.md)  
+1. Setup & Prepare Cobalt Strike  
+[Cobalt Strike Primer Setup Lab - 30 Minutes | Attacker Desktop | User: Attacker](/labs/2-Cobalt-Strike-Primer.md)  
 
-2. Custom Malleable C2 Profile and payloads, ThreatCheck binaries.  
+2. Malleable C2 Profile and payloads, ThreatCheck binaries.  
 [Defence Evasion Lab - 45 Minutes | Attacker, DC, Workstation, Web Server | User: pchilds](/labs/defence-evasion-lab-Malleable.md)  
 
-3. Enumerate with provided credentials on workstation the AppLocker, UAC and 🛡️antivirus policies to find bypasses to abuse.  
+3. Enumerate with provided credentials on workstation the AppLocker, UAC and Antivirus policies.  
 [AppLocker Challenge - 45 Minutes | Attacker, DC, Workstation | User: pchilds](/labs/applocker-challenge.md)  
 
-3. On initial workstation start powershell as administrator elevated terminal, and get beacon using rundll32 beacon.dll to gain SYSTEM.  
+4. On initial workstation use elevated access and get SYSTEM beacon.  
 [Initial Access Lab - 45 Minutes | Attacker, DC, Workstation | Users: pchilds](/labs/Initial-Access-lab.md)  
 
-5. Setup socks proxy pivot channel to other network subnets.  
-[SOCKS Pivoting Tunnels Lab - 30 Minutes | Attacker, Workstation, DC | Users: pchilds, rsteel](/labs/pivoting-SOCKS-lab.md)  
+5. Setup socks proxy to pivot to other network subnets.  
+[SOCKS Lab - 30 Minutes | Attacker, Workstation, DC | Users: pchilds, rsteel](/labs/pivoting-SOCKS-lab.md)  
 
-6. Impersonate user workstation in SYSTEM beacon.  
+6. Impersonate user on workstation using SYSTEM beacon.  
 [User Impersonation Lab - 30 Minutes | Attacker, DC, Workstation, Web Server | Users: pchilds, rsteel](/labs/User-Impersonation-lab.md)  
 
-7. Jump as user and Spawn beacon on next target  
+7. Jump as user and spawn beacon on next target.  
 [Lateral Movement Lab - 30 Minutes | Attacker, DC, Workstation, Web Server | Users: pchilds, rsteel](/labs/Lateral-Movement-lab.md)  
 
-8. Perform S4U technique on server to impersonate admin user  
+8. Perform S4U technique on server to impersonate admin.  
 [Constrained Delegation Kerberos Lab - 30 Minutes | Attacker, Workstation, DC, Web Server, File Server | Users: pchilds](/labs/Constrained-Delegation-kerberos-lab.md)  
 
-9. On server impersonate user by abusing SQL DB owner permissions with MyProcedure.dll payload  
+9. On server impersonate user by abusing SQL DB owner permissions with payload.  
 [SQL Server Lab - 45 Minutes (Attacker, Workstation, DC, SQL 1, SQL 2 | Users: pchilds, rsteel](labs/SQL-Servers-lab.md)  
 
-10. On server abuse SeImpersonatePrivilege and connect to localhost  
+10. On server abuse SeImpersonatePrivilege and connect to localhost.  
 [SQL Server Lab - 45 Minutes (Attacker, Workstation, DC, SQL 1, SQL 2 | Users: pchilds, rsteel](labs/SQL-Servers-lab.md)  
 
-11. On Domain Controller with Child Trust use Golden ticket impersonation and spawn beacon  
+11. With Domain Child Trust use Golden ticket impersonation and spawn beacon.  
 [Parent Child Trust Lab - 30 minutes | Attacker, Dublin Workstation, Contoso DC, Dublin DC | Users: DUBLIN\sguest](/labs/Parent-Child-Trusts.md)  
 
-12. On domain controller establish a DNS beacon for resilient backup  
+12. On Domain Controller establish a DNS beacon for resilience.  
 [Elevated Persistence Lab - 30 Minutes | Attacker, DC, Workstation | User: pchilds](/labs/Elevated-Persistence-lab.md)  
 
-13. On Domain Controller use Golden inter-realm trust key for impersonation to spawn beacon  
+13. On Domain Controller use Golden inter-realm trust key for impersonation to spawn beacon.  
 [Inbound Trust Lab - 30 minutes | Attacker, Contoso Workstation, Partner Jump Server, Contoso DC, Partner DC | Users: PARTNER\vwebber](/labs/Inbound-Trusts-lab.md)  
 
-14. Do Active Directory Discovery  
+14. Do Active Directory Discovery.  
 [Discovery Lab - 30 Minutes | Attacker, DC, Workstation | User: pchilds, rsteel](/labs/Discovery-lab.md)  
 
 15. Write Flag using XXX Lab exploit technique...⬆️  
