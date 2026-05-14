@@ -65,8 +65,6 @@
 * [Persistence lab](/labs/Persistence-lab.md)  
 * [Credential Access Challenge](/labs/credential-access-challenge-commands.md)  
 * [Privilege Escalation lab](/labs/Privilege-Escalation-lab.md)  
-* [Lateral Movement Lab - Jump](/labs/Lateral-Movement-lab.md)  
-* [Persistence lab](/labs/Persistence-lab.md)  
 * [Kerberos - Unconstrained Delegation Lab](/labs/Unconstrained-Delegation-Kerberos-lab.md)  
 * [Kerberos - Constrained Delegation - Service Name Substitution Lab](/labs/Service-Name-Substitution-Kerberos-lab.md)  
 * [Kerberos - S4U2self](/labs/S4U2self-lab.md)  
@@ -106,7 +104,6 @@
 
 * [Zero Point Security Red Team Ops Course Content](https://www.zeropointsecurity.co.uk/course/red-team-ops)  
 * [Exam Instructions](/notes/Exam-Instructions.md)  
-* [CRTO Fast Reference Methodology on Exam Day](/crto-fast-reference-methodology-exam-day.md)  
 * [Command Library](/crto-command-library.md)  
 
 ----  
