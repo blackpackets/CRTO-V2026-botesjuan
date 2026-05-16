@@ -58,7 +58,17 @@
 14. Do Active Directory Discovery.  
 [Discovery Lab - 30 Minutes | Attacker, DC, Workstation | User: pchilds, rsteel](/labs/Discovery-lab.md)  
 
-15. Write Flag using XXX Lab exploit technique...⬆️  
+15. S4U Constrained Delegation initial ticket technique Allowed To Delegate To⬆️
+[Constrained Delegation Kerberos Lab - 30 Minutes | Attacker, Workstation, DC, Web Server, File Server | Users: pchilds](/labs/Constrained-Delegation-kerberos-lab.md)
+
+16. RBCD Write Property  
+[Kerberos - Resource-Based Constrained Delegation Lab](/labs/RBCD-lab.md)  
+
+17. Service Name Substitution S4U altservice flag  
+[Kerberos - Constrained Delegation - Service Name Substitution Lab](/labs/Service-Name-Substitution-Kerberos-lab.md)
+
+18. S4USelf self coercion based TGT capture
+[Kerberos - S4U2self](/labs/S4U2self-lab.md)  
 
 ## Key CRTO Labs  
 
@@ -66,9 +76,6 @@
 * [Credential Access Challenge](/labs/credential-access-challenge-commands.md)  
 * [Privilege Escalation lab](/labs/Privilege-Escalation-lab.md)  
 * [Kerberos - Unconstrained Delegation Lab](/labs/Unconstrained-Delegation-Kerberos-lab.md)  
-* [Kerberos - Constrained Delegation - Service Name Substitution Lab](/labs/Service-Name-Substitution-Kerberos-lab.md)  
-* [Kerberos - S4U2self](/labs/S4U2self-lab.md)  
-* [Kerberos - Resource-Based Constrained Delegation Lab](/labs/RBCD-lab.md)  
 * [Kerberos Challenge](/labs/kerberos-challenge.md)  
 * [ESC1 Misconfigured Client Authentication Templates](/labs/esc1.md)  
 * [ESC8 NTLM Relay to ADCS HTTP Endpoints](/labs/esc8.md)  

