@@ -61,10 +61,10 @@
 15. S4U Constrained Delegation initial ticket technique Allowed To Delegate To⬆️
 [Constrained Delegation Kerberos Lab - 30 Minutes | Attacker, Workstation, DC, Web Server, File Server | Users: pchilds](/labs/Constrained-Delegation-kerberos-lab.md)
 
-16. RBCD Write Property  
-[Kerberos - Resource-Based Constrained Delegation Lab](/labs/RBCD-lab.md)  
+16. RBCD Write Property Allowed To Act On Behalf Of Other Identity  
+[Kerberos - Resource-Based Constrained Delegation Lab - 30 Minutes | Attacker, Workstation, DC, File Server | Users: pchild](/labs/RBCD-lab.md)  
 
-17. Service Name Substitution S4U altservice flag  
+17. Service Name Substitution S4U alt service flag  
 [Kerberos - Constrained Delegation - Service Name Substitution Lab](/labs/Service-Name-Substitution-Kerberos-lab.md)
 
 18. S4USelf self coercion based TGT capture

