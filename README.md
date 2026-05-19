@@ -11,7 +11,8 @@
 * **Red Team Ops** remain ***undetected*** and avoiding security ***triggers***.  
 * Perform **stealthy** techniques that blends into normal activity, maintain a low profile.  
 * Leverage trusted processes and native tools living off the land.  
-* Reuse credentials, impersonating legitimate users, and mimicking normal behavior to **evade antivirus**.  
+* Reuse credentials tokens and tickets to impersonate legitimate users without knowing their passwords.  
+* Mimicking normal behavior to **evade antivirus**.  
 * **Bypass** endpoint defenses without alerting defenders.  
 
 ## CRTO Exam Practice using Course Labs Simulation  
@@ -28,54 +29,54 @@
 4. On initial workstation use elevated access and get SYSTEM beacon.  
 [Initial Access Lab - 45 Minutes | Attacker, DC, Workstation | Users: pchilds](/labs/Initial-Access-lab.md)  
 
-5. Setup socks proxy to pivot to other network subnets.  
-[SOCKS Lab - 30 Minutes | Attacker, Workstation, DC | Users: pchilds, rsteel](/labs/pivoting-SOCKS-lab.md)  
-
-6. Impersonate user on workstation using SYSTEM beacon.  
+5. Impersonate user on workstation using SYSTEM beacon.  
 [User Impersonation Lab - 30 Minutes | Attacker, DC, Workstation, Web Server | Users: pchilds, rsteel](/labs/User-Impersonation-lab.md)  
 
-7. Jump as user and spawn beacon on next target.  
+6. Jump as user and spawn beacon on next target.  
 [Lateral Movement Lab - 30 Minutes | Attacker, DC, Workstation, Web Server | Users: pchilds, rsteel](/labs/Lateral-Movement-lab.md)  
 
-8. Perform S4U technique on server to impersonate admin.  
+7. Perform S4U technique on server to impersonate admin.  
 [Constrained Delegation Kerberos Lab - 30 Minutes | Attacker, Workstation, DC, Web Server, File Server | Users: pchilds](/labs/Constrained-Delegation-kerberos-lab.md)  
 
-9. On server impersonate user by abusing SQL DB owner permissions with payload.  
+8. On server impersonate user by abusing SQL DB owner permissions with payload.  
 [SQL Server Lab - 45 Minutes (Attacker, Workstation, DC, SQL 1, SQL 2 | Users: pchilds, rsteel](labs/SQL-Servers-lab.md)  
 
-10. On server abuse SeImpersonatePrivilege and connect to localhost.  
+9. On server abuse SeImpersonatePrivilege and connect to localhost.  
 [SQL Server Lab - 45 Minutes (Attacker, Workstation, DC, SQL 1, SQL 2 | Users: pchilds, rsteel](labs/SQL-Servers-lab.md)  
 
-11. With Domain Child Trust use Golden ticket impersonation and spawn beacon.  
+10. With Domain Child Trust use Golden ticket impersonation and spawn beacon.  
 [Parent Child Trust Lab - 30 minutes | Attacker, Dublin Workstation, Contoso DC, Dublin DC | Users: DUBLIN\sguest](/labs/Parent-Child-Trusts.md)  
 
-12. On Domain Controller establish a DNS beacon for resilience.  
+11. On Domain Controller establish a DNS beacon for resilience.  
 [Elevated Persistence Lab - 30 Minutes | Attacker, DC, Workstation | User: pchilds](/labs/Elevated-Persistence-lab.md)  
 
-13. On Domain Controller use Golden inter-realm trust key for impersonation to spawn beacon.  
+12. On Domain Controller use Golden inter-realm trust key for impersonation to spawn beacon.  
 [Inbound Trust Lab - 30 minutes | Attacker, Contoso Workstation, Partner Jump Server, Contoso DC, Partner DC | Users: PARTNER\vwebber](/labs/Inbound-Trusts-lab.md)  
 
-14. Do Active Directory Discovery.  
+13. Do Active Directory Discovery.  
 [Discovery Lab - 30 Minutes | Attacker, DC, Workstation | User: pchilds, rsteel](/labs/Discovery-lab.md)  
 
-15. S4U Constrained Delegation initial ticket technique Allowed To Delegate To⬆️
-[Constrained Delegation Kerberos Lab - 30 Minutes | Attacker, Workstation, DC, Web Server, File Server | Users: pchilds](/labs/Constrained-Delegation-kerberos-lab.md)
+15. S4U Constrained Delegation initial ticket technique Allowed To Delegate To  
+[Constrained Delegation Kerberos Lab - 30 Minutes | Attacker, Workstation, DC, Web Server, File Server | Users: pchilds](/labs/Constrained-Delegation-kerberos-lab.md)  
 
-16. RBCD Write Property Allowed To Act On Behalf Of Other Identity  
-[Kerberos - Resource-Based Constrained Delegation Lab - 30 Minutes | Attacker, Workstation, DC, File Server | Users: pchild](/labs/RBCD-lab.md)  
+16. Setup socks proxy to pivot to other network subnets.  
+[SOCKS Lab - 30 Minutes | Attacker, Workstation, DC | Users: pchilds, rsteel](/labs/pivoting-SOCKS-lab.md)  
 
-17. Service Name Substitution S4U alt service flag  
-[Kerberos - Constrained Delegation - Service Name Substitution Lab](/labs/Service-Name-Substitution-Kerberos-lab.md)
+17. RBCD Write Property Allowed To Act On Behalf Of Other Identity  
+[Kerberos Resource-Based Constrained Delegation Lab - 30 Minutes | Attacker, Workstation, DC, File Server | Users: pchilds](/labs/RBCD-lab.md)  
 
-18. S4USelf self coercion based TGT capture
-[Kerberos - S4U2self](/labs/S4U2self-lab.md)  
+18. Service Name Substitution S4U alt service flag  
+[Kerberos Constrained Delegation - Service Name Substitution Lab](/labs/Service-Name-Substitution-Kerberos-lab.md)
+
+19. S4USelf self coercion based TGT capture
+[Kerberos S4U2self](/labs/S4U2self-lab.md)  
 
 ## Key CRTO Labs  
 
-* [Persistence lab](/labs/Persistence-lab.md)  
-* [Credential Access Challenge](/labs/credential-access-challenge-commands.md)  
-* [Privilege Escalation lab](/labs/Privilege-Escalation-lab.md)  
-* [Kerberos - Unconstrained Delegation Lab](/labs/Unconstrained-Delegation-Kerberos-lab.md)  
+* [Persistence lab 🕒 30 Minutes 🖥️ Attacker, Workstation, DC | Users: pchilds](/labs/Persistence-lab.md)  
+* [Credential Access Challenge 🕒 30 Minutes 🖥️ Attacker, Workstation, DC | Users: pchilds](/labs/credential-access-challenge-commands.md)  
+* [Privilege Escalation lab 🕒 30 Minutes 🖥️ Attacker, Workstation, DC | Users: pchilds](/labs/Privilege-Escalation-lab.md)  
+* [Kerberos Unconstrained Delegation Lab 🕒 30 Minutes 🖥️ Attacker, Workstation, DC, Web Server | Users: pchilds](/labs/Unconstrained-Delegation-Kerberos-lab.md)  
 * [Kerberos Challenge](/labs/kerberos-challenge.md)  
 * [ESC1 Misconfigured Client Authentication Templates](/labs/esc1.md)  
 * [ESC8 NTLM Relay to ADCS HTTP Endpoints](/labs/esc8.md)  
