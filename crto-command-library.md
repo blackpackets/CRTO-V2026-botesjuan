@@ -166,7 +166,7 @@ krb_dump /user:rsteel /service:krbtgt
 ```
 krb_dump /luid:3e7 /service:krbtgt
 ```
->In the medium-integrity Beacon running as user, extract their TGT, no SYSTEM needed  
+>In the medium-integrity Beacon running as user, extract user their TGT, no SYSTEM needed  
 ```cs
 krb_tgtdeleg
 ```

