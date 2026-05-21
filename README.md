@@ -74,7 +74,7 @@
 20. Identify and exploit a Kerberos (mis)configuration, and move laterally to domain controller  
 * [Kerberos Challenge 🕒 60 Minutes 🖥️ Attacker, LON-WKSTN-1, LON-DC-1 | Users: pchilds, Administrator, Machine Account 3e7 ](/labs/kerberos-challenge.md)  
 
-## Key CRTO Labs  
+## Key CRTO Labs⚠️  
 
 * [Persistence lab 🕒 30 Minutes 🖥️ Attacker, Workstation, DC | Users: pchilds](/labs/Persistence-lab.md)  
 * [Credential Access Challenge 🕒 30 Minutes 🖥️ Attacker, Workstation, DC | Users: pchilds](/labs/credential-access-challenge-commands.md)  
