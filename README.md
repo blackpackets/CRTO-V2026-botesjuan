@@ -80,7 +80,7 @@
 * [Credential Access Challenge 🕒 30 Minutes 🖥️ Attacker, Workstation, DC | Users: pchilds](/labs/credential-access-challenge-commands.md)  
 * [Privilege Escalation lab 🕒 30 Minutes 🖥️ Attacker, Workstation, DC | Users: pchilds](/labs/Privilege-Escalation-lab.md)  
 * [Kerberos Unconstrained Delegation Lab 🕒 30 Minutes 🖥️ Attacker, Workstation, DC, Web Server | Users: pchilds, dyork](/labs/Unconstrained-Delegation-Kerberos-lab.md)  
-* [ESC1 Misconfigured Client Authentication Templates](/labs/esc1.md)  
+* [ESC1 Misconfigured Client Authentication Templates 🕒 30 Minutes 🖥️ Attacker, Workstation, DC, Certificate Authority | User: Administrator](/labs/esc1.md)  
 * [ESC8 NTLM Relay to ADCS HTTP Endpoints](/labs/esc8.md)  
 * [DPERSIST1 Golden Certificates](/labs/dpersist1.md)  
 * [Outbound Trust Lab](/labs/Outbound-Trusts-lab.md)  
@@ -171,4 +171,4 @@
 
 <img src="/images/RedTeamOperationsPractitioner.png" width=400>  
 
-🇿🇦 13May2026 🇿🇦  
+🇿🇦 12May2026 🇿🇦  
