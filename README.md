@@ -1,6 +1,6 @@
 # CRTO Study Notes 2026  
 
-<img src="/images/crto_study_c2_pathways.png" width=800>  
+<img src="/images/crto_pass.png">  
 
 ## OPSEC ROBOT  
 
@@ -171,4 +171,4 @@
 
 <img src="/images/RedTeamOperationsPractitioner.png" width=400>  
 
-🇿🇦 12May2026 🇿🇦  
+🇿🇦 22May2026 🇿🇦  
