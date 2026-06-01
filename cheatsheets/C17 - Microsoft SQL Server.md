@@ -1,4 +1,4 @@
-# Microsoft SQL Server
+# C17 - Microsoft SQL Server
 
 Attack chain: Enumerate SQL servers → Identify high-privilege principals → Impersonate to gain sysadmin → Execute CLR payload for code execution → Move laterally via SQL links → Escalate via SeImpersonatePrivilege.
 
