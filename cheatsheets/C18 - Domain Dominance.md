@@ -1,4 +1,4 @@
-# Domain Dominance
+# C18 - Domain Dominance
 
 > **Phase context:** Domain Dominance begins after you have obtained Domain Admin (or equivalent) privileges. The goal shifts from *gaining* access to *ensuring you keep it* — extracting secrets that let you re-authenticate as any user, to any service, indefinitely, even if your initial foothold is cleaned up.
 
