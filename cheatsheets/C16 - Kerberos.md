@@ -1,4 +1,4 @@
-# Cheatsheet: Kerberos
+# C16 - Kerberos
 
 * Unconstrained Delegation
 * Constrained Delegation
