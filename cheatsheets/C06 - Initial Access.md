@@ -1,4 +1,4 @@
-# Initial Access
+# C06 - Initial Access
 
 > Assume-breach exam scenario: foothold machine is provided with creds. No pre-running Beacon. Must bypass host-based defences to stage first Beacon. Defender is ON.
 
