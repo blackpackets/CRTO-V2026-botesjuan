@@ -1,4 +1,4 @@
-# Cobalt Strike Primer  
+# C04 - Cobalt Strike Primer  
 
 >Initial prep for Cobalt Strike command & control C2 framework  
 
