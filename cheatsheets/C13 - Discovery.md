@@ -1,4 +1,4 @@
-# Discovery
+# C13 - Discovery
 
 > After **Credential Access** and **User Impersonation**, Discovery determines group membership and local admin access on domain computers.
 > Goal: build attack path map without triggering LDAP detection thresholds.
