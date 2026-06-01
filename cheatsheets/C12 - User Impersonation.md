@@ -1,4 +1,4 @@
-# User Impersonation
+# C12 - User Impersonation
 
 > After **Elevated Persistence** and **Credential Access** phases, User Impersonation assumes the identity of stolen credential material.
 > MITRE: Use Alternate Authentication Material (T1550)
