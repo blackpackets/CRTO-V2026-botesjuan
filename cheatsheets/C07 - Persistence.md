@@ -1,4 +1,4 @@
-# Persistence (User-Land)
+# C07 - Persistence (User-Land)
 
 > User-land only — no admin required. Elevated persistence techniques are in `cheatsheets/elevated-persistence.md`.
 > **Exam critical:** Set persistence before taking a break. Save Progress does not preserve running Beacons or P2P chains.
